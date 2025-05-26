@@ -5,9 +5,41 @@
 pragma solidity >=0.8.18;
 
 import "./LibQuote.sol";
+import "./LibPrivateQuote.sol";
 
 library LibPartyBPositionsActions {
 	using LockedValuesOps for LockedValues;
+
+	/**
+	 * @notice Enables private mode for a quote, encrypting sensitive data
+	 * @param quoteId The ID of the quote to enable private mode for
+	 * @param userAddress The address to encrypt the data for (typically partyA or partyB)
+	 */
+	function enablePrivateMode(uint256 quoteId, address userAddress) internal {
+		LibPrivateQuote.enablePrivateMode(quoteId, userAddress);
+	}
+
+	/**
+	 * @notice Opens a position with optional private variable support
+	 * @param quoteId The ID of the quote
+	 * @param filledAmount The amount to fill
+	 * @param openedPrice The price at which to open
+	 * @param usePrivateMode Whether to use private variables for this position
+	 * @param encryptionAddress The address to encrypt for (if using private mode)
+	 */
+	function openPositionWithPrivacy(
+		uint256 quoteId,
+		uint256 filledAmount,
+		uint256 openedPrice,
+		bool usePrivateMode,
+		address encryptionAddress
+	) internal returns (uint256 currentId) {
+		if (usePrivateMode && !LibPrivateQuote.isPrivateQuote(quoteId)) {
+			enablePrivateMode(quoteId, encryptionAddress);
+		}
+
+		return openPosition(quoteId, filledAmount, openedPrice);
+	}
 
 	function fillCloseRequest(uint256 quoteId, uint256 filledAmount, uint256 closedPrice) internal {
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
@@ -42,11 +74,15 @@ library LibPartyBPositionsActions {
 		address feeCollector = appLayout.affiliateFeeCollector[quote.affiliate] == address(0)
 			? appLayout.defaultFeeCollector
 			: appLayout.affiliateFeeCollector[quote.affiliate];
+
+		// Get quantity from private storage if available, otherwise use public
+		uint256 quoteQuantity = LibPrivateQuote.isPrivateQuote(quoteId) ? LibPrivateQuote.getPrivateQuantity(quoteId) : quote.quantity;
+
 		if (quote.orderType == OrderType.LIMIT) {
-			require(quote.quantity >= filledAmount && filledAmount > 0, "PartyBFacet: Invalid filledAmount");
+			require(quoteQuantity >= filledAmount && filledAmount > 0, "PartyBFacet: Invalid filledAmount");
 			accountLayout.balances[feeCollector] += (filledAmount * quote.requestedOpenPrice * quote.tradingFee) / 1e36;
 		} else {
-			require(quote.quantity == filledAmount, "PartyBFacet: Invalid filledAmount");
+			require(quoteQuantity == filledAmount, "PartyBFacet: Invalid filledAmount");
 			accountLayout.balances[feeCollector] += (filledAmount * quote.marketPrice * quote.tradingFee) / 1e36;
 		}
 		if (quote.positionType == PositionType.LONG) {
@@ -61,7 +97,7 @@ library LibPartyBPositionsActions {
 
 		LibQuote.removeFromPendingQuotes(quote);
 
-		if (quote.quantity == filledAmount) {
+		if (quoteQuantity == filledAmount) {
 			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote);
 			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote);
 			quote.lockedValues.mul(openedPrice).div(quote.requestedOpenPrice);
@@ -83,10 +119,10 @@ library LibPartyBPositionsActions {
 				quoteLayout.partyAPendingQuotes[quote.partyA].push(currentId);
 			}
 			LockedValues memory filledLockedValues = LockedValues(
-				(quote.lockedValues.cva * filledAmount) / quote.quantity,
-				(quote.lockedValues.lf * filledAmount) / quote.quantity,
-				(quote.lockedValues.partyAmm * filledAmount) / quote.quantity,
-				(quote.lockedValues.partyBmm * filledAmount) / quote.quantity
+				(quote.lockedValues.cva * filledAmount) / quoteQuantity,
+				(quote.lockedValues.lf * filledAmount) / quoteQuantity,
+				(quote.lockedValues.partyAmm * filledAmount) / quoteQuantity,
+				(quote.lockedValues.partyBmm * filledAmount) / quoteQuantity
 			);
 			LockedValues memory appliedFilledLockedValues = filledLockedValues;
 			appliedFilledLockedValues = appliedFilledLockedValues.mulMem(openedPrice);
@@ -114,7 +150,7 @@ library LibPartyBPositionsActions {
 				initialOpenedPrice: 0,
 				requestedOpenPrice: quote.requestedOpenPrice,
 				marketPrice: quote.marketPrice,
-				quantity: quote.quantity - filledAmount,
+				quantity: quoteQuantity - filledAmount,
 				closedAmount: 0,
 				lockedValues: LockedValues(0, 0, 0, 0),
 				initialLockedValues: LockedValues(0, 0, 0, 0),
@@ -153,7 +189,16 @@ library LibPartyBPositionsActions {
 			}
 			newQuote.lockedValues = quote.lockedValues.sub(filledLockedValues);
 			newQuote.initialLockedValues = newQuote.lockedValues;
-			quote.quantity = filledAmount;
+
+			// Update quantities in both public and private storage if applicable
+			if (LibPrivateQuote.isPrivateQuote(quoteId)) {
+				LibPrivateQuote.setPrivateQuantity(quoteId, filledAmount, quote.partyA);
+				// Set private quantity for new quote if it was created
+				LibPrivateQuote.setPrivateQuantity(currentId, quoteQuantity - filledAmount, quote.partyA);
+			} else {
+				quote.quantity = filledAmount;
+			}
+
 			quote.lockedValues = appliedFilledLockedValues;
 		}
 		// lock with amount of filledAmount
@@ -161,8 +206,9 @@ library LibPartyBPositionsActions {
 		accountLayout.partyBLockedBalances[quote.partyB][quote.partyA].addQuote(quote);
 
 		// check leverage (is in 18 decimals)
+		uint256 finalQuantity = LibPrivateQuote.isPrivateQuote(quoteId) ? LibPrivateQuote.getPrivateQuantity(quoteId) : quote.quantity;
 		require(
-			(quote.quantity * quote.openedPrice) / quote.lockedValues.totalForPartyA() <= SymbolStorage.layout().symbols[quote.symbolId].maxLeverage,
+			(finalQuantity * quote.openedPrice) / quote.lockedValues.totalForPartyA() <= SymbolStorage.layout().symbols[quote.symbolId].maxLeverage,
 			"PartyBFacet: Leverage is high"
 		);
 
