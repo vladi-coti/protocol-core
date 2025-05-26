@@ -45,7 +45,7 @@ const config: HardhatUserConfig = {
 	networks: {
 		hardhat: {
 			forking: {
-				url: "https://base-mainnet.infura.io/v3/{API_KEY}",
+				url: "https://base-mainnet.infura.io/v3/b16236911a594ad1a9a9b6e161c70ce7",
 				blockNumber: 23478537,
 			},
 			loggingEnabled: false,
@@ -224,7 +224,7 @@ const config: HardhatUserConfig = {
 		tests: "./test",
 	},
 	solidity: {
-		version: "0.8.18",
+		version: "0.8.19",
 		settings: {
 			metadata: {
 				// Not including the metadata hash

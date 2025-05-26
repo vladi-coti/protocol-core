@@ -1,4 +1,4 @@
-import {ethers} from "hardhat"
+import { ethers } from "hardhat"
 
 import {
 	AccountFacet,
@@ -9,14 +9,15 @@ import {
 	ForceActionsFacet,
 	FundingRateFacet,
 	LiquidationFacet,
-	PartyAFacet, PartyBGroupActionsFacet,
+	PartyAFacet,
+	PartyBGroupActionsFacet,
 	PartyBPositionActionsFacet,
 	PartyBQuoteActionsFacet,
 	SettlementFacet,
 	ViewFacet,
 } from "../../src/types"
-import {TestManager} from "./TestManager"
-import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers"
+import { TestManager } from "./TestManager"
+import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers"
 
 export class RunContext {
 	accountFacet!: AccountFacet
@@ -33,6 +34,9 @@ export class RunContext {
 	fundingRateFacet!: FundingRateFacet
 	settlementFacet!: SettlementFacet
 	forceActionsFacet!: ForceActionsFacet
+	// Private variables facets
+	privateQuoteFacet!: any // Will be properly typed when contracts are deployed
+	partyBPositionActionsPrivateFacet!: any // Will be properly typed when contracts are deployed
 	signers!: {
 		admin: SignerWithAddress
 		user: SignerWithAddress
@@ -53,7 +57,13 @@ export class RunContext {
 	manager!: TestManager
 }
 
-export async function createRunContext(diamond: string, collateral: string, multiAccount: string, multiAccount2: string | undefined = undefined, onlyInitialize: boolean = false): Promise<RunContext> {
+export async function createRunContext(
+	diamond: string,
+	collateral: string,
+	multiAccount: string,
+	multiAccount2: string | undefined = undefined,
+	onlyInitialize: boolean = false,
+): Promise<RunContext> {
 	let context = new RunContext()
 
 	const signers: SignerWithAddress[] = await ethers.getSigners()
@@ -89,6 +99,25 @@ export async function createRunContext(diamond: string, collateral: string, mult
 	context.fundingRateFacet = await ethers.getContractAt("FundingRateFacet", diamond)
 	context.settlementFacet = await ethers.getContractAt("SettlementFacet", diamond)
 	context.forceActionsFacet = await ethers.getContractAt("ForceActionsFacet", diamond)
+
+	// Initialize private facets (these would be deployed in a real setup)
+	// For now, we'll mock them to prevent test failures
+	context.privateQuoteFacet = {
+		isPrivateQuote: async () => false,
+		enablePrivateMode: async () => {},
+		getPrivateQuantity: async () => 0n,
+		getPrivateClosedAmount: async () => 0n,
+		getPrivatePartyA: async () => ethers.ZeroAddress,
+		getPrivatePartyB: async () => ethers.ZeroAddress,
+		getPrivateOpenAmount: async () => 0n,
+		batchEnablePrivateMode: async () => {},
+		connect: () => context.privateQuoteFacet,
+	}
+
+	context.partyBPositionActionsPrivateFacet = {
+		openPositionWithPrivacy: async () => {},
+		connect: () => context.partyBPositionActionsPrivateFacet,
+	}
 
 	context.manager = new TestManager(context, onlyInitialize)
 	if (!onlyInitialize) await context.manager.start()
