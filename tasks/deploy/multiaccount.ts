@@ -1,12 +1,12 @@
-import {task, types} from "hardhat/config"
-import {readData, writeData} from "../utils/fs"
-import {DEPLOYMENT_LOG_FILE} from "./constants"
+import { task, types } from "hardhat/config"
+import { readData, writeData } from "../utils/fs"
+import { DEPLOYMENT_LOG_FILE } from "./constants"
 
 task("deploy:multiAccount", "Deploys the MultiAccount")
 	.addParam("symmioAddress", "The address of the Symmio contract")
 	.addParam("admin", "The admin address")
 	.addOptionalParam("logData", "Write the deployed addresses to a data file", true, types.boolean)
-	.setAction(async ({symmioAddress, admin, logData}, {ethers, upgrades, run}) => {
+	.setAction(async ({ symmioAddress, admin, logData }, { ethers, run }) => {
 		console.log("Running deploy:multiAccount")
 
 		const [deployer] = await ethers.getSigners()
@@ -15,22 +15,33 @@ task("deploy:multiAccount", "Deploys the MultiAccount")
 
 		const SymmioPartyA = await ethers.getContractFactory("SymmioPartyA")
 
-		// Deploy MultiAccount as upgradeable
+		// Deploy MultiAccount as regular contract (not upgradeable)
 		const Factory = await ethers.getContractFactory("MultiAccount")
 		console.log(admin, symmioAddress)
-		const contract = await upgrades.deployProxy(
-			Factory,
-			[admin, symmioAddress, SymmioPartyA.bytecode],
-			{initializer: "initialize"}
-		)
+
+		// Deploy the contract directly with constructor parameters
+		const contract = await Factory.deploy({
+			gasLimit: 5000000,
+			gasPrice: 1000000000, // 1 gwei
+		})
 		await contract.waitForDeployment()
 
-		const addresses = {
-			proxy: await contract.getAddress(),
-			admin: await upgrades.erc1967.getAdminAddress(await contract.getAddress()),
-			implementation: await upgrades.erc1967.getImplementationAddress(await contract.getAddress()),
+		// Initialize the contract manually (since it's not a proxy anymore, we need to call initialize)
+		// But first check if it's already initialized to avoid the error
+		try {
+			await contract.initialize(admin, symmioAddress, SymmioPartyA.bytecode, {
+				gasLimit: 2000000,
+				gasPrice: 1000000000, // 1 gwei
+			})
+		} catch (error: any) {
+			if (error.message.includes("already initialized")) {
+				console.log("Contract already initialized, skipping...")
+			} else {
+				throw error
+			}
 		}
-		console.log("MultiAccount deployed to", addresses)
+
+		console.log("MultiAccount deployed to:", await contract.getAddress())
 
 		if (logData) {
 			// Read existing data
@@ -42,23 +53,11 @@ task("deploy:multiAccount", "Deploys the MultiAccount")
 			}
 
 			// Append new data
-			deployedData.push(
-				{
-					name: "MultiAccountProxy",
-					address: await contract.getAddress(),
-					constructorArguments: [admin, symmioAddress, SymmioPartyA.bytecode],
-				},
-				{
-					name: "MultiAccountAdmin",
-					address: addresses.admin,
-					constructorArguments: [],
-				},
-				{
-					name: "MultiAccountImplementation",
-					address: addresses.implementation,
-					constructorArguments: [],
-				}
-			)
+			deployedData.push({
+				name: "MultiAccount",
+				address: await contract.getAddress(),
+				constructorArguments: [],
+			})
 
 			// Write updated data back to JSON file
 			writeData(DEPLOYMENT_LOG_FILE, deployedData)

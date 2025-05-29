@@ -36,7 +36,7 @@ contract PrivateQuoteFacet is Accessibility, Pausable {
 	 * @param quoteId The ID of the quote
 	 * @return The quantity (decrypted if caller is authorized)
 	 */
-	function getPrivateQuantity(uint256 quoteId) external returns (uint256) {
+	function getPrivateQuantity(uint256 quoteId) external view returns (uint256) {
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
 		require(msg.sender == quote.partyA || msg.sender == quote.partyB, "PrivateQuoteFacet: Only quote parties can access private data");
 
@@ -48,7 +48,7 @@ contract PrivateQuoteFacet is Accessibility, Pausable {
 	 * @param quoteId The ID of the quote
 	 * @return The closed amount (decrypted if caller is authorized)
 	 */
-	function getPrivateClosedAmount(uint256 quoteId) external returns (uint256) {
+	function getPrivateClosedAmount(uint256 quoteId) external view returns (uint256) {
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
 		require(msg.sender == quote.partyA || msg.sender == quote.partyB, "PrivateQuoteFacet: Only quote parties can access private data");
 
@@ -60,7 +60,7 @@ contract PrivateQuoteFacet is Accessibility, Pausable {
 	 * @param quoteId The ID of the quote
 	 * @return The partyA address (decrypted if caller is authorized)
 	 */
-	function getPrivatePartyA(uint256 quoteId) external returns (address) {
+	function getPrivatePartyA(uint256 quoteId) external view returns (address) {
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
 		require(msg.sender == quote.partyA || msg.sender == quote.partyB, "PrivateQuoteFacet: Only quote parties can access private data");
 
@@ -72,7 +72,7 @@ contract PrivateQuoteFacet is Accessibility, Pausable {
 	 * @param quoteId The ID of the quote
 	 * @return The partyB address (decrypted if caller is authorized)
 	 */
-	function getPrivatePartyB(uint256 quoteId) external returns (address) {
+	function getPrivatePartyB(uint256 quoteId) external view returns (address) {
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
 		require(msg.sender == quote.partyA || msg.sender == quote.partyB, "PrivateQuoteFacet: Only quote parties can access private data");
 
@@ -84,7 +84,7 @@ contract PrivateQuoteFacet is Accessibility, Pausable {
 	 * @param quoteId The ID of the quote
 	 * @return The open amount
 	 */
-	function getPrivateOpenAmount(uint256 quoteId) external returns (uint256) {
+	function getPrivateOpenAmount(uint256 quoteId) external view returns (uint256) {
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
 		require(msg.sender == quote.partyA || msg.sender == quote.partyB, "PrivateQuoteFacet: Only quote parties can access private data");
 

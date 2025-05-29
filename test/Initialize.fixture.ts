@@ -1,8 +1,20 @@
-import {ethers, run} from "hardhat"
+import { ethers, run } from "hardhat"
 
-import {createRunContext, RunContext} from "./models/RunContext"
-import {decimal} from "./utils/Common"
-import {toUtf8Bytes} from "ethers"
+import { createRunContext, RunContext } from "./models/RunContext"
+import { decimal } from "./utils/Common"
+import { toUtf8Bytes } from "ethers"
+
+// Helper function to get gas options for COTI testnet
+function getGasOptions() {
+	const network = process.env.HARDHAT_NETWORK || "hardhat"
+	if (network === "coti-testnet") {
+		return {
+			gasLimit: 2000000,
+			gasPrice: 1000000000, // 1 gwei
+		}
+	}
+	return {} // Use default gas estimation for other networks
+}
 
 export async function initializeFixture(): Promise<RunContext> {
 	let collateral = await run("deploy:stablecoin")
@@ -15,58 +27,76 @@ export async function initializeFixture(): Promise<RunContext> {
 
 	const multiAccount = await run("deploy:multiAccount", {
 		symmioAddress: await diamond.getAddress(),
-		admin: process.env.ADMIN_PUBLIC_KEY
+		admin: process.env.ADMIN_PUBLIC_KEY,
 	})
 	const multiAccount2 = await run("deploy:multiAccount", {
 		symmioAddress: await diamond.getAddress(),
-		admin: process.env.ADMIN_PUBLIC_KEY
+		admin: process.env.ADMIN_PUBLIC_KEY,
 	})
 
-	let context = await createRunContext(await diamond.getAddress(), await collateral.getAddress(), await multiAccount.getAddress(), await multiAccount2.getAddress(), true)
+	let context = await createRunContext(
+		await diamond.getAddress(),
+		await collateral.getAddress(),
+		await multiAccount.getAddress(),
+		await multiAccount2.getAddress(),
+		true,
+	)
 
-	await context.controlFacet.connect(context.signers.admin).setAdmin(context.signers.admin.getAddress())
+	const gasOptions = getGasOptions()
 
-	await context.controlFacet.connect(context.signers.admin).setCollateral(await context.collateral.getAddress())
+	await context.controlFacet.connect(context.signers.admin).setAdmin(context.signers.admin.getAddress(), gasOptions)
+
+	await context.controlFacet.connect(context.signers.admin).setCollateral(await context.collateral.getAddress(), gasOptions)
 
 	await context.controlFacet
 		.connect(context.signers.admin)
-		.grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("SYMBOL_MANAGER_ROLE")))
-	await context.controlFacet.connect(context.signers.admin).grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("SETTER_ROLE")))
-	await context.controlFacet.connect(context.signers.admin).grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("PAUSER_ROLE")))
+		.grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("SYMBOL_MANAGER_ROLE")), gasOptions)
 	await context.controlFacet
 		.connect(context.signers.admin)
-		.grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("PARTY_B_MANAGER_ROLE")))
+		.grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("SETTER_ROLE")), gasOptions)
 	await context.controlFacet
 		.connect(context.signers.admin)
-		.grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("SUSPENDER_ROLE")))
+		.grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("PAUSER_ROLE")), gasOptions)
 	await context.controlFacet
 		.connect(context.signers.admin)
-		.grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("DISPUTE_ROLE")))
-	context.controlFacet.connect(context.signers.admin).grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("AFFILIATE_MANAGER_ROLE"))),
-		await context.controlFacet.connect(context.signers.admin).grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("LIQUIDATOR_ROLE")))
+		.grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("PARTY_B_MANAGER_ROLE")), gasOptions)
 	await context.controlFacet
 		.connect(context.signers.admin)
-		.grantRole(context.signers.liquidator.getAddress(), ethers.keccak256(toUtf8Bytes("LIQUIDATOR_ROLE")))
+		.grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("SUSPENDER_ROLE")), gasOptions)
+	await context.controlFacet
+		.connect(context.signers.admin)
+		.grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("DISPUTE_ROLE")), gasOptions)
+	context.controlFacet
+		.connect(context.signers.admin)
+		.grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("AFFILIATE_MANAGER_ROLE")), gasOptions),
+		await context.controlFacet
+			.connect(context.signers.admin)
+			.grantRole(context.signers.admin.getAddress(), ethers.keccak256(toUtf8Bytes("LIQUIDATOR_ROLE")), gasOptions)
+	await context.controlFacet
+		.connect(context.signers.admin)
+		.grantRole(context.signers.liquidator.getAddress(), ethers.keccak256(toUtf8Bytes("LIQUIDATOR_ROLE")), gasOptions)
 
-	await context.controlFacet.connect(context.signers.admin).addSymbol("BTCUSDT", decimal(5n), decimal(1n, 16), decimal(1n, 16), decimal(100n), 28800, 900)
+	await context.controlFacet
+		.connect(context.signers.admin)
+		.addSymbol("BTCUSDT", decimal(5n), decimal(1n, 16), decimal(1n, 16), decimal(100n), 28800, 900, gasOptions)
 
-	await context.controlFacet.connect(context.signers.admin).setPendingQuotesValidLength(10)
-	await context.controlFacet.connect(context.signers.admin).setLiquidatorShare(decimal(1n, 17))
-	await context.controlFacet.connect(context.signers.admin).setLiquidationTimeout(100)
-	await context.controlFacet.connect(context.signers.admin).setDeallocateCooldown(120)
-	await context.controlFacet.connect(context.signers.admin).setSettlementCooldown(300)
-	await context.controlFacet.connect(context.signers.admin).setDeallocateDebounceTime(120)
-	await context.controlFacet.connect(context.signers.admin).setBalanceLimitPerUser(decimal(10000n))
-	await context.controlFacet.connect(context.signers.admin).setForceCloseCooldowns(300, 120)
-	await context.controlFacet.connect(context.signers.admin).setForceCancelCooldown(300)
-	await context.controlFacet.connect(context.signers.admin).setForceCancelCloseCooldown(300)
-	await context.controlFacet.connect(context.signers.admin).setInvalidBridgedAmountsPool(context.signers.feeCollector.getAddress())
-	await context.controlFacet.connect(context.signers.admin).registerPartyB(context.signers.hedger.getAddress())
-	await context.controlFacet.connect(context.signers.admin).registerPartyB(context.signers.hedger2.getAddress())
-	await context.controlFacet.connect(context.signers.admin).registerAffiliate(context.multiAccount)
-	await context.controlFacet.connect(context.signers.admin).registerAffiliate(context.multiAccount2!)
-	await context.controlFacet.connect(context.signers.admin).setFeeCollector(context.multiAccount, context.signers.feeCollector.address)
-	await context.controlFacet.connect(context.signers.admin).setFeeCollector(context.multiAccount2!, context.signers.feeCollector2.address)
+	await context.controlFacet.connect(context.signers.admin).setPendingQuotesValidLength(10, gasOptions)
+	await context.controlFacet.connect(context.signers.admin).setLiquidatorShare(decimal(1n, 17), gasOptions)
+	await context.controlFacet.connect(context.signers.admin).setLiquidationTimeout(100, gasOptions)
+	await context.controlFacet.connect(context.signers.admin).setDeallocateCooldown(120, gasOptions)
+	await context.controlFacet.connect(context.signers.admin).setSettlementCooldown(300, gasOptions)
+	await context.controlFacet.connect(context.signers.admin).setDeallocateDebounceTime(120, gasOptions)
+	await context.controlFacet.connect(context.signers.admin).setBalanceLimitPerUser(decimal(10000n), gasOptions)
+	await context.controlFacet.connect(context.signers.admin).setForceCloseCooldowns(300, 120, gasOptions)
+	await context.controlFacet.connect(context.signers.admin).setForceCancelCooldown(300, gasOptions)
+	await context.controlFacet.connect(context.signers.admin).setForceCancelCloseCooldown(300, gasOptions)
+	await context.controlFacet.connect(context.signers.admin).setInvalidBridgedAmountsPool(context.signers.feeCollector.getAddress(), gasOptions)
+	await context.controlFacet.connect(context.signers.admin).registerPartyB(context.signers.hedger.getAddress(), gasOptions)
+	await context.controlFacet.connect(context.signers.admin).registerPartyB(context.signers.hedger2.getAddress(), gasOptions)
+	await context.controlFacet.connect(context.signers.admin).registerAffiliate(context.multiAccount, gasOptions)
+	await context.controlFacet.connect(context.signers.admin).registerAffiliate(context.multiAccount2!, gasOptions)
+	await context.controlFacet.connect(context.signers.admin).setFeeCollector(context.multiAccount, context.signers.feeCollector.address, gasOptions)
+	await context.controlFacet.connect(context.signers.admin).setFeeCollector(context.multiAccount2!, context.signers.feeCollector2.address, gasOptions)
 
 	return context
 }

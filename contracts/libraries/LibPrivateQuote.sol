@@ -28,7 +28,7 @@ library LibPrivateQuote {
 	 * @param quoteId The ID of the quote
 	 * @return The decrypted quantity
 	 */
-	function getPrivateQuantity(uint256 quoteId) internal returns (uint256) {
+	function getPrivateQuantity(uint256 quoteId) internal view returns (uint256) {
 		PrivateQuoteStorage.Layout storage layout = PrivateQuoteStorage.layout();
 
 		if (ctUint64.unwrap(layout.privateQuantities[quoteId].ciphertext) == 0) {
@@ -58,7 +58,7 @@ library LibPrivateQuote {
 	 * @param quoteId The ID of the quote
 	 * @return The decrypted closed amount
 	 */
-	function getPrivateClosedAmount(uint256 quoteId) internal returns (uint256) {
+	function getPrivateClosedAmount(uint256 quoteId) internal view returns (uint256) {
 		PrivateQuoteStorage.Layout storage layout = PrivateQuoteStorage.layout();
 
 		if (ctUint64.unwrap(layout.privateClosedAmounts[quoteId].ciphertext) == 0) {
@@ -93,7 +93,7 @@ library LibPrivateQuote {
 	 * @param quoteId The ID of the quote
 	 * @return The decrypted partyA address
 	 */
-	function getPrivatePartyA(uint256 quoteId) internal returns (address) {
+	function getPrivatePartyA(uint256 quoteId) internal view returns (address) {
 		PrivateQuoteStorage.Layout storage layout = PrivateQuoteStorage.layout();
 
 		if (ctUint64.unwrap(layout.privatePartyA[quoteId].ciphertext) == 0) {
@@ -110,7 +110,7 @@ library LibPrivateQuote {
 	 * @param quoteId The ID of the quote
 	 * @return The decrypted partyB address
 	 */
-	function getPrivatePartyB(uint256 quoteId) internal returns (address) {
+	function getPrivatePartyB(uint256 quoteId) internal view returns (address) {
 		PrivateQuoteStorage.Layout storage layout = PrivateQuoteStorage.layout();
 
 		if (ctUint64.unwrap(layout.privatePartyB[quoteId].ciphertext) == 0) {
@@ -137,7 +137,7 @@ library LibPrivateQuote {
 	 * @param quoteId The ID of the quote
 	 * @return The open amount
 	 */
-	function quoteOpenAmount(uint256 quoteId) internal returns (uint256) {
+	function quoteOpenAmount(uint256 quoteId) internal view returns (uint256) {
 		uint256 quantity = getPrivateQuantity(quoteId);
 		uint256 closedAmount = getPrivateClosedAmount(quoteId);
 		return quantity - closedAmount;

@@ -1,18 +1,21 @@
-import {task, types} from "hardhat/config"
-import {readData, writeData} from "../utils/fs"
-import {DEPLOYMENT_LOG_FILE} from "./constants"
-import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers"
+import { task, types } from "hardhat/config"
+import { readData, writeData } from "../utils/fs"
+import { DEPLOYMENT_LOG_FILE } from "./constants"
+import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers"
 
 task("deploy:multicall", "Deploys the Multicall")
 	.addOptionalParam("logData", "Write the deployed addresses to a data file", true, types.boolean)
-	.setAction(async ({logData}, {ethers, run}) => {
+	.setAction(async ({ logData }, { ethers, run }) => {
 		console.log("Running deploy:multicall")
 
 		const signers: SignerWithAddress[] = await ethers.getSigners()
 		const owner: SignerWithAddress = signers[0]
 
 		const Factory = await ethers.getContractFactory("Multicall3")
-		const multicall = await Factory.connect(owner).deploy()
+		const multicall = await Factory.connect(owner).deploy({
+			gasLimit: 2000000,
+			gasPrice: 1000000000, // 1 gwei
+		})
 		await multicall.waitForDeployment()
 
 		await multicall.deploymentTransaction()!.wait()

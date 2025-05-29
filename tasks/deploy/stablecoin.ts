@@ -1,11 +1,11 @@
-import {task, types} from "hardhat/config"
-import {readData, writeData} from "../utils/fs"
-import {DEPLOYMENT_LOG_FILE} from "./constants"
-import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers"
+import { task, types } from "hardhat/config"
+import { readData, writeData } from "../utils/fs"
+import { DEPLOYMENT_LOG_FILE } from "./constants"
+import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers"
 
 task("deploy:stablecoin", "Deploys the FakeStablecoin")
 	.addOptionalParam("logData", "Write the deployed addresses to a data file", true, types.boolean)
-	.setAction(async ({logData}, {ethers, run}) => {
+	.setAction(async ({ logData }, { ethers, run }) => {
 		console.log("Running deploy:stablecoin")
 
 		const signers: SignerWithAddress[] = await ethers.getSigners()
@@ -13,7 +13,10 @@ task("deploy:stablecoin", "Deploys the FakeStablecoin")
 		console.log("using address: " + JSON.stringify(owner))
 
 		const StablecoinFactory = await ethers.getContractFactory("FakeStablecoin")
-		const stablecoin = await StablecoinFactory.connect(owner).deploy()
+		const stablecoin = await StablecoinFactory.connect(owner).deploy({
+			gasLimit: 2000000,
+			gasPrice: 1000000000, // 1 gwei
+		})
 		await stablecoin.waitForDeployment()
 
 		await stablecoin.deploymentTransaction()!.wait()
@@ -24,8 +27,7 @@ task("deploy:stablecoin", "Deploys the FakeStablecoin")
 			let deployedData = []
 			try {
 				deployedData = readData(DEPLOYMENT_LOG_FILE)
-			} catch (err) {
-			}
+			} catch (err) {}
 
 			// Append new data
 			deployedData.push({

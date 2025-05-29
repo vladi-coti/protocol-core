@@ -43,6 +43,27 @@ const config: HardhatUserConfig = {
 		src: "./contracts",
 	},
 	networks: {
+		"coti-testnet": {
+			url: "https://testnet.coti.io/rpc",
+			chainId: 7082400,
+			accounts: [privateKey],
+			gas: 8000000,
+			gasPrice: 1000000000, // 1 gwei
+			gasMultiplier: 1.2,
+			blockGasLimit: 30000000,
+			timeout: 60000,
+			allowUnlimitedContractSize: true,
+			initialBaseFeePerGas: 1000000000, // 1 gwei
+			hardfork: "london",
+		},
+		"coti-mainnet": {
+			url: "https://mainnet.coti.io/rpc",
+			chainId: 2632500,
+			accounts: [privateKey],
+			gas: 8000000,
+			gasPrice: 1000000000, // 1 gwei
+			timeout: 60000,
+		},
 		hardhat: {
 			forking: {
 				url: "https://base-mainnet.infura.io/v3/b16236911a594ad1a9a9b6e161c70ce7",
@@ -212,8 +233,8 @@ const config: HardhatUserConfig = {
 				chainId: 146,
 				urls: {
 					apiURL: "https://api.sonicscan.org/api",
-					browserURL: "https://sonicscan.org"
-				}
+					browserURL: "https://sonicscan.org",
+				},
 			},
 		],
 	},

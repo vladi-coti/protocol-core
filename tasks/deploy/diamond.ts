@@ -1,16 +1,16 @@
-import {task, types} from "hardhat/config"
+import { task, types } from "hardhat/config"
 
-import {FacetCutAction, getSelectors} from "../utils/diamondCut"
-import {writeData} from "../utils/fs"
-import {generateGasReport} from "../utils/gas"
-import {DEPLOYMENT_LOG_FILE, FacetNames} from "./constants"
-import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers"
-import {ContractTransactionReceipt} from "ethers"
+import { FacetCutAction, getSelectors } from "../utils/diamondCut"
+import { writeData } from "../utils/fs"
+import { generateGasReport } from "../utils/gas"
+import { DEPLOYMENT_LOG_FILE, FacetNames } from "./constants"
+import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers"
+import { ContractTransactionReceipt } from "ethers"
 
 task("deploy:diamond", "Deploys the Diamond contract")
 	.addParam("logData", "Write the deployed addresses to a data file", true, types.boolean)
 	.addParam("reportGas", "Report gas consumption and costs", true, types.boolean)
-	.setAction(async ({logData, reportGas}, {ethers}) => {
+	.setAction(async ({ logData, reportGas }, { ethers }) => {
 		const signers: SignerWithAddress[] = await ethers.getSigners()
 		const owner: SignerWithAddress = signers[0]
 		let totalGasUsed = BigInt(0)
@@ -18,7 +18,10 @@ task("deploy:diamond", "Deploys the Diamond contract")
 
 		// Deploy DiamondCutFacet
 		const DiamondCutFacetFactory = await ethers.getContractFactory("DiamondCutFacet")
-		const diamondCutFacet = await DiamondCutFacetFactory.deploy()
+		const diamondCutFacet = await DiamondCutFacetFactory.deploy({
+			gasLimit: 3000000,
+			gasPrice: 1000000000, // 1 gwei
+		})
 		await diamondCutFacet.waitForDeployment()
 		receipt = (await diamondCutFacet.deploymentTransaction()!.wait())!
 		totalGasUsed = totalGasUsed + BigInt(receipt.gasUsed.toString())
@@ -26,7 +29,10 @@ task("deploy:diamond", "Deploys the Diamond contract")
 
 		// Deploy Diamond
 		const DiamondFactory = await ethers.getContractFactory("Diamond")
-		const diamond = await DiamondFactory.deploy(owner.address, await diamondCutFacet.getAddress())
+		const diamond = await DiamondFactory.deploy(owner.address, await diamondCutFacet.getAddress(), {
+			gasLimit: 3000000,
+			gasPrice: 1000000000, // 1 gwei
+		})
 		await diamond.waitForDeployment()
 		receipt = (await diamond.deploymentTransaction()!.wait())!
 		totalGasUsed = totalGasUsed + BigInt(receipt.gasUsed.toString())
@@ -34,7 +40,10 @@ task("deploy:diamond", "Deploys the Diamond contract")
 
 		// Deploy DiamondInit
 		const DiamondInit = await ethers.getContractFactory("DiamondInit")
-		const diamondInit = await DiamondInit.deploy()
+		const diamondInit = await DiamondInit.deploy({
+			gasLimit: 3000000,
+			gasPrice: 1000000000, // 1 gwei
+		})
 		await diamondInit.waitForDeployment()
 		receipt = (await diamondInit.deploymentTransaction()!.wait())!
 		totalGasUsed = totalGasUsed + BigInt(receipt.gasUsed.toString())
@@ -42,20 +51,23 @@ task("deploy:diamond", "Deploys the Diamond contract")
 
 		// Deploy Facets
 		const cut: Array<{
-			facetAddress: string;
-			action: FacetCutAction;
-			functionSelectors: string[];
+			facetAddress: string
+			action: FacetCutAction
+			functionSelectors: string[]
 		}> = []
 
 		const deployedFacets: Array<{
-			name: string;
-			address: string;
+			name: string
+			address: string
 		}> = []
 
 		console.log("Deploying facets: ", FacetNames)
 		for (const facetName of FacetNames) {
 			const FacetFactory = await ethers.getContractFactory(facetName)
-			const facet = await FacetFactory.deploy()
+			const facet = await FacetFactory.deploy({
+				gasLimit: 5000000,
+				gasPrice: 1000000000, // 1 gwei
+			})
 			await facet.waitForDeployment()
 			receipt = (await facet.deploymentTransaction()!.wait())!
 			totalGasUsed = totalGasUsed + BigInt(receipt.gasUsed.toString())
@@ -77,7 +89,10 @@ task("deploy:diamond", "Deploys the Diamond contract")
 
 		// Call Initializer
 		const call = diamondInit.interface.encodeFunctionData("init")
-		const tx = await diamondCut.diamondCut(cut, await diamondInit.getAddress(), call)
+		const tx = await diamondCut.diamondCut(cut, await diamondInit.getAddress(), call, {
+			gasLimit: 8000000,
+			gasPrice: 1000000000, // 1 gwei
+		})
 		receipt = (await tx.wait())!
 		totalGasUsed = totalGasUsed + BigInt(receipt.gasUsed.toString())
 
