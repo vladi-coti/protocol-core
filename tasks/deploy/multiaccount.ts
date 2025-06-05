@@ -6,7 +6,8 @@ task("deploy:multiAccount", "Deploys the MultiAccount")
 	.addParam("symmioAddress", "The address of the Symmio contract")
 	.addParam("admin", "The admin address")
 	.addOptionalParam("logData", "Write the deployed addresses to a data file", true, types.boolean)
-	.setAction(async ({ symmioAddress, admin, logData }, { ethers, run }) => {
+	.addOptionalParam("gasPriceMultiplier", "Gas price multiplier for this deployment", 1.0, types.float)
+	.setAction(async ({ symmioAddress, admin, logData, gasPriceMultiplier }, { ethers, run }) => {
 		console.log("Running deploy:multiAccount")
 
 		const [deployer] = await ethers.getSigners()
@@ -19,10 +20,14 @@ task("deploy:multiAccount", "Deploys the MultiAccount")
 		const Factory = await ethers.getContractFactory("MultiAccount")
 		console.log(admin, symmioAddress)
 
+		// Calculate gas price with multiplier
+		const baseGasPrice = 1000000000 // 1 gwei
+		const gasPrice = Math.floor(baseGasPrice * gasPriceMultiplier)
+
 		// Deploy the contract directly with constructor parameters
 		const contract = await Factory.deploy({
 			gasLimit: 5000000,
-			gasPrice: 1000000000, // 1 gwei
+			gasPrice: gasPrice,
 		})
 		await contract.waitForDeployment()
 
@@ -31,7 +36,7 @@ task("deploy:multiAccount", "Deploys the MultiAccount")
 		try {
 			await contract.initialize(admin, symmioAddress, SymmioPartyA.bytecode, {
 				gasLimit: 2000000,
-				gasPrice: 1000000000, // 1 gwei
+				gasPrice: gasPrice,
 			})
 		} catch (error: any) {
 			if (error.message.includes("already initialized")) {

@@ -1,10 +1,10 @@
-import {loadFixture} from "@nomicfoundation/hardhat-network-helpers"
-import {assert, expect} from "chai"
-import {ethers} from "hardhat"
+import { assert, expect } from "chai"
+import { ethers } from "hardhat"
 
-import {FacetCutAction, getSelectors} from "../tasks/utils/diamondCut"
-import {initializeFixture} from "./Initialize.fixture"
-import {RunContext} from "./models/RunContext"
+import { FacetCutAction, getSelectors } from "../tasks/utils/diamondCut"
+import { initializeFixture } from "./Initialize.fixture"
+import { RunContext } from "./models/RunContext"
+import { loadFixtureCompatible } from "./utils/testHelpers"
 
 function haveSameMembers(array1: any[], array2: any[]) {
 	if (array1.length !== array2.length) {
@@ -33,7 +33,7 @@ export function shouldBehaveLikeDiamond(): void {
 	let result: string[] = []
 
 	before(async function () {
-		this.context = await loadFixture(initializeFixture)
+		this.context = await loadFixtureCompatible(initializeFixture)
 	})
 
 	it("should have 14 facets", async function () {
@@ -68,7 +68,7 @@ export function shouldBehaveLikeDiamond(): void {
 			],
 			ethers.ZeroAddress,
 			"0x",
-			{gasLimit: 800000},
+			{ gasLimit: 800000 },
 		)
 		const receipt = await tx.wait()
 
@@ -95,7 +95,7 @@ export function shouldBehaveLikeDiamond(): void {
 			],
 			ethers.ZeroAddress,
 			"0x",
-			{gasLimit: 800000},
+			{ gasLimit: 800000 },
 		)
 		const receipt = await tx.wait()
 

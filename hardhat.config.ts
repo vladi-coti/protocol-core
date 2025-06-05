@@ -46,14 +46,14 @@ const config: HardhatUserConfig = {
 		"coti-testnet": {
 			url: "https://testnet.coti.io/rpc",
 			chainId: 7082400,
-			accounts: [privateKey],
+			accounts: privateKeyList,
 			gas: 8000000,
-			gasPrice: 1000000000, // 1 gwei
-			gasMultiplier: 1.2,
+			gasPrice: 1200000000, // 1.2 gwei - slightly higher
+			gasMultiplier: 1.5, // Increased multiplier
 			blockGasLimit: 30000000,
-			timeout: 60000,
+			timeout: 120000, // Increased timeout to 2 minutes
 			allowUnlimitedContractSize: true,
-			initialBaseFeePerGas: 1000000000, // 1 gwei
+			initialBaseFeePerGas: 1200000000, // 1.2 gwei
 			hardfork: "london",
 		},
 		"coti-mainnet": {
