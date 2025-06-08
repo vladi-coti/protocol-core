@@ -1,4 +1,3 @@
-import { time } from "@nomicfoundation/hardhat-network-helpers"
 import { expect } from "chai"
 
 import { initializeFixture } from "./Initialize.fixture"
@@ -8,12 +7,12 @@ import { getDummySingleUpnlSig } from "./utils/SignatureUtils"
 import { Hedger } from "./models/Hedger"
 import { decimal, unDecimal } from "./utils/Common"
 import { ethers } from "hardhat"
-import { loadFixtureCompatible } from "./utils/testHelpers"
+import { loadFixtureCompatible, timeCompatible } from "./utils/testHelpers"
 
 export function shouldBehaveLikeAccountFacet(): void {
 	let context: RunContext, user: User, user2: User, hedger: Hedger
 
-	beforeEach(async function () {
+	before(async function () {
 		context = await loadFixtureCompatible(initializeFixture)
 		user = new User(context, context.signers.user)
 		await user.setup()
@@ -164,7 +163,7 @@ export function shouldBehaveLikeAccountFacet(): void {
 				await expect(context.accountFacet.connect(context.signers.user).deallocate("25", await getDummySingleUpnlSig())).to.be.revertedWith(
 					"AccountFacet: Too many deallocate in a short window",
 				)
-				await time.increase((await context.viewFacet.getDeallocateDebounceTime()) + 1n)
+				await timeCompatible.increase((await context.viewFacet.getDeallocateDebounceTime()) + 1n)
 				await context.accountFacet.connect(context.signers.user).deallocate("25", await getDummySingleUpnlSig())
 				expect(await context.viewFacet.balanceOf(userAddress)).to.equal("50")
 			})
@@ -176,7 +175,7 @@ export function shouldBehaveLikeAccountFacet(): void {
 
 			it("Should withdraw after cooldown", async function () {
 				await context.accountFacet.connect(context.signers.user).deallocate("50", await getDummySingleUpnlSig())
-				await time.increase(1000)
+				await timeCompatible.increase(1000)
 				await context.accountFacet.connect(context.signers.user).withdraw("50")
 			})
 		})

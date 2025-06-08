@@ -1,6 +1,7 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers"
 import { ethers } from "hardhat"
 import { RunContext } from "../models/RunContext"
+import { time } from "@nomicfoundation/hardhat-network-helpers"
 
 /**
  * Helper function to load fixture compatible with both local and testnet environments
@@ -15,7 +16,10 @@ export async function loadFixtureCompatible(fixtureFunction: () => Promise<RunCo
 	} else {
 		// For testnets, just call the fixture function directly
 		console.log(`Running on testnet (chainId: ${network.chainId}), initializing without snapshots...`)
-		return await fixtureFunction()
+		const context = await fixtureFunction()
+
+		// Wrap contract instances with gas-aware versions for testnets
+		return wrapContractsWithGasOptions(context)
 	}
 }
 
@@ -41,4 +45,190 @@ export async function getNetworkGasOptions() {
 	}
 
 	return {} // Use default gas estimation for other networks
+}
+
+/**
+ * Check if we're on a testnet that needs explicit gas options
+ */
+async function isTestnetRequiringGas(): Promise<boolean> {
+	const network = await ethers.provider.getNetwork()
+	return network.chainId === 7082400n // COTI testnet
+}
+
+/**
+ * Time helper compatible with both local and testnet environments
+ */
+export const timeCompatible = {
+	async increase(seconds: bigint | number): Promise<void> {
+		const network = await ethers.provider.getNetwork()
+
+		if (network.chainId === 31337n) {
+			// Use hardhat-network-helpers for local network
+			await time.increase(seconds)
+		} else {
+			// For testnets, just wait the actual time (much shorter for testing)
+			const waitTime = Math.min(Number(seconds) * 10, 5000) // Max 5 seconds wait
+			console.log(`Waiting ${waitTime}ms to simulate time increase on testnet...`)
+			await new Promise(resolve => setTimeout(resolve, waitTime))
+		}
+	},
+}
+
+/**
+ * Wraps contract instances to automatically apply gas options on testnets
+ */
+function wrapContractsWithGasOptions(context: RunContext): RunContext {
+	const wrappedContext = context as any
+	const contractNames = [
+		"accountFacet",
+		"controlFacet",
+		"diamondCutFacet",
+		"diamondLoupeFacet",
+		"liquidationFacet",
+		"partyAFacet",
+		"bridgeFacet",
+		"viewFacet",
+		"fundingRateFacet",
+		"forceActionsFacet",
+		"settlementFacet",
+		"partyBPositionActionsFacet",
+		"partyBQuoteActionsFacet",
+		"partyBGroupActionsFacet",
+	]
+
+	contractNames.forEach(contractName => {
+		if (wrappedContext[contractName]) {
+			wrappedContext[contractName] = wrapContractWithGasOptions(wrappedContext[contractName])
+		}
+	})
+
+	return context
+}
+
+/**
+ * Wraps a contract instance to automatically apply gas options to method calls
+ */
+function wrapContractWithGasOptions(contract: any): any {
+	return new Proxy(contract, {
+		get(target, prop) {
+			const originalValue = target[prop]
+
+			// If it's a function and not a read-only method, wrap it
+			if (typeof originalValue === "function" && !isReadOnlyMethod(prop as string)) {
+				return function (...args: any[]) {
+					// Call the original connect method if it's connect
+					if (prop === "connect") {
+						const connectedContract = originalValue.apply(target, args)
+						return wrapContractWithGasOptions(connectedContract)
+					}
+
+					// For other methods, add gas options
+					return addGasOptionsToCall(originalValue, target, args)
+				}
+			}
+
+			return originalValue
+		},
+	})
+}
+
+/**
+ * Checks if a method is read-only (doesn't need gas options)
+ */
+function isReadOnlyMethod(methodName: string): boolean {
+	const readOnlyMethods = [
+		"getAddress",
+		"interface",
+		"provider",
+		"runner",
+		"target",
+		"balanceOf",
+		"getQuote",
+		"facetAddresses",
+		"facetFunctionSelectors",
+		"getBalanceInfo",
+		"balanceInfoOfPartyA",
+		"balanceInfoOfPartyB",
+		"allocatedBalanceOfPartyA",
+		"allocatedBalanceOfPartyB",
+	]
+	return readOnlyMethods.includes(methodName) || methodName.startsWith("get") || methodName.startsWith("view")
+}
+
+/**
+ * Manually send transaction using populateTransaction to bypass gas estimation
+ */
+async function sendTestnetTransaction(contract: any, methodName: string, args: any[]): Promise<any> {
+	const gasOptions = await getNetworkGasOptions()
+
+	try {
+		// Use populateTransaction which properly handles argument encoding
+		const populatedTx = await contract[methodName].populateTransaction(...args)
+
+		// Create transaction manually to completely bypass gas estimation
+		const tx = {
+			to: populatedTx.to,
+			data: populatedTx.data,
+			value: populatedTx.value || 0,
+			...gasOptions,
+		}
+
+		// Send directly through signer to avoid any ethers gas estimation
+		const signer = contract.runner
+		const sentTx = await signer.sendTransaction(tx)
+
+		// Wait for mining with delay to avoid "pending block" issues
+		await new Promise(resolve => setTimeout(resolve, 500))
+		return await sentTx.wait()
+	} catch (error: any) {
+		console.warn(`Manual transaction failed for ${methodName}:`, error.message)
+		throw error
+	}
+}
+
+/**
+ * Adds gas options to a contract method call and waits for mining on testnets
+ */
+async function addGasOptionsToCall(originalMethod: any, target: any, args: any[]): Promise<any> {
+	try {
+		const needsGasOptions = await isTestnetRequiringGas()
+
+		if (needsGasOptions) {
+			// For read-only methods on testnets, just call normally
+			const methodName = originalMethod.name || originalMethod.fragment?.name || "unknown"
+			if (isReadOnlyMethod(methodName)) {
+				return originalMethod.apply(target, args)
+			}
+
+			// TEMPORARY: Try original method with gas options first to see if it works
+			try {
+				const gasOptions = await getNetworkGasOptions()
+				const result = await originalMethod.apply(target, [...args, gasOptions])
+				// If it's a transaction, wait for it to be mined
+				if (result && typeof result.wait === "function") {
+					await new Promise(resolve => setTimeout(resolve, 500))
+					return await result.wait()
+				}
+				return result
+			} catch (gasError: any) {
+				console.warn(`Standard method with gas options failed for ${methodName}, trying manual transaction:`, gasError.message)
+				// Fall back to manual transaction sending to completely avoid gas estimation
+				if (target.interface && methodName !== "unknown") {
+					return await sendTestnetTransaction(target, methodName, args)
+				}
+			}
+		}
+
+		// For local networks, use original method without modifications
+		return originalMethod.apply(target, args)
+	} catch (error: any) {
+		console.warn(`Gas options wrapper failed for method ${originalMethod.name || "unknown"}:`, error.message)
+		// For testnets, don't fall back as it will cause gas estimation issues
+		const needsGasOptions = await isTestnetRequiringGas()
+		if (needsGasOptions) {
+			throw error
+		}
+		// Only fall back for local networks
+		return originalMethod.apply(target, args)
+	}
 }
