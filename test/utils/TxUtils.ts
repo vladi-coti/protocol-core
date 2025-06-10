@@ -9,9 +9,6 @@ export async function runTx(prm: Promise<any>): Promise<any> {
 		// Get the transaction promise
 		const tx = await prm
 
-		// For testnets, add a small delay before waiting to avoid "pending block" issues
-		await new Promise(resolve => setTimeout(resolve, 500))
-
 		// Wait for the transaction with longer timeout for testnets
 		return await tx.wait()
 	} else {

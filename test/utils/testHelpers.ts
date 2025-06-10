@@ -177,8 +177,6 @@ async function sendTestnetTransaction(contract: any, methodName: string, args: a
 		const signer = contract.runner
 		const sentTx = await signer.sendTransaction(tx)
 
-		// Wait for mining with delay to avoid "pending block" issues
-		await new Promise(resolve => setTimeout(resolve, 500))
 		return await sentTx.wait()
 	} catch (error: any) {
 		console.warn(`Manual transaction failed for ${methodName}:`, error.message)
@@ -192,18 +190,40 @@ async function sendTestnetTransaction(contract: any, methodName: string, args: a
 async function addGasOptionsToCall(originalMethod: any, target: any, args: any[]): Promise<any> {
 	try {
 		const needsGasOptions = await isTestnetRequiringGas()
+		const methodName = originalMethod.name || originalMethod.fragment?.name || "unknown"
+		console.log(`[DEBUG] Method: ${methodName}`)
+
+		// Await any Promise arguments before proceeding
+		const resolvedArgs = await Promise.all(
+			args.map(async arg => {
+				if (arg instanceof Promise) {
+					return await arg
+				}
+				return arg
+			}),
+		)
+
+		console.log(`[DEBUG] Arguments:`, JSON.stringify(resolvedArgs, null, 2))
+		console.log(`[DEBUG] Target address:`, target.target)
 
 		if (needsGasOptions) {
 			// For read-only methods on testnets, just call normally
-			const methodName = originalMethod.name || originalMethod.fragment?.name || "unknown"
 			if (isReadOnlyMethod(methodName)) {
-				return originalMethod.apply(target, args)
+				console.log(`[DEBUG] Read-only method, calling directly`)
+				return originalMethod.apply(target, resolvedArgs)
 			}
+			console.log(`[DEBUG] Adding gas options for ${methodName}`)
 
 			// TEMPORARY: Try original method with gas options first to see if it works
 			try {
 				const gasOptions = await getNetworkGasOptions()
-				const result = await originalMethod.apply(target, [...args, gasOptions])
+				console.log(`[DEBUG] Gas options:`, JSON.stringify(gasOptions, null, 2))
+
+				// Log the populated transaction before sending
+				const populatedTx = await originalMethod.populateTransaction(...resolvedArgs)
+				console.log(`[DEBUG] Populated transaction:`, JSON.stringify(populatedTx, null, 2))
+
+				const result = await originalMethod.apply(target, [...resolvedArgs, gasOptions])
 				// If it's a transaction, wait for it to be mined
 				if (result && typeof result.wait === "function") {
 					await new Promise(resolve => setTimeout(resolve, 500))
@@ -211,18 +231,20 @@ async function addGasOptionsToCall(originalMethod: any, target: any, args: any[]
 				}
 				return result
 			} catch (gasError: any) {
-				console.warn(`Standard method with gas options failed for ${methodName}, trying manual transaction:`, gasError.message)
+				console.warn(`[DEBUG] Standard method with gas options failed for ${methodName}:`, gasError.message)
+				console.warn(`[DEBUG] Error details:`, JSON.stringify(gasError, null, 2))
 				// Fall back to manual transaction sending to completely avoid gas estimation
 				if (target.interface && methodName !== "unknown") {
-					return await sendTestnetTransaction(target, methodName, args)
+					return await sendTestnetTransaction(target, methodName, resolvedArgs)
 				}
 			}
 		}
 
 		// For local networks, use original method without modifications
-		return originalMethod.apply(target, args)
+		return originalMethod.apply(target, resolvedArgs)
 	} catch (error: any) {
-		console.warn(`Gas options wrapper failed for method ${originalMethod.name || "unknown"}:`, error.message)
+		console.warn(`[DEBUG] Gas options wrapper failed for method ${originalMethod.name || "unknown"}:`, error.message)
+		console.warn(`[DEBUG] Full error:`, JSON.stringify(error, null, 2))
 		// For testnets, don't fall back as it will cause gas estimation issues
 		const needsGasOptions = await isTestnetRequiringGas()
 		if (needsGasOptions) {
