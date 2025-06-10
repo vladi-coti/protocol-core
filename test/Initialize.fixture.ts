@@ -9,8 +9,8 @@ function getGasOptions() {
 	const network = process.env.HARDHAT_NETWORK || "hardhat"
 	if (network === "coti-testnet") {
 		return {
-			gasLimit: 3000000, // Increased gas limit
-			gasPrice: 1200000000, // 1.2 gwei - match hardhat config
+			gasLimit: 3000000,
+			gasPrice: 1200000000,
 		}
 	}
 	return {} // Use default gas estimation for other networks
@@ -30,13 +30,14 @@ export async function initializeFixture(): Promise<RunContext> {
 		admin: process.env.ADMIN_PUBLIC_KEY,
 	})
 
-	// Wait for the first deployment to complete before starting the second
 	await multiAccount.waitForDeployment()
 
 	const multiAccount2 = await run("deploy:multiAccount", {
 		symmioAddress: await diamond.getAddress(),
 		admin: process.env.ADMIN_PUBLIC_KEY,
 	})
+
+	await multiAccount2.waitForDeployment()
 
 	let context = await createRunContext(
 		await diamond.getAddress(),
