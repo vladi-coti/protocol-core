@@ -12,7 +12,7 @@ import { loadFixtureCompatible, timeCompatible } from "./utils/testHelpers"
 export function shouldBehaveLikeAccountFacet(): void {
 	let context: RunContext, user: User, user2: User, hedger: Hedger
 
-	before(async function () {
+	beforeEach(async function () {
 		context = await loadFixtureCompatible(initializeFixture)
 		user = new User(context, context.signers.user)
 		await user.setup()

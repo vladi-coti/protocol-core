@@ -78,31 +78,18 @@ export const timeCompatible = {
  * Wraps contract instances to automatically apply gas options on testnets
  */
 function wrapContractsWithGasOptions(context: RunContext): RunContext {
-	const wrappedContext = context as any
-	const contractNames = [
-		"accountFacet",
-		"controlFacet",
-		"diamondCutFacet",
-		"diamondLoupeFacet",
-		"liquidationFacet",
-		"partyAFacet",
-		"bridgeFacet",
-		"viewFacet",
-		"fundingRateFacet",
-		"forceActionsFacet",
-		"settlementFacet",
-		"partyBPositionActionsFacet",
-		"partyBQuoteActionsFacet",
-		"partyBGroupActionsFacet",
-	]
+	const wrappedContext = { ...context }
 
-	contractNames.forEach(contractName => {
-		if (wrappedContext[contractName]) {
-			wrappedContext[contractName] = wrapContractWithGasOptions(wrappedContext[contractName])
+	// Wrap all contract properties automatically
+	for (const [key, value] of Object.entries(context)) {
+		// Check if the value looks like a contract (has target, interface, runner properties)
+		if (value && typeof value === "object" && "target" in value && "interface" in value && "runner" in value) {
+			console.log(`[DEBUG] Wrapping contract: ${key}`)
+			wrappedContext[key as keyof RunContext] = wrapContractWithGasOptions(value)
 		}
-	})
+	}
 
-	return context
+	return wrappedContext
 }
 
 /**
@@ -114,7 +101,7 @@ function wrapContractWithGasOptions(contract: any): any {
 			const originalValue = target[prop]
 
 			// If it's a function and not a read-only method, wrap it
-			if (typeof originalValue === "function" && !isReadOnlyMethod(prop as string)) {
+			if (typeof originalValue === "function" && !isReadOnlyMethod(prop as string, target)) {
 				return function (...args: any[]) {
 					// Call the original connect method if it's connect
 					if (prop === "connect") {
@@ -135,53 +122,14 @@ function wrapContractWithGasOptions(contract: any): any {
 /**
  * Checks if a method is read-only (doesn't need gas options)
  */
-function isReadOnlyMethod(methodName: string): boolean {
-	const readOnlyMethods = [
-		"getAddress",
-		"interface",
-		"provider",
-		"runner",
-		"target",
-		"balanceOf",
-		"getQuote",
-		"facetAddresses",
-		"facetFunctionSelectors",
-		"getBalanceInfo",
-		"balanceInfoOfPartyA",
-		"balanceInfoOfPartyB",
-		"allocatedBalanceOfPartyA",
-		"allocatedBalanceOfPartyB",
-	]
-	return readOnlyMethods.includes(methodName) || methodName.startsWith("get") || methodName.startsWith("view")
+function isReadOnlyMethod(methodName: string, target: any): boolean {
+	const fragment = target.interface.getFunction(methodName)
+	return fragment?.stateMutability === "view" || fragment?.stateMutability === "pure"
 }
 
-/**
- * Manually send transaction using populateTransaction to bypass gas estimation
- */
-async function sendTestnetTransaction(contract: any, methodName: string, args: any[]): Promise<any> {
-	const gasOptions = await getNetworkGasOptions()
-
-	try {
-		// Use populateTransaction which properly handles argument encoding
-		const populatedTx = await contract[methodName].populateTransaction(...args)
-
-		// Create transaction manually to completely bypass gas estimation
-		const tx = {
-			to: populatedTx.to,
-			data: populatedTx.data,
-			value: populatedTx.value || 0,
-			...gasOptions,
-		}
-
-		// Send directly through signer to avoid any ethers gas estimation
-		const signer = contract.runner
-		const sentTx = await signer.sendTransaction(tx)
-
-		return await sentTx.wait()
-	} catch (error: any) {
-		console.warn(`Manual transaction failed for ${methodName}:`, error.message)
-		throw error
-	}
+// Custom JSON stringify that handles BigInt
+function safeStringify(obj: any) {
+	return JSON.stringify(obj, (key, value) => (typeof value === "bigint" ? value.toString() : value))
 }
 
 /**
@@ -203,40 +151,60 @@ async function addGasOptionsToCall(originalMethod: any, target: any, args: any[]
 			}),
 		)
 
-		console.log(`[DEBUG] Arguments:`, JSON.stringify(resolvedArgs, null, 2))
+		console.log(`[DEBUG] Arguments:`, safeStringify(resolvedArgs))
 		console.log(`[DEBUG] Target address:`, target.target)
 
 		if (needsGasOptions) {
 			// For read-only methods on testnets, just call normally
-			if (isReadOnlyMethod(methodName)) {
+			if (isReadOnlyMethod(methodName, target)) {
 				console.log(`[DEBUG] Read-only method, calling directly`)
 				return originalMethod.apply(target, resolvedArgs)
 			}
 			console.log(`[DEBUG] Adding gas options for ${methodName}`)
 
-			// TEMPORARY: Try original method with gas options first to see if it works
+			const gasOptions = await getNetworkGasOptions()
+			console.log(`[DEBUG] Gas options:`, safeStringify(gasOptions))
+
+			// First, try the simple approach: original method with gas options
 			try {
-				const gasOptions = await getNetworkGasOptions()
-				console.log(`[DEBUG] Gas options:`, JSON.stringify(gasOptions, null, 2))
-
-				// Log the populated transaction before sending
-				const populatedTx = await originalMethod.populateTransaction(...resolvedArgs)
-				console.log(`[DEBUG] Populated transaction:`, JSON.stringify(populatedTx, null, 2))
-
+				console.log(`[DEBUG] Trying original method with gas options`)
 				const result = await originalMethod.apply(target, [...resolvedArgs, gasOptions])
+
 				// If it's a transaction, wait for it to be mined
 				if (result && typeof result.wait === "function") {
-					await new Promise(resolve => setTimeout(resolve, 500))
 					return await result.wait()
 				}
 				return result
-			} catch (gasError: any) {
-				console.warn(`[DEBUG] Standard method with gas options failed for ${methodName}:`, gasError.message)
-				console.warn(`[DEBUG] Error details:`, JSON.stringify(gasError, null, 2))
-				// Fall back to manual transaction sending to completely avoid gas estimation
-				if (target.interface && methodName !== "unknown") {
-					return await sendTestnetTransaction(target, methodName, resolvedArgs)
+			} catch (error: any) {
+				console.log(`[DEBUG] Original method with gas options failed:`, error.message)
+
+				// If it failed due to a revert (what we want for tests), try to get better error message
+				if (error.message.includes("execution reverted") || error.code === "CALL_EXCEPTION") {
+					console.log(`[DEBUG] Transaction reverted, trying static call for better error`)
+
+					// Get function fragment and encode data for static call
+					const fragment = target.interface.getFunction(methodName)
+					if (fragment) {
+						const data = target.interface.encodeFunctionData(fragment, resolvedArgs)
+
+						try {
+							await target.runner.provider.call({
+								to: target.target,
+								data: data,
+								from: target.runner.address,
+							})
+							// If static call succeeds but transaction failed, re-throw original error
+							throw error
+						} catch (staticError: any) {
+							console.log(`[DEBUG] Static call also failed, using static error for better message`)
+							// Use static call error which has better revert reason
+							throw staticError
+						}
+					}
 				}
+
+				// For other errors (gas estimation, etc.), re-throw original error
+				throw error
 			}
 		}
 
@@ -244,13 +212,7 @@ async function addGasOptionsToCall(originalMethod: any, target: any, args: any[]
 		return originalMethod.apply(target, resolvedArgs)
 	} catch (error: any) {
 		console.warn(`[DEBUG] Gas options wrapper failed for method ${originalMethod.name || "unknown"}:`, error.message)
-		console.warn(`[DEBUG] Full error:`, JSON.stringify(error, null, 2))
-		// For testnets, don't fall back as it will cause gas estimation issues
-		const needsGasOptions = await isTestnetRequiringGas()
-		if (needsGasOptions) {
-			throw error
-		}
-		// Only fall back for local networks
-		return originalMethod.apply(target, args)
+		console.warn(`[DEBUG] Full error:`, safeStringify(error))
+		throw error
 	}
 }
