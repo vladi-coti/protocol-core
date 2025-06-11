@@ -126,13 +126,5 @@ async function deployMultiAccountManually(
 	const proxyAddress = await proxy.getAddress()
 	console.log("TransparentUpgradeableProxy deployed to:", proxyAddress)
 
-	// 5. Get the contract instance connected to the proxy
-	const contract = Factory.attach(proxyAddress)
-
-	console.log("MultiAccount proxy system deployed successfully!")
-	console.log("- Proxy:", proxyAddress)
-	console.log("- Admin:", proxyAdminAddress)
-	console.log("- Implementation:", implementationAddress)
-
 	return { contract: proxy, implementationAddress, proxyAdminAddress, proxyAddress }
 }
