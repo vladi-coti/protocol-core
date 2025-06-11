@@ -30,14 +30,10 @@ export async function initializeFixture(): Promise<RunContext> {
 		admin: process.env.ADMIN_PUBLIC_KEY,
 	})
 
-	await multiAccount.waitForDeployment()
-
 	const multiAccount2 = await run("deploy:multiAccount", {
 		symmioAddress: await diamond.getAddress(),
 		admin: process.env.ADMIN_PUBLIC_KEY,
 	})
-
-	await multiAccount2.waitForDeployment()
 
 	let context = await createRunContext(
 		await diamond.getAddress(),
