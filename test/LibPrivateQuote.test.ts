@@ -1,6 +1,4 @@
 import { expect } from "chai"
-import { ethers } from "hardhat"
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers"
 import { initializeFixture } from "./Initialize.fixture"
 import { RunContext } from "./models/RunContext"
 import { User } from "./models/User"
@@ -8,6 +6,7 @@ import { Hedger } from "./models/Hedger"
 import { decimal } from "./utils/Common"
 import { limitQuoteRequestBuilder } from "./models/requestModels/QuoteRequest"
 import { PositionType } from "./models/Enums"
+import { loadFixtureCompatible } from "./utils/testHelpers"
 
 describe("LibPrivateQuote Library", function () {
 	let context: RunContext
@@ -15,7 +14,7 @@ describe("LibPrivateQuote Library", function () {
 	let hedger: Hedger
 
 	beforeEach(async function () {
-		context = await loadFixture(initializeFixture)
+		context = await loadFixtureCompatible(initializeFixture)
 
 		user = new User(context, context.signers.user)
 		await user.setup()

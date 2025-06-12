@@ -23,6 +23,9 @@ export async function getBlockTimestamp(additional: bigint = 0n): Promise<bigint
 	if (network.name === "hardhat") {
 		return BigInt(await time.latest()) + 1n + additional
 	}
+	if (network.name === "coti-testnet") {
+		return BigInt(Math.floor(Date.now() / 1000)) + additional * 10n
+	}
 	return 1722859307n
 }
 

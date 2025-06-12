@@ -133,6 +133,21 @@ function safeStringify(obj: any) {
 }
 
 /**
+ * Creates a proxy for a transaction receipt that has a wait() method
+ * This allows existing test code to call wait() even when we've already waited
+ */
+function createReceiptProxy(receipt: any): any {
+	return new Proxy(receipt, {
+		get(target, prop) {
+			if (prop === "wait") {
+				return async () => target // Return the receipt itself when wait() is called
+			}
+			return target[prop]
+		},
+	})
+}
+
+/**
  * Adds gas options to a contract method call and waits for mining on testnets
  */
 async function addGasOptionsToCall(originalMethod: any, target: any, args: any[]): Promise<any> {
@@ -172,7 +187,9 @@ async function addGasOptionsToCall(originalMethod: any, target: any, args: any[]
 
 				// If it's a transaction, wait for it to be mined
 				if (result && typeof result.wait === "function") {
-					return await result.wait()
+					const receipt = await result.wait()
+					// Return a proxy that has a wait method returning the receipt
+					return createReceiptProxy(receipt)
 				}
 				return result
 			} catch (error: any) {

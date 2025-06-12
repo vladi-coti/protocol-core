@@ -1,15 +1,15 @@
-import { loadFixture, time } from "@nomicfoundation/hardhat-network-helpers"
 import { expect } from "chai"
 import { initializeFixture } from "./Initialize.fixture"
 import { PositionType, QuoteStatus } from "./models/Enums"
 import { Hedger } from "./models/Hedger"
 import { RunContext } from "./models/RunContext"
 import { User } from "./models/User"
-import { limitOpenRequestBuilder, marketOpenRequestBuilder } from "./models/requestModels/OpenRequest"
+import { limitOpenRequestBuilder } from "./models/requestModels/OpenRequest"
 import { limitQuoteRequestBuilder, marketQuoteRequestBuilder } from "./models/requestModels/QuoteRequest"
 import { OpenPositionValidator } from "./models/validators/OpenPositionValidator"
 import { decimal, getQuoteQuantity, pausePartyB } from "./utils/Common"
 import { getDummyPairUpnlAndPriceSig } from "./utils/SignatureUtils"
+import { loadFixtureCompatible } from "./utils/testHelpers"
 
 export function shouldBehaveLikePrivateOpenPosition(): void {
 	let context: RunContext, user: User, hedger: Hedger, hedger2: Hedger
@@ -20,7 +20,7 @@ export function shouldBehaveLikePrivateOpenPosition(): void {
 	}
 
 	beforeEach(async function () {
-		context = await loadFixture(initializeFixture)
+		context = await loadFixtureCompatible(initializeFixture)
 		this.user_allocated = decimal(500n)
 		this.hedger_allocated = decimal(4000n)
 

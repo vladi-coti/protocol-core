@@ -100,23 +100,32 @@ export async function createRunContext(
 	context.settlementFacet = await ethers.getContractAt("SettlementFacet", diamond)
 	context.forceActionsFacet = await ethers.getContractAt("ForceActionsFacet", diamond)
 
-	// Initialize private facets (these would be deployed in a real setup)
-	// For now, we'll mock them to prevent test failures
-	context.privateQuoteFacet = {
-		isPrivateQuote: async () => false,
-		enablePrivateMode: async () => {},
-		getPrivateQuantity: async () => 0n,
-		getPrivateClosedAmount: async () => 0n,
-		getPrivatePartyA: async () => ethers.ZeroAddress,
-		getPrivatePartyB: async () => ethers.ZeroAddress,
-		getPrivateOpenAmount: async () => 0n,
-		batchEnablePrivateMode: async () => {},
-		connect: () => context.privateQuoteFacet,
+	// Initialize private facets - connect to actual deployed contracts
+	try {
+		context.privateQuoteFacet = await ethers.getContractAt("PrivateQuoteFacet", diamond)
+	} catch (error) {
+		// Fallback to mock if contract not deployed (for backward compatibility)
+		context.privateQuoteFacet = {
+			isPrivateQuote: async () => false,
+			enablePrivateMode: async () => {},
+			getPrivateQuantity: async () => 0n,
+			getPrivateClosedAmount: async () => 0n,
+			getPrivatePartyA: async () => ethers.ZeroAddress,
+			getPrivatePartyB: async () => ethers.ZeroAddress,
+			getPrivateOpenAmount: async () => 0n,
+			batchEnablePrivateMode: async () => {},
+			connect: () => context.privateQuoteFacet,
+		}
 	}
 
-	context.partyBPositionActionsPrivateFacet = {
-		openPositionWithPrivacy: async () => {},
-		connect: () => context.partyBPositionActionsPrivateFacet,
+	try {
+		context.partyBPositionActionsPrivateFacet = await ethers.getContractAt("PartyBPositionActionsPrivateFacet", diamond)
+	} catch (error) {
+		// Fallback to mock if contract not deployed (for backward compatibility)
+		context.partyBPositionActionsPrivateFacet = {
+			openPositionWithPrivacy: async () => {},
+			connect: () => context.partyBPositionActionsPrivateFacet,
+		}
 	}
 
 	context.manager = new TestManager(context, onlyInitialize)
