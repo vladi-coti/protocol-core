@@ -18,6 +18,8 @@ import "../../storages/QuoteStorage.sol";
 import "../../storages/MuonStorage.sol";
 import "../../storages/AccountStorage.sol";
 import "../../storages/SymbolStorage.sol";
+import "../../libraries/LibPrivateQuote.sol";
+import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
 library PartyAFacetImpl {
 	using LockedValuesOps for LockedValues;
@@ -113,6 +115,138 @@ library PartyAFacetImpl {
 		quoteLayout.quotes[currentId] = quote;
 
 		uint256 fee = LibQuote.getTradingFee(currentId);
+		accountLayout.allocatedBalances[msg.sender] -= fee;
+		emit SharedEvents.BalanceChangePartyA(msg.sender, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_OUT);
+	}
+
+	function sendPrivateQuote(
+		address[] memory partyBsWhiteList,
+		uint256 symbolId,
+		PositionType positionType,
+		OrderType orderType,
+		itUint256 calldata encryptedPrice,
+		itUint256 calldata encryptedQuantity,
+		itUint256 calldata encryptedCva,
+		itUint256 calldata encryptedLf,
+		itUint256 calldata encryptedPartyAmm,
+		itUint256 calldata encryptedPartyBmm,
+		uint256 maxFundingRate,
+		uint256 deadline,
+		address affiliate,
+		SingleUpnlAndPriceSig memory upnlSig
+	) internal returns (uint256 currentId) {
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		MAStorage.Layout storage maLayout = MAStorage.layout();
+		SymbolStorage.Layout storage symbolLayout = SymbolStorage.layout();
+
+		require(!LibAccessibility.hasRole(msg.sender, LibAccessibility.LIQUIDATOR_ROLE), "PartyAFacet: Liquidator can't be partyA");
+		require(
+			quoteLayout.partyAPendingQuotes[msg.sender].length < maLayout.pendingQuotesValidLength,
+			"PartyAFacet: Number of pending quotes out of range"
+		);
+		require(symbolLayout.symbols[symbolId].isValid, "PartyAFacet: Symbol is not valid");
+		require(deadline >= block.timestamp, "PartyAFacet: Low deadline");
+
+		// Get system-decrypted parameters for validation and balance checks
+		gtUint256 memory gtQuantity = MpcCore.validateCiphertext(encryptedQuantity);
+		gtUint256 memory gtPrice = MpcCore.validateCiphertext(encryptedPrice);
+		gtUint256 memory gtCva = MpcCore.validateCiphertext(encryptedCva);
+		gtUint256 memory gtLf = MpcCore.validateCiphertext(encryptedLf);
+		gtUint256 memory gtPartyAmm = MpcCore.validateCiphertext(encryptedPartyAmm);
+		gtUint256 memory gtPartyBmm = MpcCore.validateCiphertext(encryptedPartyBmm);
+
+		// Decrypt for validation (system needs to validate parameters)
+		uint256 quantity = uint256(MpcCore.decrypt(gtQuantity));
+		uint256 price = uint256(MpcCore.decrypt(gtPrice));
+		uint256 cva = uint256(MpcCore.decrypt(gtCva));
+		uint256 lf = uint256(MpcCore.decrypt(gtLf));
+		uint256 partyAmm = uint256(MpcCore.decrypt(gtPartyAmm));
+		uint256 partyBmm = uint256(MpcCore.decrypt(gtPartyBmm));
+
+		LockedValues memory lockedValues = LockedValues(cva, lf, partyAmm, partyBmm);
+		uint256 tradingPrice = orderType == OrderType.LIMIT ? price : upnlSig.price;
+
+		require(
+			lockedValues.lf >= (symbolLayout.symbols[symbolId].minAcceptablePortionLF * lockedValues.totalForPartyA()) / 1e18,
+			"PartyAFacet: LF is not enough"
+		);
+
+		require(lockedValues.totalForPartyA() >= symbolLayout.symbols[symbolId].minAcceptableQuoteValue, "PartyAFacet: Quote value is low");
+		for (uint8 i = 0; i < partyBsWhiteList.length; i++) {
+			require(partyBsWhiteList[i] != msg.sender, "PartyAFacet: Sender isn't allowed in partyBWhiteList");
+		}
+
+		LibMuonPartyA.verifyPartyAUpnlAndPrice(upnlSig, msg.sender, symbolId);
+
+		int256 availableBalance = LibAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
+		require(availableBalance > 0, "PartyAFacet: Available balance is lower than zero");
+		require(
+			uint256(availableBalance) >=
+				lockedValues.totalForPartyA() + ((quantity * tradingPrice * symbolLayout.symbols[symbolId].tradingFee) / 1e36),
+			"PartyAFacet: insufficient available balance"
+		);
+		require(maLayout.affiliateStatus[affiliate] || affiliate == address(0), "PartyAFacet: Invalid affiliate");
+
+		// Lock funds temporarily
+		accountLayout.pendingLockedBalances[msg.sender].add(lockedValues);
+		currentId = ++quoteLayout.lastId;
+
+		// Create quote with placeholder values (actual encrypted values stored separately)
+		Quote memory quote = Quote({
+			id: currentId,
+			partyBsWhiteList: partyBsWhiteList,
+			symbolId: symbolId,
+			positionType: positionType,
+			orderType: orderType,
+			openedPrice: 0,
+			initialOpenedPrice: 0,
+			requestedOpenPrice: 1, // Placeholder for private quotes
+			marketPrice: upnlSig.price,
+			quantity: 1, // Placeholder for private quotes
+			closedAmount: 0,
+			lockedValues: LockedValues(1, 1, 1, 1), // Placeholder values
+			initialLockedValues: LockedValues(1, 1, 1, 1), // Placeholder values
+			maxFundingRate: maxFundingRate,
+			partyA: msg.sender,
+			partyB: address(0),
+			quoteStatus: QuoteStatus.PENDING,
+			avgClosedPrice: 0,
+			requestedClosePrice: 0,
+			parentId: 0,
+			createTimestamp: block.timestamp,
+			statusModifyTimestamp: block.timestamp,
+			quantityToClose: 0,
+			lastFundingPaymentTimestamp: 0,
+			deadline: deadline,
+			tradingFee: symbolLayout.symbols[symbolId].tradingFee,
+			affiliate: affiliate
+		});
+
+		// Store quote and update indexes
+		quoteLayout.quoteIdsOf[msg.sender].push(currentId);
+		quoteLayout.partyAPendingQuotes[msg.sender].push(currentId);
+		quoteLayout.quotes[currentId] = quote;
+
+		// Store encrypted parameters in private storage
+		address partyB = partyBsWhiteList.length == 1 ? partyBsWhiteList[0] : address(0);
+		LibPrivateQuote.createPrivateQuote(
+			currentId,
+			encryptedQuantity,
+			encryptedPrice,
+			encryptedCva,
+			encryptedLf,
+			encryptedPartyAmm,
+			encryptedPartyBmm,
+			msg.sender,
+			partyB
+		);
+
+		// Create dual encrypted event data
+		LibPrivateQuote.createDualEncryptedEventData(currentId, quantity, price, msg.sender, partyB);
+
+		// Deduct trading fee
+		uint256 fee = (quantity * tradingPrice * symbolLayout.symbols[symbolId].tradingFee) / 1e36;
 		accountLayout.allocatedBalances[msg.sender] -= fee;
 		emit SharedEvents.BalanceChangePartyA(msg.sender, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_OUT);
 	}

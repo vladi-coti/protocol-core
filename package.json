@@ -7,6 +7,7 @@
     "url": "https://github.com/SYMM-IO/symmio-core"
   },
   "devDependencies": {
+    "@coti-io/coti-contracts": "^1.1.0",
     "@coti-io/coti-ethers": "^1.0.5",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/abstract-signer": "^5.7.0",

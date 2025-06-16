@@ -11,33 +11,12 @@ library LibPartyBPositionsActions {
 	using LockedValuesOps for LockedValues;
 
 	/**
-	 * @notice Enables private mode for a quote, encrypting sensitive data
-	 * @param quoteId The ID of the quote to enable private mode for
-	 * @param userAddress The address to encrypt the data for (typically partyA or partyB)
-	 */
-	function enablePrivateMode(uint256 quoteId, address userAddress) internal {
-		LibPrivateQuote.enablePrivateMode(quoteId, userAddress);
-	}
-
-	/**
-	 * @notice Opens a position with optional private variable support
+	 * @notice Opens a position using private variables
 	 * @param quoteId The ID of the quote
 	 * @param filledAmount The amount to fill
 	 * @param openedPrice The price at which to open
-	 * @param usePrivateMode Whether to use private variables for this position
-	 * @param encryptionAddress The address to encrypt for (if using private mode)
 	 */
-	function openPositionWithPrivacy(
-		uint256 quoteId,
-		uint256 filledAmount,
-		uint256 openedPrice,
-		bool usePrivateMode,
-		address encryptionAddress
-	) internal returns (uint256 currentId) {
-		if (usePrivateMode && !LibPrivateQuote.isPrivateQuote(quoteId)) {
-			enablePrivateMode(quoteId, encryptionAddress);
-		}
-
+	function openPositionWithPrivacy(uint256 quoteId, uint256 filledAmount, uint256 openedPrice) internal returns (uint256 currentId) {
 		return openPosition(quoteId, filledAmount, openedPrice);
 	}
 

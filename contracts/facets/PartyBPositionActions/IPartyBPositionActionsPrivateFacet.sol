@@ -6,21 +6,20 @@ pragma solidity >=0.8.18;
 
 import "../../storages/MuonStorage.sol";
 import "./IPartyBPositionActionsEvents.sol";
+import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
 interface IPartyBPositionActionsPrivateFacet is IPartyBPositionActionsEvents {
 	/**
 	 * @notice Opens a position with private variable support
 	 * @param quoteId The ID of the quote for which the position is opened
-	 * @param filledAmount The amount to fill
+	 * @param filledAmount The amount to fill (encrypted)
 	 * @param openedPrice The opened price for the position
 	 * @param upnlSig The Muon signature containing PairUpnlAndPriceSig data
-	 * @param usePrivateMode Whether to enable private variables for this position
 	 */
 	function openPositionWithPrivacy(
 		uint256 quoteId,
-		uint256 filledAmount,
+		itUint256 calldata filledAmount,
 		uint256 openedPrice,
-		PairUpnlAndPriceSig memory upnlSig,
-		bool usePrivateMode
+		PairUpnlAndPriceSig memory upnlSig
 	) external;
 }

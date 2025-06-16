@@ -4,24 +4,36 @@
 // For more information, see https://docs.symm.io/legal-disclaimer/license
 pragma solidity >=0.8.18;
 
-import "../utils/mpc/MpcCore.sol";
+import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
 library PrivateQuoteStorage {
 	bytes32 internal constant PRIVATE_QUOTE_STORAGE_SLOT = keccak256("diamond.standard.storage.privatequote");
 
 	struct Layout {
 		// Mapping from quoteId to encrypted quantity
-		mapping(uint256 => utUint64) privateQuantities;
+		mapping(uint256 => utUint256) privateQuantities;
 		// Mapping from quoteId to encrypted closedAmount
-		mapping(uint256 => utUint64) privateClosedAmounts;
+		mapping(uint256 => utUint256) privateClosedAmounts;
 		// Mapping from quoteId to encrypted partyA address
-		mapping(uint256 => utUint64) privatePartyA;
+		mapping(uint256 => utUint256) privatePartyA;
 		// Mapping from quoteId to encrypted partyB address
-		mapping(uint256 => utUint64) privatePartyB;
+		mapping(uint256 => utUint256) privatePartyB;
 		// Mapping to track which quotes have private mode enabled
 		mapping(uint256 => bool) isPrivateEnabled;
 		// Mapping from user address to their encryption preferences
 		mapping(address => address) userEncryptionAddress;
+		// Enhanced private quote parameters (encrypted with system key for calculations)
+		mapping(uint256 => utUint256) systemEncryptedQuantities;
+		mapping(uint256 => utUint256) systemEncryptedPrice;
+		mapping(uint256 => utUint256) systemEncryptedCva;
+		mapping(uint256 => utUint256) systemEncryptedLf;
+		mapping(uint256 => utUint256) systemEncryptedPartyAmm;
+		mapping(uint256 => utUint256) systemEncryptedPartyBmm;
+		// Event encryption mappings
+		mapping(uint256 => utUint256) partyAEncryptedEventData;
+		mapping(uint256 => utUint256) partyBEncryptedEventData;
+		// System encryption address for internal calculations
+		address systemEncryptionAddress;
 	}
 
 	function layout() internal pure returns (Layout storage l) {

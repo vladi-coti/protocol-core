@@ -6,6 +6,7 @@ pragma solidity >=0.8.18;
 
 import "./IPartyAEvents.sol";
 import "../../storages/MuonStorage.sol";
+import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
 interface IPartyAFacet is IPartyAEvents {
 	function sendQuote(
@@ -35,6 +36,23 @@ interface IPartyAFacet is IPartyAEvents {
 		uint256 lf,
 		uint256 partyAmm,
 		uint256 partyBmm,
+		uint256 maxFundingRate,
+		uint256 deadline,
+		address affiliate,
+		SingleUpnlAndPriceSig memory upnlSig
+	) external returns (uint256);
+
+	function sendPrivateQuote(
+		address[] memory partyBsWhiteList,
+		uint256 symbolId,
+		PositionType positionType,
+		OrderType orderType,
+		itUint256 calldata encryptedPrice,
+		itUint256 calldata encryptedQuantity,
+		itUint256 calldata encryptedCva,
+		itUint256 calldata encryptedLf,
+		itUint256 calldata encryptedPartyAmm,
+		itUint256 calldata encryptedPartyBmm,
 		uint256 maxFundingRate,
 		uint256 deadline,
 		address affiliate,
