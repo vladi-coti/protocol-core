@@ -8,6 +8,25 @@ import "./IPartyAEvents.sol";
 import "../../storages/MuonStorage.sol";
 import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
+struct PrivateQuoteParams {
+	itUint256 encryptedPrice;
+	itUint256 encryptedQuantity;
+	itUint256 encryptedCva;
+	itUint256 encryptedLf;
+	itUint256 encryptedPartyAmm;
+	itUint256 encryptedPartyBmm;
+}
+
+struct QuoteBasicParams {
+	address[] partyBsWhiteList;
+	uint256 symbolId;
+	PositionType positionType;
+	OrderType orderType;
+	uint256 maxFundingRate;
+	uint256 deadline;
+	address affiliate;
+}
+
 interface IPartyAFacet is IPartyAEvents {
 	function sendQuote(
 		address[] memory partyBsWhiteList,
@@ -43,19 +62,8 @@ interface IPartyAFacet is IPartyAEvents {
 	) external returns (uint256);
 
 	function sendPrivateQuote(
-		address[] memory partyBsWhiteList,
-		uint256 symbolId,
-		PositionType positionType,
-		OrderType orderType,
-		itUint256 calldata encryptedPrice,
-		itUint256 calldata encryptedQuantity,
-		itUint256 calldata encryptedCva,
-		itUint256 calldata encryptedLf,
-		itUint256 calldata encryptedPartyAmm,
-		itUint256 calldata encryptedPartyBmm,
-		uint256 maxFundingRate,
-		uint256 deadline,
-		address affiliate,
+		QuoteBasicParams memory basicParams,
+		PrivateQuoteParams calldata encryptedParams,
 		SingleUpnlAndPriceSig memory upnlSig
 	) external returns (uint256);
 

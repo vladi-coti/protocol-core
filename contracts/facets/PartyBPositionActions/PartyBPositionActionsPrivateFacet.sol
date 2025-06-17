@@ -31,23 +31,24 @@ contract PartyBPositionActionsPrivateFacet is Accessibility, Pausable, IPartyBPo
 		uint256 openedPrice,
 		PairUpnlAndPriceSig memory upnlSig
 	) external whenNotPartyBActionsPaused onlyPartyBOfQuote(quoteId) notLiquidated(quoteId) {
+		// Get quote for validation
+		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
+
 		// Validate the encrypted filled amount
 		gtUint256 memory gtFilledAmount = MpcCore.validateCiphertext(filledAmount);
 
 		// Decrypt the filled amount for internal processing
 		uint256 decryptedFilledAmount = uint256(MpcCore.decrypt(gtFilledAmount));
 
-		// Validate Muon signature
-		LibMuonPartyB.verifyPairUpnlAndPrice(upnlSig, msg.sender, QuoteStorage.layout().quotes[quoteId].partyA);
+		// Validate Muon signature with correct parameters
+		LibMuonPartyB.verifyPairUpnlAndPrice(upnlSig, quote.partyB, quote.partyA, quote.symbolId);
 
 		// Use the private position opening logic
 		uint256 newId = LibPartyBPositionsActions.openPositionWithPrivacy(quoteId, decryptedFilledAmount, openedPrice);
 
-		// Get quote for event emission
-		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
-
-		// Emit events with privacy considerations - encrypt the filled amount for partyA
-		emit OpenPosition(quoteId, quote.partyA, quote.partyB, MpcCore.offBoardToUser(gtFilledAmount, quote.partyA).ciphertext, openedPrice);
+		// Emit private event with encrypted filled amount for partyA
+		ctUint256 memory encryptedForPartyA = MpcCore.offBoardToUser(gtFilledAmount, quote.partyA);
+		emit OpenPositionPrivate(quoteId, quote.partyA, quote.partyB, encryptedForPartyA, openedPrice);
 
 		if (newId != 0) {
 			Quote storage newQuote = QuoteStorage.layout().quotes[newId];

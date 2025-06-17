@@ -115,7 +115,7 @@ library LibPrivateQuote {
 	 */
 	function getSystemDecryptedParameters(
 		uint256 quoteId
-	) internal view returns (uint256 quantity, uint256 price, uint256 cva, uint256 lf, uint256 partyAmm, uint256 partyBmm) {
+	) internal returns (uint256 quantity, uint256 price, uint256 cva, uint256 lf, uint256 partyAmm, uint256 partyBmm) {
 		PrivateQuoteStorage.Layout storage layout = PrivateQuoteStorage.layout();
 
 		// Decrypt system-encrypted parameters
@@ -151,7 +151,7 @@ library LibPrivateQuote {
 	 * @param isPartyA True if requesting partyA's encrypted data, false for partyB
 	 * @return The encrypted event data
 	 */
-	function getEncryptedEventData(uint256 quoteId, bool isPartyA) internal view returns (utUint256 memory) {
+	function getEncryptedEventData(uint256 quoteId, bool isPartyA) internal returns (utUint256 memory) {
 		PrivateQuoteStorage.Layout storage layout = PrivateQuoteStorage.layout();
 
 		if (isPartyA) {
@@ -166,7 +166,7 @@ library LibPrivateQuote {
 	 * @param quoteId The ID of the quote
 	 * @return The decrypted quantity
 	 */
-	function getPrivateQuantity(uint256 quoteId) internal view returns (uint256) {
+	function getPrivateQuantity(uint256 quoteId) internal returns (uint256) {
 		PrivateQuoteStorage.Layout storage layout = PrivateQuoteStorage.layout();
 
 		if (layout.isPrivateEnabled[quoteId]) {

@@ -157,103 +157,79 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 
 	/**
 	 * @notice Send a Private Quote to the protocol with encrypted parameters. The quote status will be pending.
-	 * @param partyBsWhiteList List of party B addresses allowed to act on this quote.
-	 * @param symbolId Each symbol within the system possesses a unique identifier
-	 * @param positionType Can be SHORT or LONG (0 or 1)
-	 * @param orderType Can be LIMIT or MARKET (0 or 1)
-	 * @param encryptedPrice Encrypted price for the position (encrypted for PartyB)
-	 * @param encryptedQuantity Encrypted size of the position (encrypted for PartyB)
-	 * @param encryptedCva Encrypted Credit Valuation Adjustment (encrypted for PartyB)
-	 * @param encryptedLf Encrypted Liquidation Fee (encrypted for PartyB)
-	 * @param encryptedPartyAmm Encrypted partyA Maintenance Margin (encrypted for PartyB)
-	 * @param encryptedPartyBmm Encrypted partyB Maintenance Margin (encrypted for PartyB)
-	 * @param maxFundingRate The maximum funding rate allowed from user side
-	 * @param deadline The deadline for the quote
-	 * @param affiliate The affiliate address
+	 * @param basicParams Struct containing basic quote parameters
+	 * @param encryptedParams Struct containing all encrypted parameters
 	 * @param upnlSig The Muon signature for user upnl and symbol price
 	 */
 	function sendPrivateQuote(
-		address[] memory partyBsWhiteList,
-		uint256 symbolId,
-		PositionType positionType,
-		OrderType orderType,
-		itUint256 calldata encryptedPrice,
-		itUint256 calldata encryptedQuantity,
-		itUint256 calldata encryptedCva,
-		itUint256 calldata encryptedLf,
-		itUint256 calldata encryptedPartyAmm,
-		itUint256 calldata encryptedPartyBmm,
-		uint256 maxFundingRate,
-		uint256 deadline,
-		address affiliate,
-		SingleUpnlAndPriceSig memory upnlSig
+		QuoteBasicParams calldata basicParams,
+		PrivateQuoteParams calldata encryptedParams,
+		SingleUpnlAndPriceSig calldata upnlSig
 	) external whenNotPartyAActionsPaused notLiquidatedPartyA(msg.sender) notSuspended(msg.sender) returns (uint256 quoteId) {
 		// Ensure system encryption address is set
 		require(LibPrivateQuote.getSystemEncryptionAddress() != address(0), "PartyAFacet: System encryption address not set");
 
 		quoteId = PartyAFacetImpl.sendPrivateQuote(
-			partyBsWhiteList,
-			symbolId,
-			positionType,
-			orderType,
-			encryptedPrice,
-			encryptedQuantity,
-			encryptedCva,
-			encryptedLf,
-			encryptedPartyAmm,
-			encryptedPartyBmm,
-			maxFundingRate,
-			deadline,
-			affiliate,
+			basicParams.partyBsWhiteList,
+			basicParams.symbolId,
+			basicParams.positionType,
+			basicParams.orderType,
+			encryptedParams.encryptedPrice,
+			encryptedParams.encryptedQuantity,
+			encryptedParams.encryptedCva,
+			encryptedParams.encryptedLf,
+			encryptedParams.encryptedPartyAmm,
+			encryptedParams.encryptedPartyBmm,
+			basicParams.maxFundingRate,
+			basicParams.deadline,
+			basicParams.affiliate,
 			upnlSig
 		);
 
-		// Emit three different events for maximum privacy and usability
-
-		// 1. Public event with non-sensitive data
 		emit SendPrivateQuotePublic(
 			msg.sender,
 			quoteId,
-			partyBsWhiteList,
-			symbolId,
-			positionType,
-			orderType,
+			basicParams.partyBsWhiteList,
+			basicParams.symbolId,
+			basicParams.positionType,
+			basicParams.orderType,
 			upnlSig.price,
-			SymbolStorage.layout().symbols[symbolId].tradingFee,
-			deadline
+			SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee,
+			basicParams.deadline
 		);
 
-		// 2. Encrypted event for PartyA (so they can track their own quote)
-		utUint256 memory encryptedDataA = LibPrivateQuote.getEncryptedEventData(quoteId, true);
-		emit SendPrivateQuoteForPartyA(
-			msg.sender,
-			quoteId,
-			partyBsWhiteList,
-			symbolId,
-			positionType,
-			orderType,
-			encryptedDataA,
-			upnlSig.price,
-			SymbolStorage.layout().symbols[symbolId].tradingFee,
-			deadline
-		);
-
-		// 3. Encrypted event for PartyB (so they know there's a quote to decrypt and process)
-		address partyB = partyBsWhiteList.length == 1 ? partyBsWhiteList[0] : address(0);
-		if (partyB != address(0)) {
-			utUint256 memory encryptedDataB = LibPrivateQuote.getEncryptedEventData(quoteId, false);
-			emit SendPrivateQuoteForPartyB(
+		{
+			// 2. PartyA encrypted event
+			emit SendPrivateQuoteForPartyA(
 				msg.sender,
 				quoteId,
-				partyBsWhiteList,
-				symbolId,
-				positionType,
-				orderType,
-				encryptedDataB,
+				basicParams.partyBsWhiteList,
+				basicParams.symbolId,
+				basicParams.positionType,
+				basicParams.orderType,
+				LibPrivateQuote.getEncryptedEventData(quoteId, true),
 				upnlSig.price,
-				SymbolStorage.layout().symbols[symbolId].tradingFee,
-				deadline
+				SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee,
+				basicParams.deadline
 			);
+		}
+
+		{
+			// 3. PartyB encrypted event
+			if (basicParams.partyBsWhiteList.length == 1) {
+				emit SendPrivateQuoteForPartyB(
+					msg.sender,
+					quoteId,
+					basicParams.partyBsWhiteList,
+					basicParams.symbolId,
+					basicParams.positionType,
+					basicParams.orderType,
+					LibPrivateQuote.getEncryptedEventData(quoteId, false),
+					upnlSig.price,
+					SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee,
+					basicParams.deadline
+				);
+			}
 		}
 	}
 

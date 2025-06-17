@@ -5,6 +5,7 @@
 pragma solidity >=0.8.18;
 
 import "../../interfaces/IPartiesEvents.sol";
+import { ctUint256 } from "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
 interface IPartyBPositionActionsEvents is IPartiesEvents {
 	event AcceptCancelCloseRequest(uint256 quoteId, QuoteStatus quoteStatus, uint256 closeId);
@@ -19,4 +20,7 @@ interface IPartyBPositionActionsEvents is IPartiesEvents {
 		uint256 closeId
 	);
 	event EmergencyClosePosition(uint256 quoteId, address partyA, address partyB, uint256 filledAmount, uint256 closedPrice, QuoteStatus quoteStatus); // For backward compatibility, will be removed in future
+
+	// Private event for encrypted position opening
+	event OpenPositionPrivate(uint256 quoteId, address partyA, address partyB, ctUint256 encryptedFilledAmount, uint256 openedPrice);
 }
