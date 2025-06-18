@@ -242,9 +242,6 @@ library PartyAFacetImpl {
 			partyB
 		);
 
-		// Create dual encrypted event data
-		LibPrivateQuote.createDualEncryptedEventData(currentId, quantity, price, msg.sender, partyB);
-
 		// Deduct trading fee
 		uint256 fee = (quantity * tradingPrice * symbolLayout.symbols[symbolId].tradingFee) / 1e36;
 		accountLayout.allocatedBalances[msg.sender] -= fee;

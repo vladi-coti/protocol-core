@@ -166,9 +166,6 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 		PrivateQuoteParams calldata encryptedParams,
 		SingleUpnlAndPriceSig calldata upnlSig
 	) external whenNotPartyAActionsPaused notLiquidatedPartyA(msg.sender) notSuspended(msg.sender) returns (uint256 quoteId) {
-		// Ensure system encryption address is set
-		require(LibPrivateQuote.getSystemEncryptionAddress() != address(0), "PartyAFacet: System encryption address not set");
-
 		quoteId = PartyAFacetImpl.sendPrivateQuote(
 			basicParams.partyBsWhiteList,
 			basicParams.symbolId,
@@ -207,7 +204,7 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 				basicParams.symbolId,
 				basicParams.positionType,
 				basicParams.orderType,
-				LibPrivateQuote.getEncryptedEventData(quoteId, true),
+				MpcCore.offBoardToUser(MpcCore.validateCiphertext(encryptedParams.encryptedQuantity), msg.sender),
 				upnlSig.price,
 				SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee,
 				basicParams.deadline
@@ -224,7 +221,7 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 					basicParams.symbolId,
 					basicParams.positionType,
 					basicParams.orderType,
-					LibPrivateQuote.getEncryptedEventData(quoteId, false),
+					MpcCore.offBoardToUser(MpcCore.validateCiphertext(encryptedParams.encryptedQuantity), basicParams.partyBsWhiteList[0]),
 					upnlSig.price,
 					SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee,
 					basicParams.deadline

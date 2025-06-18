@@ -9,24 +9,6 @@ import "../storages/PrivateQuoteStorage.sol";
 
 library LibPrivateQuote {
 	/**
-	 * @notice Sets the system encryption address for internal calculations
-	 * @param systemAddress The address to use for system encryption
-	 */
-	function setSystemEncryptionAddress(address systemAddress) internal {
-		PrivateQuoteStorage.Layout storage layout = PrivateQuoteStorage.layout();
-		layout.systemEncryptionAddress = systemAddress;
-	}
-
-	/**
-	 * @notice Gets the system encryption address
-	 * @return The system encryption address
-	 */
-	function getSystemEncryptionAddress() internal view returns (address) {
-		PrivateQuoteStorage.Layout storage layout = PrivateQuoteStorage.layout();
-		return layout.systemEncryptionAddress;
-	}
-
-	/**
 	 * @notice Creates a private quote with encrypted parameters
 	 * @param quoteId The ID of the quote
 	 * @param encryptedQuantity Encrypted quantity for partyB
@@ -61,46 +43,18 @@ library LibPrivateQuote {
 
 		// Store encrypted for partyB (so they can decrypt and process)
 		if (partyB != address(0)) {
-			layout.privateQuantities[quoteId] = MpcCore.offBoardCombined(gtQuantity, partyB);
+			layout.privateQuantities[quoteId] = MpcCore.offBoard(gtQuantity);
 		}
 
-		// Store system-encrypted versions for internal calculations
-		address systemAddr = layout.systemEncryptionAddress;
-		require(systemAddr != address(0), "LibPrivateQuote: System encryption address not set");
-
-		layout.systemEncryptedQuantities[quoteId] = MpcCore.offBoardCombined(gtQuantity, systemAddr);
-		layout.systemEncryptedPrice[quoteId] = MpcCore.offBoardCombined(gtPrice, systemAddr);
-		layout.systemEncryptedCva[quoteId] = MpcCore.offBoardCombined(gtCva, systemAddr);
-		layout.systemEncryptedLf[quoteId] = MpcCore.offBoardCombined(gtLf, systemAddr);
-		layout.systemEncryptedPartyAmm[quoteId] = MpcCore.offBoardCombined(gtPartyAmm, systemAddr);
-		layout.systemEncryptedPartyBmm[quoteId] = MpcCore.offBoardCombined(gtPartyBmm, systemAddr);
+		layout.encryptedQuantities[quoteId] = MpcCore.offBoard(gtQuantity);
+		layout.encryptedPrice[quoteId] = MpcCore.offBoard(gtPrice);
+		layout.encryptedCva[quoteId] = MpcCore.offBoard(gtCva);
+		layout.encryptedLf[quoteId] = MpcCore.offBoard(gtLf);
+		layout.encryptedPartyAmm[quoteId] = MpcCore.offBoard(gtPartyAmm);
+		layout.encryptedPartyBmm[quoteId] = MpcCore.offBoard(gtPartyBmm);
 
 		// Mark as private
 		layout.isPrivateEnabled[quoteId] = true;
-	}
-
-	/**
-	 * @notice Encrypts event data for dual emission
-	 * @param quoteId The ID of the quote
-	 * @param quantity The quantity to encrypt for events
-	 * @param price The price to encrypt for events
-	 * @param partyA The partyA address
-	 * @param partyB The partyB address
-	 */
-	function createDualEncryptedEventData(uint256 quoteId, uint256 quantity, uint256 price, address partyA, address partyB) internal {
-		PrivateQuoteStorage.Layout storage layout = PrivateQuoteStorage.layout();
-
-		// Create combined data for encryption (quantity << 128 | price)
-		uint256 combinedData = (quantity << 128) | price;
-		gtUint256 memory gtCombinedData = MpcCore.setPublic256(combinedData);
-
-		// Encrypt for partyA
-		layout.partyAEncryptedEventData[quoteId] = MpcCore.offBoardCombined(gtCombinedData, partyA);
-
-		// Encrypt for partyB (if known)
-		if (partyB != address(0)) {
-			layout.partyBEncryptedEventData[quoteId] = MpcCore.offBoardCombined(gtCombinedData, partyB);
-		}
 	}
 
 	/**
@@ -120,12 +74,12 @@ library LibPrivateQuote {
 
 		// Decrypt system-encrypted parameters
 		if (layout.isPrivateEnabled[quoteId]) {
-			gtUint256 memory gtQuantity = MpcCore.onBoard(layout.systemEncryptedQuantities[quoteId].ciphertext);
-			gtUint256 memory gtPrice = MpcCore.onBoard(layout.systemEncryptedPrice[quoteId].ciphertext);
-			gtUint256 memory gtCva = MpcCore.onBoard(layout.systemEncryptedCva[quoteId].ciphertext);
-			gtUint256 memory gtLf = MpcCore.onBoard(layout.systemEncryptedLf[quoteId].ciphertext);
-			gtUint256 memory gtPartyAmm = MpcCore.onBoard(layout.systemEncryptedPartyAmm[quoteId].ciphertext);
-			gtUint256 memory gtPartyBmm = MpcCore.onBoard(layout.systemEncryptedPartyBmm[quoteId].ciphertext);
+			gtUint256 memory gtQuantity = MpcCore.onBoard(layout.encryptedQuantities[quoteId]);
+			gtUint256 memory gtPrice = MpcCore.onBoard(layout.encryptedPrice[quoteId]);
+			gtUint256 memory gtCva = MpcCore.onBoard(layout.encryptedCva[quoteId]);
+			gtUint256 memory gtLf = MpcCore.onBoard(layout.encryptedLf[quoteId]);
+			gtUint256 memory gtPartyAmm = MpcCore.onBoard(layout.encryptedPartyAmm[quoteId]);
+			gtUint256 memory gtPartyBmm = MpcCore.onBoard(layout.encryptedPartyBmm[quoteId]);
 
 			quantity = uint256(MpcCore.decrypt(gtQuantity));
 			price = uint256(MpcCore.decrypt(gtPrice));
@@ -146,22 +100,6 @@ library LibPrivateQuote {
 	}
 
 	/**
-	 * @notice Gets encrypted event data for a specific party
-	 * @param quoteId The ID of the quote
-	 * @param isPartyA True if requesting partyA's encrypted data, false for partyB
-	 * @return The encrypted event data
-	 */
-	function getEncryptedEventData(uint256 quoteId, bool isPartyA) internal returns (utUint256 memory) {
-		PrivateQuoteStorage.Layout storage layout = PrivateQuoteStorage.layout();
-
-		if (isPartyA) {
-			return layout.partyAEncryptedEventData[quoteId];
-		} else {
-			return layout.partyBEncryptedEventData[quoteId];
-		}
-	}
-
-	/**
 	 * @notice Gets the private quantity for a quote
 	 * @param quoteId The ID of the quote
 	 * @return The decrypted quantity
@@ -171,7 +109,7 @@ library LibPrivateQuote {
 
 		if (layout.isPrivateEnabled[quoteId]) {
 			// Decrypt the system-encrypted quantity
-			gtUint256 memory gtQuantity = MpcCore.onBoard(layout.systemEncryptedQuantities[quoteId].ciphertext);
+			gtUint256 memory gtQuantity = MpcCore.onBoard(layout.encryptedQuantities[quoteId]);
 			return uint256(MpcCore.decrypt(gtQuantity));
 		} else {
 			// Fallback to public data
@@ -191,14 +129,11 @@ library LibPrivateQuote {
 		if (layout.isPrivateEnabled[quoteId]) {
 			// Encrypt the new quantity for system use
 			gtUint256 memory gtNewQuantity = MpcCore.setPublic256(newQuantity);
-			address systemAddr = layout.systemEncryptionAddress;
-			require(systemAddr != address(0), "LibPrivateQuote: System encryption address not set");
-
-			layout.systemEncryptedQuantities[quoteId] = MpcCore.offBoardCombined(gtNewQuantity, systemAddr);
+			layout.encryptedQuantities[quoteId] = MpcCore.offBoard(gtNewQuantity);
 
 			// Also encrypt for user if needed
 			if (userAddress != address(0)) {
-				layout.privateQuantities[quoteId] = MpcCore.offBoardCombined(gtNewQuantity, userAddress);
+				layout.privateQuantities[quoteId] = MpcCore.offBoard(gtNewQuantity);
 			}
 		} else {
 			// Update public quantity as fallback

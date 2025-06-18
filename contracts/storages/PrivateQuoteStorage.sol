@@ -11,29 +11,24 @@ library PrivateQuoteStorage {
 
 	struct Layout {
 		// Mapping from quoteId to encrypted quantity
-		mapping(uint256 => utUint256) privateQuantities;
+		mapping(uint256 => ctUint256) privateQuantities;
 		// Mapping from quoteId to encrypted closedAmount
-		mapping(uint256 => utUint256) privateClosedAmounts;
+		mapping(uint256 => ctUint256) privateClosedAmounts;
 		// Mapping from quoteId to encrypted partyA address
-		mapping(uint256 => utUint256) privatePartyA;
+		mapping(uint256 => ctUint256) privatePartyA;
 		// Mapping from quoteId to encrypted partyB address
-		mapping(uint256 => utUint256) privatePartyB;
+		mapping(uint256 => ctUint256) privatePartyB;
 		// Mapping to track which quotes have private mode enabled
 		mapping(uint256 => bool) isPrivateEnabled;
 		// Mapping from user address to their encryption preferences
 		mapping(address => address) userEncryptionAddress;
 		// Enhanced private quote parameters (encrypted with system key for calculations)
-		mapping(uint256 => utUint256) systemEncryptedQuantities;
-		mapping(uint256 => utUint256) systemEncryptedPrice;
-		mapping(uint256 => utUint256) systemEncryptedCva;
-		mapping(uint256 => utUint256) systemEncryptedLf;
-		mapping(uint256 => utUint256) systemEncryptedPartyAmm;
-		mapping(uint256 => utUint256) systemEncryptedPartyBmm;
-		// Event encryption mappings
-		mapping(uint256 => utUint256) partyAEncryptedEventData;
-		mapping(uint256 => utUint256) partyBEncryptedEventData;
-		// System encryption address for internal calculations
-		address systemEncryptionAddress;
+		mapping(uint256 => ctUint256) encryptedQuantities;
+		mapping(uint256 => ctUint256) encryptedPrice;
+		mapping(uint256 => ctUint256) encryptedCva;
+		mapping(uint256 => ctUint256) encryptedLf;
+		mapping(uint256 => ctUint256) encryptedPartyAmm;
+		mapping(uint256 => ctUint256) encryptedPartyBmm;
 	}
 
 	function layout() internal pure returns (Layout storage l) {

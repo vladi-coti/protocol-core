@@ -42,7 +42,7 @@ interface IPartyAEvents is IPartiesEvents {
 		uint256 symbolId,
 		PositionType positionType,
 		OrderType orderType,
-		utUint256 encryptedDataA, // Encrypted for PartyA (price, quantity, etc.)
+		ctUint256 encryptedDataA, // Encrypted for PartyA (price, quantity, etc.)
 		uint256 marketPrice,
 		uint256 tradingFee,
 		uint256 deadline
@@ -55,7 +55,7 @@ interface IPartyAEvents is IPartiesEvents {
 		uint256 symbolId,
 		PositionType positionType,
 		OrderType orderType,
-		utUint256 encryptedDataB, // Encrypted for PartyB (price, quantity, etc.)
+		ctUint256 encryptedDataB, // Encrypted for PartyB (price, quantity, etc.)
 		uint256 marketPrice,
 		uint256 tradingFee,
 		uint256 deadline
