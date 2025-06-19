@@ -188,9 +188,10 @@ library PartyAFacetImpl {
 		gtBool quoteSufficient = encryptedTotalForPartyA.ge(MpcCore.setPublic256(symbolLayout.symbols[symbolId].minAcceptableQuoteValue));
 
 		// Calculate encrypted trading fee: (quantity * tradingPrice * tradingFee) / 1e36
-		gtUint256 memory encryptedTradingFee = gtQuantity.mul(gtTradingPrice).mul(MpcCore.setPublic256(symbolLayout.symbols[symbolId].tradingFee)).div(
-			MpcCore.setPublic256(1e36)
-		);
+		gtUint256 memory encryptedTradingFee = gtQuantity
+			.mul(gtTradingPrice)
+			.mul(MpcCore.setPublic256(symbolLayout.symbols[symbolId].tradingFee))
+			.div(MpcCore.setPublic256(1e36));
 
 		// Calculate total required balance: totalForPartyA + tradingFee
 		gtUint256 memory totalRequired = encryptedTotalForPartyA.add(encryptedTradingFee);
@@ -213,10 +214,8 @@ library PartyAFacetImpl {
 
 		LibMuonPartyA.verifyPartyAUpnlAndPrice(upnlSig, msg.sender, symbolId);
 
-		// Only decrypt locked values when we need to store them in pendingLockedBalances
-		// This is necessary because the existing storage expects plaintext values
-		LockedValues memory plaintextLockedValues = PrivateLockedValuesOps.toPlaintext(encryptedLockedValues);
-		accountLayout.pendingLockedBalances[msg.sender].add(plaintextLockedValues);
+		// Store encrypted locked values directly
+		PrivateLockedValuesOps.addToPendingLocked(msg.sender, encryptedLockedValues);
 
 		currentId = ++quoteLayout.lastId;
 

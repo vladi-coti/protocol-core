@@ -5,6 +5,7 @@
 pragma solidity >=0.8.18;
 
 import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
+import "../storages/AccountStorage.sol";
 import { EncryptedLockedValues } from "../storages/PrivateQuoteStorage.sol";
 import { LockedValues } from "../storages/QuoteStorage.sol";
 
@@ -17,7 +18,6 @@ import { LockedValues } from "../storages/QuoteStorage.sol";
 library PrivateLockedValuesOps {
 	using MpcCore for gtUint256;
 	using MpcCore for gtBool;
-	using MpcCore for ctUint256;
 
 	/**
 	 * @notice Adds the values of two EncryptedLockedValues structs.
@@ -190,5 +190,104 @@ library PrivateLockedValuesOps {
 				partyBmm: condition.mux(trueValue.partyBmm, falseValue.partyBmm),
 				lf: condition.mux(trueValue.lf, falseValue.lf)
 			});
+	}
+
+	// ======================
+	// ENCRYPTED STORAGE MANAGEMENT FUNCTIONS
+	// ======================
+
+	/**
+	 * @notice Adds encrypted locked values to a user's pending locked balances
+	 * @param user The user address
+	 * @param values The encrypted locked values to add
+	 */
+	function addToPendingLocked(address user, EncryptedLockedValues memory values) internal {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		accountLayout.useEncryptedBalances[user] = true;
+		accountLayout.encryptedPendingLockedBalances[user] = add(accountLayout.encryptedPendingLockedBalances[user], values);
+	}
+
+	/**
+	 * @notice Subtracts encrypted locked values from a user's pending locked balances
+	 * @param user The user address
+	 * @param values The encrypted locked values to subtract
+	 */
+	function subFromPendingLocked(address user, EncryptedLockedValues memory values) internal {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		if (accountLayout.useEncryptedBalances[user]) {
+			accountLayout.encryptedPendingLockedBalances[user] = sub(accountLayout.encryptedPendingLockedBalances[user], values);
+		}
+	}
+
+	/**
+	 * @notice Moves encrypted values from pending to locked balances
+	 * @param user The user address
+	 */
+	function lockPendingBalances(address user) internal {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		if (accountLayout.useEncryptedBalances[user]) {
+			accountLayout.encryptedLockedBalances[user] = add(
+				accountLayout.encryptedLockedBalances[user],
+				accountLayout.encryptedPendingLockedBalances[user]
+			);
+			accountLayout.encryptedPendingLockedBalances[user] = makeZero();
+		}
+	}
+
+	/**
+	 * @notice Gets encrypted pending locked balances for a user
+	 * @param user The user address
+	 * @return The encrypted pending locked balances
+	 */
+	function getPendingLocked(address user) internal returns (EncryptedLockedValues memory) {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		if (accountLayout.useEncryptedBalances[user]) {
+			return accountLayout.encryptedPendingLockedBalances[user];
+		}
+		// Return zero if not using encrypted balances
+		return makeZero();
+	}
+
+	/**
+	 * @notice Gets encrypted locked balances for a user
+	 * @param user The user address
+	 * @return The encrypted locked balances
+	 */
+	function getLocked(address user) internal returns (EncryptedLockedValues memory) {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		if (accountLayout.useEncryptedBalances[user]) {
+			return accountLayout.encryptedLockedBalances[user];
+		}
+		// Return zero if not using encrypted balances
+		return makeZero();
+	}
+
+	/**
+	 * @notice Checks if a user is using encrypted balances
+	 * @param user The user address
+	 * @return True if user is using encrypted balances
+	 */
+	function isUsingEncryptedBalances(address user) internal returns (bool) {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		return accountLayout.useEncryptedBalances[user];
+	}
+
+	/**
+	 * @notice Migrates plaintext locked values to encrypted for a user
+	 * @param user The user address
+	 */
+	function migrateToEncrypted(address user) internal {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+
+		// Convert existing plaintext balances to encrypted
+		if (!accountLayout.useEncryptedBalances[user]) {
+			accountLayout.encryptedPendingLockedBalances[user] = fromPlaintext(accountLayout.pendingLockedBalances[user]);
+			accountLayout.encryptedLockedBalances[user] = fromPlaintext(accountLayout.lockedBalances[user]);
+			accountLayout.useEncryptedBalances[user] = true;
+
+			// Clear plaintext balances for privacy
+			accountLayout.pendingLockedBalances[user] = LockedValues(0, 0, 0, 0);
+			accountLayout.lockedBalances[user] = LockedValues(0, 0, 0, 0);
+		}
 	}
 }

@@ -5,6 +5,7 @@
 pragma solidity >=0.8.18;
 
 import "../libraries/LibLockedValues.sol";
+import { EncryptedLockedValues } from "./PrivateQuoteStorage.sol";
 
 enum LiquidationType {
 	NONE,
@@ -63,6 +64,14 @@ library AccountStorage {
 		// partyA => partyB => SettlementState
 		mapping(address => mapping(address => SettlementState)) settlementStates;
 		mapping(address => uint256) reserveVault;
+		// Encrypted versions for privacy-preserving operations
+		mapping(address => EncryptedLockedValues) encryptedPendingLockedBalances;
+		mapping(address => EncryptedLockedValues) encryptedLockedBalances;
+		mapping(address => mapping(address => EncryptedLockedValues)) partyBEncryptedPendingLockedBalances;
+		mapping(address => mapping(address => EncryptedLockedValues)) partyBEncryptedLockedBalances;
+		// Track which addresses are using encrypted locked values
+		mapping(address => bool) useEncryptedBalances;
+		mapping(address => mapping(address => bool)) partyBUseEncryptedBalances;
 	}
 
 	function layout() internal pure returns (Layout storage l) {
