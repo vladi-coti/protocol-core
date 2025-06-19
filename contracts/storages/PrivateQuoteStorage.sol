@@ -6,6 +6,13 @@ pragma solidity >=0.8.18;
 
 import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
+struct EncryptedLockedValues {
+	gtUint256 cva;
+	gtUint256 lf;
+	gtUint256 partyAmm;
+	gtUint256 partyBmm;
+}
+
 library PrivateQuoteStorage {
 	bytes32 internal constant PRIVATE_QUOTE_STORAGE_SLOT = keccak256("diamond.standard.storage.privatequote");
 

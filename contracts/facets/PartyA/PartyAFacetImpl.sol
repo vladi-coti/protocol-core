@@ -5,6 +5,7 @@
 pragma solidity >=0.8.18;
 
 import "../../libraries/LibLockedValues.sol";
+import "../../libraries/LibPrivateLockedValues.sol";
 import "../../libraries/muon/LibMuonPartyA.sol";
 import "../../libraries/LibAccount.sol";
 import "../../libraries/LibSolvency.sol";
@@ -22,7 +23,10 @@ import "../../libraries/LibPrivateQuote.sol";
 import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
 library PartyAFacetImpl {
+	using MpcCore for gtUint256;
+	using MpcCore for gtBool;
 	using LockedValuesOps for LockedValues;
+	using PrivateLockedValuesOps for EncryptedLockedValues;
 
 	function sendQuote(
 		address[] memory partyBsWhiteList,
@@ -148,7 +152,7 @@ library PartyAFacetImpl {
 		require(symbolLayout.symbols[symbolId].isValid, "PartyAFacet: Symbol is not valid");
 		require(deadline >= block.timestamp, "PartyAFacet: Low deadline");
 
-		// Get system-decrypted parameters for validation and balance checks
+		// Validate encrypted inputs without decrypting
 		gtUint256 memory gtQuantity = MpcCore.validateCiphertext(encryptedQuantity);
 		gtUint256 memory gtPrice = MpcCore.validateCiphertext(encryptedPrice);
 		gtUint256 memory gtCva = MpcCore.validateCiphertext(encryptedCva);
@@ -156,40 +160,64 @@ library PartyAFacetImpl {
 		gtUint256 memory gtPartyAmm = MpcCore.validateCiphertext(encryptedPartyAmm);
 		gtUint256 memory gtPartyBmm = MpcCore.validateCiphertext(encryptedPartyBmm);
 
-		// Decrypt for validation (system needs to validate parameters)
-		uint256 quantity = uint256(MpcCore.decrypt(gtQuantity));
-		uint256 price = uint256(MpcCore.decrypt(gtPrice));
-		uint256 cva = uint256(MpcCore.decrypt(gtCva));
-		uint256 lf = uint256(MpcCore.decrypt(gtLf));
-		uint256 partyAmm = uint256(MpcCore.decrypt(gtPartyAmm));
-		uint256 partyBmm = uint256(MpcCore.decrypt(gtPartyBmm));
+		// Create encrypted locked values struct
+		EncryptedLockedValues memory encryptedLockedValues = EncryptedLockedValues({
+			cva: gtCva,
+			lf: gtLf,
+			partyAmm: gtPartyAmm,
+			partyBmm: gtPartyBmm
+		});
 
-		LockedValues memory lockedValues = LockedValues(cva, lf, partyAmm, partyBmm);
-		uint256 tradingPrice = orderType == OrderType.LIMIT ? price : upnlSig.price;
-
-		require(
-			lockedValues.lf >= (symbolLayout.symbols[symbolId].minAcceptablePortionLF * lockedValues.totalForPartyA()) / 1e18,
-			"PartyAFacet: LF is not enough"
+		// Calculate encrypted trading price based on order type
+		gtUint256 memory gtTradingPrice = MpcCore.mux(
+			MpcCore.eq(MpcCore.setPublic256(uint256(orderType)), MpcCore.setPublic256(uint256(OrderType.LIMIT))),
+			gtPrice,
+			MpcCore.setPublic256(upnlSig.price)
 		);
 
-		require(lockedValues.totalForPartyA() >= symbolLayout.symbols[symbolId].minAcceptableQuoteValue, "PartyAFacet: Quote value is low");
+		// Perform encrypted validations
+		gtUint256 memory encryptedTotalForPartyA = PrivateLockedValuesOps.totalForPartyA(encryptedLockedValues);
+
+		// Check minimum LF requirement: lf >= (minAcceptablePortionLF * totalForPartyA) / 1e18
+		gtUint256 memory minLfRequired = encryptedTotalForPartyA.mul(MpcCore.setPublic256(symbolLayout.symbols[symbolId].minAcceptablePortionLF)).div(
+			MpcCore.setPublic256(1e18)
+		);
+		gtBool lfSufficient = gtLf.ge(minLfRequired);
+
+		// Check minimum quote value: totalForPartyA >= minAcceptableQuoteValue
+		gtBool quoteSufficient = encryptedTotalForPartyA.ge(MpcCore.setPublic256(symbolLayout.symbols[symbolId].minAcceptableQuoteValue));
+
+		// Calculate encrypted trading fee: (quantity * tradingPrice * tradingFee) / 1e36
+		gtUint256 memory encryptedTradingFee = gtQuantity.mul(gtTradingPrice).mul(MpcCore.setPublic256(symbolLayout.symbols[symbolId].tradingFee)).div(
+			MpcCore.setPublic256(1e36)
+		);
+
+		// Calculate total required balance: totalForPartyA + tradingFee
+		gtUint256 memory totalRequired = encryptedTotalForPartyA.add(encryptedTradingFee);
+
+		// Check available balance sufficiency
+		gtUint256 memory encryptedAvailableBalance = MpcCore.setPublic256(uint256(LibAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender)));
+		gtBool balanceSufficient = encryptedAvailableBalance.ge(totalRequired);
+
+		// Combine all validation results
+		gtBool allValidationsPassed = lfSufficient.and(quoteSufficient).and(balanceSufficient);
+
+		// Only decrypt the final validation result for require check
+		require(MpcCore.decrypt(allValidationsPassed), "PartyAFacet: Validation failed");
+
+		// Additional non-encrypted validations
 		for (uint8 i = 0; i < partyBsWhiteList.length; i++) {
 			require(partyBsWhiteList[i] != msg.sender, "PartyAFacet: Sender isn't allowed in partyBWhiteList");
 		}
+		require(maLayout.affiliateStatus[affiliate] || affiliate == address(0), "PartyAFacet: Invalid affiliate");
 
 		LibMuonPartyA.verifyPartyAUpnlAndPrice(upnlSig, msg.sender, symbolId);
 
-		int256 availableBalance = LibAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
-		require(availableBalance > 0, "PartyAFacet: Available balance is lower than zero");
-		require(
-			uint256(availableBalance) >=
-				lockedValues.totalForPartyA() + ((quantity * tradingPrice * symbolLayout.symbols[symbolId].tradingFee) / 1e36),
-			"PartyAFacet: insufficient available balance"
-		);
-		require(maLayout.affiliateStatus[affiliate] || affiliate == address(0), "PartyAFacet: Invalid affiliate");
+		// Only decrypt locked values when we need to store them in pendingLockedBalances
+		// This is necessary because the existing storage expects plaintext values
+		LockedValues memory plaintextLockedValues = PrivateLockedValuesOps.toPlaintext(encryptedLockedValues);
+		accountLayout.pendingLockedBalances[msg.sender].add(plaintextLockedValues);
 
-		// Lock funds temporarily
-		accountLayout.pendingLockedBalances[msg.sender].add(lockedValues);
 		currentId = ++quoteLayout.lastId;
 
 		// Create quote with placeholder values (actual encrypted values stored separately)
@@ -242,8 +270,8 @@ library PartyAFacetImpl {
 			partyB
 		);
 
-		// Deduct trading fee
-		uint256 fee = (quantity * tradingPrice * symbolLayout.symbols[symbolId].tradingFee) / 1e36;
+		// Only decrypt trading fee when we need to deduct it from allocated balances
+		uint256 fee = MpcCore.decrypt(encryptedTradingFee);
 		accountLayout.allocatedBalances[msg.sender] -= fee;
 		emit SharedEvents.BalanceChangePartyA(msg.sender, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_OUT);
 	}

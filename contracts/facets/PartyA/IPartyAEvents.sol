@@ -34,7 +34,6 @@ interface IPartyAEvents is IPartiesEvents {
 	event RequestToCancelCloseRequest(address partyA, address partyB, uint256 quoteId, QuoteStatus quoteStatus, uint256 closeId);
 	event RequestToCancelCloseRequest(address partyA, address partyB, uint256 quoteId, QuoteStatus quoteStatus); // For backward compatibility, will be removed in future
 
-	// Private quote events with dual encryption
 	event SendPrivateQuoteForPartyA(
 		address partyA,
 		uint256 quoteId,
