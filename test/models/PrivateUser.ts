@@ -27,16 +27,7 @@ export class PrivateUser extends User {
 	private privateWallet: Wallet
 
 	constructor(context: RunContext, wallet: Wallet) {
-		const regularSigner = {
-			address: wallet.address,
-			getAddress: () => Promise.resolve(wallet.address),
-			signMessage: wallet.signMessage.bind(wallet),
-			signTransaction: wallet.signTransaction.bind(wallet),
-			connect: (provider: any) => wallet.connect(provider),
-			sendTransaction: wallet.sendTransaction.bind(wallet),
-		} as any
-
-		super(context, regularSigner)
+		super(context, wallet as any)
 		this.privateWallet = wallet
 	}
 
@@ -88,7 +79,7 @@ export class PrivateUser extends User {
 			encryptedLf,
 			encryptedPartyAmm,
 			encryptedPartyBmm,
-		}
+		} as any
 
 		// Connect the private wallet to the diamond contract
 		const diamondWithPrivateWallet = this.context.privatePartyAFacet.connect(this.privateWallet)
