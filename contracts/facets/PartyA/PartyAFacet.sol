@@ -8,7 +8,6 @@ import "./PartyAFacetImpl.sol";
 import "../../utils/Accessibility.sol";
 import "../../utils/Pausable.sol";
 import "./IPartyAFacet.sol";
-import "../../libraries/LibPrivateQuote.sol";
 import "../../storages/SymbolStorage.sol";
 import "../../storages/QuoteStorage.sol";
 
@@ -153,81 +152,6 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 			quote.tradingFee,
 			deadline
 		);
-	}
-
-	/**
-	 * @notice Send a Private Quote to the protocol with encrypted parameters. The quote status will be pending.
-	 * @param basicParams Struct containing basic quote parameters
-	 * @param encryptedParams Struct containing all encrypted parameters
-	 * @param upnlSig The Muon signature for user upnl and symbol price
-	 */
-	function sendPrivateQuote(
-		QuoteBasicParams calldata basicParams,
-		PrivateQuoteParams calldata encryptedParams,
-		SingleUpnlAndPriceSig calldata upnlSig
-	) external whenNotPartyAActionsPaused notLiquidatedPartyA(msg.sender) notSuspended(msg.sender) returns (uint256 quoteId) {
-		quoteId = PartyAFacetImpl.sendPrivateQuote(
-			basicParams.partyBsWhiteList,
-			basicParams.symbolId,
-			basicParams.positionType,
-			basicParams.orderType,
-			encryptedParams.encryptedPrice,
-			encryptedParams.encryptedQuantity,
-			encryptedParams.encryptedCva,
-			encryptedParams.encryptedLf,
-			encryptedParams.encryptedPartyAmm,
-			encryptedParams.encryptedPartyBmm,
-			basicParams.maxFundingRate,
-			basicParams.deadline,
-			basicParams.affiliate,
-			upnlSig
-		);
-
-		emit SendPrivateQuotePublic(
-			msg.sender,
-			quoteId,
-			basicParams.partyBsWhiteList,
-			basicParams.symbolId,
-			basicParams.positionType,
-			basicParams.orderType,
-			upnlSig.price,
-			SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee,
-			basicParams.deadline
-		);
-
-		{
-			// 2. PartyA encrypted event
-			emit SendPrivateQuoteForPartyA(
-				msg.sender,
-				quoteId,
-				basicParams.partyBsWhiteList,
-				basicParams.symbolId,
-				basicParams.positionType,
-				basicParams.orderType,
-				MpcCore.offBoardToUser(MpcCore.validateCiphertext(encryptedParams.encryptedQuantity), msg.sender),
-				upnlSig.price,
-				SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee,
-				basicParams.deadline
-			);
-		}
-
-		{
-			// 3. PartyB encrypted event
-			if (basicParams.partyBsWhiteList.length == 1) {
-				emit SendPrivateQuoteForPartyB(
-					msg.sender,
-					quoteId,
-					basicParams.partyBsWhiteList,
-					basicParams.symbolId,
-					basicParams.positionType,
-					basicParams.orderType,
-					MpcCore.offBoardToUser(MpcCore.validateCiphertext(encryptedParams.encryptedQuantity), basicParams.partyBsWhiteList[0]),
-					upnlSig.price,
-					SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee,
-					basicParams.deadline
-				);
-			}
-		}
 	}
 
 	/**

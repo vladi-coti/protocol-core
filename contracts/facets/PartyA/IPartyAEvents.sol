@@ -6,7 +6,7 @@ pragma solidity >=0.8.18;
 
 import "../../storages/QuoteStorage.sol";
 import "../../interfaces/IPartiesEvents.sol";
-import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
+import { ctUint256 } from "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
 interface IPartyAEvents is IPartiesEvents {
 	event RequestToCancelQuote(address partyA, address partyB, QuoteStatus quoteStatus, uint256 quoteId);
