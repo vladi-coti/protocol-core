@@ -14,6 +14,7 @@ export const FacetNames = [
 	"PartyBGroupActionsFacet",
 	"PartyBPositionActionsPrivateFacet",
 	"PrivateQuoteFacet",
+	"PrivatePartyAFacet",
 ]
 
 export const DEPLOYMENT_LOG_FILE = "deployed.json"

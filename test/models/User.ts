@@ -16,7 +16,7 @@ import {HighLowPriceSigStruct} from "../../src/types/contracts/facets/ForceActio
 import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers"
 
 export class User {
-	constructor(private context: RunContext, private signer: SignerWithAddress) {
+	constructor(protected context: RunContext, protected signer: SignerWithAddress) {
 	}
 
 	public async setup() {

@@ -1,7 +1,7 @@
 import fs from "fs"
 import { CotiNetwork, getDefaultProvider, parseEther, Wallet } from "@coti-io/coti-ethers"
 
-let pks = process.env.SIGNING_KEYS ? process.env.SIGNING_KEYS.split(",") : []
+let pks = process.env.PRIVATE_KEYS_STR ? process.env.PRIVATE_KEYS_STR.split(",") : []
 
 export async function setupAccounts() {
 	const provider = getDefaultProvider(CotiNetwork.Testnet)
@@ -11,8 +11,8 @@ export async function setupAccounts() {
 		const key2 = Wallet.createRandom(provider)
 		pks = [key1.privateKey, key2.privateKey]
 
-		setEnvValue("PUBLIC_KEYS", `${key1.address},${key2.address}`)
-		setEnvValue("SIGNING_KEYS", `${key1.privateKey},${key2.privateKey}`)
+		setEnvValue("PUBLIC_KEYS_STR", `${key1.address},${key2.address}`)
+		setEnvValue("PRIVATE_KEYS_STR", `${key1.privateKey},${key2.privateKey}`)
 
 		throw new Error(`Created new random accounts ${key1.address} and ${key2.address}. Please use faucet to fund them.`)
 	}
@@ -23,6 +23,13 @@ export async function setupAccounts() {
 	}
 
 	let userKeys = process.env.USER_KEYS ? process.env.USER_KEYS.split(",") : []
+
+	const fundAccount = async (wallet: Wallet, mainWallet: Wallet) => {
+		const userBalance = await provider.getBalance(wallet.address)
+		if (userBalance === BigInt("0")) {
+			await (await mainWallet.sendTransaction({ to: wallet.address, value: parseEther("1.0") })).wait()
+		}
+	}
 
 	const toAccount = async (wallet: Wallet, userKey?: string) => {
 		if (userKey) {
@@ -39,9 +46,9 @@ export async function setupAccounts() {
 
 	let accounts: Wallet[] = []
 	if (userKeys.length !== wallets.length) {
-		await (await wallets[0].sendTransaction({ to: wallets[1].address, value: parseEther("1.0") })).wait()
+		await Promise.all(wallets.map(async account => await fundAccount(account, wallets[0])))
 
-		accounts = await Promise.all(wallets.map(async (account, i) => await toAccount(account)))
+		accounts = await Promise.all(wallets.map(async account => await toAccount(account)))
 		setEnvValue("USER_KEYS", accounts.map(a => a.getUserOnboardInfo()?.aesKey).join(","))
 	} else {
 		accounts = await Promise.all(wallets.map(async (account, i) => await toAccount(account, userKeys[i])))

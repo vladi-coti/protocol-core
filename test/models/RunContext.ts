@@ -12,7 +12,10 @@ import {
 	PartyAFacet,
 	PartyBGroupActionsFacet,
 	PartyBPositionActionsFacet,
+	PartyBPositionActionsPrivateFacet,
 	PartyBQuoteActionsFacet,
+	PrivatePartyAFacet,
+	PrivateQuoteFacet,
 	SettlementFacet,
 	ViewFacet,
 } from "../../src/types"
@@ -35,8 +38,9 @@ export class RunContext {
 	settlementFacet!: SettlementFacet
 	forceActionsFacet!: ForceActionsFacet
 	// Private variables facets
-	privateQuoteFacet!: any // Will be properly typed when contracts are deployed
-	partyBPositionActionsPrivateFacet!: any // Will be properly typed when contracts are deployed
+	privateQuoteFacet!: PrivateQuoteFacet // Will be properly typed when contracts are deployed
+	privatePartyAFacet!: PrivatePartyAFacet // Will be properly typed when contracts are deployed
+	partyBPositionActionsPrivateFacet!: PartyBPositionActionsPrivateFacet // Will be properly typed when contracts are deployed
 	signers!: {
 		admin: SignerWithAddress
 		user: SignerWithAddress
@@ -100,33 +104,10 @@ export async function createRunContext(
 	context.settlementFacet = await ethers.getContractAt("SettlementFacet", diamond)
 	context.forceActionsFacet = await ethers.getContractAt("ForceActionsFacet", diamond)
 
-	// Initialize private facets - connect to actual deployed contracts
-	try {
-		context.privateQuoteFacet = await ethers.getContractAt("PrivateQuoteFacet", diamond)
-	} catch (error) {
-		// Fallback to mock if contract not deployed (for backward compatibility)
-		context.privateQuoteFacet = {
-			isPrivateQuote: async () => false,
-			enablePrivateMode: async () => {},
-			getPrivateQuantity: async () => 0n,
-			getPrivateClosedAmount: async () => 0n,
-			getPrivatePartyA: async () => ethers.ZeroAddress,
-			getPrivatePartyB: async () => ethers.ZeroAddress,
-			getPrivateOpenAmount: async () => 0n,
-			batchEnablePrivateMode: async () => {},
-			connect: () => context.privateQuoteFacet,
-		}
-	}
-
-	try {
-		context.partyBPositionActionsPrivateFacet = await ethers.getContractAt("PartyBPositionActionsPrivateFacet", diamond)
-	} catch (error) {
-		// Fallback to mock if contract not deployed (for backward compatibility)
-		context.partyBPositionActionsPrivateFacet = {
-			openPositionWithPrivacy: async () => {},
-			connect: () => context.partyBPositionActionsPrivateFacet,
-		}
-	}
+	// Initialize private facets
+	context.privateQuoteFacet = await ethers.getContractAt("PrivateQuoteFacet", diamond)
+	context.privatePartyAFacet = await ethers.getContractAt("PrivatePartyAFacet", diamond)
+	context.partyBPositionActionsPrivateFacet = await ethers.getContractAt("PartyBPositionActionsPrivateFacet", diamond)
 
 	context.manager = new TestManager(context, onlyInitialize)
 	if (!onlyInitialize) await context.manager.start()
