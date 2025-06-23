@@ -7,7 +7,6 @@ import { PrivateUser, PrivateQuoteRequest } from "./models/PrivateUser"
 import { Hedger } from "./models/Hedger"
 import { decimal } from "./utils/Common"
 import { getDummySingleUpnlAndPriceSig } from "./utils/SignatureUtils"
-import { PositionType, OrderType } from "./models/Enums"
 import { loadFixtureCompatible } from "./utils/testHelpers"
 import { setupAccounts } from "./utils/accounts"
 
@@ -19,15 +18,15 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 	let userWallet: Wallet
 	let user2Wallet: Wallet
 
+	let createDefaultPrivateQuoteRequest: () => PrivateQuoteRequest
+
 	beforeEach(async function () {
 		context = await loadFixtureCompatible(initializeFixture)
 
-		console.log("context.diamond", context.diamond)
-
 		// Setup private wallets using Coti accounts
 		const accounts = await setupAccounts()
-		userWallet = accounts[0]
-		user2Wallet = accounts[1]
+		userWallet = accounts[1]
+		user2Wallet = accounts[2]
 
 		privateUser = new PrivateUser(context, userWallet)
 		privateUser2 = new PrivateUser(context, user2Wallet)
@@ -43,11 +42,14 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 		hedger = new Hedger(context, context.signers.hedger)
 		await hedger.setup()
 		await hedger.setBalances(decimal(4000n), decimal(4000n))
+
+		const partyBWhiteList = [await privateUser2.getAddress()]
+		createDefaultPrivateQuoteRequest = () => PrivateUser.createDefaultPrivateQuoteRequest(partyBWhiteList)
 	})
 
 	describe("Basic Private Quote Functionality", function () {
 		it("Should successfully send a private quote", async function () {
-			const request = PrivateUser.createDefaultPrivateQuoteRequest()
+			const request = createDefaultPrivateQuoteRequest()
 			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
 
 			const quoteId = await privateUser.sendPrivateQuote(request)
@@ -56,7 +58,7 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 		})
 
 		it("Should create quote with placeholder values in public storage", async function () {
-			const request = PrivateUser.createDefaultPrivateQuoteRequest()
+			const request = createDefaultPrivateQuoteRequest()
 			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
 
 			const quoteId = await privateUser.sendPrivateQuote(request)
@@ -72,7 +74,7 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 		})
 
 		it("Should mark quote as private in storage", async function () {
-			const request = PrivateUser.createDefaultPrivateQuoteRequest()
+			const request = createDefaultPrivateQuoteRequest()
 			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
 
 			const quoteId = await privateUser.sendPrivateQuote(request)
@@ -85,7 +87,7 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 
 	describe("Storage Privacy Tests", function () {
 		it("Should not store plaintext values in contract storage", async function () {
-			const request = PrivateUser.createDefaultPrivateQuoteRequest()
+			const request = createDefaultPrivateQuoteRequest()
 			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
 
 			const quoteId = await privateUser.sendPrivateQuote(request)
@@ -109,7 +111,7 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 		})
 
 		it("Should reject unauthorized access to private data", async function () {
-			const request = PrivateUser.createDefaultPrivateQuoteRequest()
+			const request = createDefaultPrivateQuoteRequest()
 			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
 
 			const quoteId = await privateUser.sendPrivateQuote(request)
@@ -123,15 +125,15 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 
 	describe("Access Control and Validation", function () {
 		it("Should enforce deadline validation", async function () {
-			const request = PrivateUser.createDefaultPrivateQuoteRequest()
-			request.deadline = Promise.resolve(Math.floor(Date.now() / 1000) - 1000) // Past deadline
+			const request = createDefaultPrivateQuoteRequest()
+			request.deadline = Promise.resolve(BigInt(Math.floor(Date.now() / 1000) - 1000)) // Past deadline
 			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
 
 			await expect(privateUser.sendPrivateQuote(request)).to.be.revertedWith("PartyAFacet: Low deadline")
 		})
 
 		it("Should validate partyB whitelist", async function () {
-			const request = PrivateUser.createDefaultPrivateQuoteRequest()
+			const request = createDefaultPrivateQuoteRequest()
 			request.partyBWhiteList = [await privateUser.getAddress()] // PartyA cannot be in whitelist
 			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
 
@@ -139,8 +141,8 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 		})
 
 		it("Should validate symbol ID", async function () {
-			const request = PrivateUser.createDefaultPrivateQuoteRequest()
-			request.symbolId = 999999 // Invalid symbol ID
+			const request = createDefaultPrivateQuoteRequest()
+			request.symbolId = 999999n // Invalid symbol ID
 			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
 
 			await expect(privateUser.sendPrivateQuote(request)).to.be.revertedWith("PartyAFacet: Symbol is not valid")
@@ -149,7 +151,7 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 
 	describe("Integration Tests", function () {
 		it("Should integrate with LibPrivateQuote.createPrivateQuote", async function () {
-			const request = PrivateUser.createDefaultPrivateQuoteRequest()
+			const request = createDefaultPrivateQuoteRequest()
 			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
 
 			const quoteId = await privateUser.sendPrivateQuote(request)
@@ -160,7 +162,7 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 		})
 
 		it("Should handle single partyB whitelist correctly", async function () {
-			const request = PrivateUser.createDefaultPrivateQuoteRequest()
+			const request = createDefaultPrivateQuoteRequest()
 			request.partyBWhiteList = [await hedger.getAddress()]
 			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
 
@@ -174,7 +176,7 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 
 	describe("State Consistency", function () {
 		it("Should maintain consistent state between public and private storage", async function () {
-			const request = PrivateUser.createDefaultPrivateQuoteRequest()
+			const request = createDefaultPrivateQuoteRequest()
 			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
 
 			const quoteId = await privateUser.sendPrivateQuote(request)
@@ -193,7 +195,7 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 		it("Should properly handle trading fee deduction", async function () {
 			const initialBalance = await privateUser.getBalanceInfo()
 
-			const request = PrivateUser.createDefaultPrivateQuoteRequest()
+			const request = createDefaultPrivateQuoteRequest()
 			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
 
 			await privateUser.sendPrivateQuote(request)
