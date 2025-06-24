@@ -4,7 +4,7 @@
 // For more information, see https://docs.symm.io/legal-disclaimer/license
 pragma solidity >=0.8.18;
 
-import "./IPartyAEvents.sol";
+import "./IPrivatePartyAEvents.sol";
 import "../../storages/MuonStorage.sol";
 import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
@@ -27,7 +27,7 @@ struct QuoteBasicParams {
 	address affiliate;
 }
 
-interface IPrivatePartyAFacet is IPartyAEvents {
+interface IPrivatePartyAFacet is IPrivatePartyAEvents {
 	function sendPrivateQuote(
 		QuoteBasicParams memory basicParams,
 		PrivateQuoteParams calldata encryptedParams,

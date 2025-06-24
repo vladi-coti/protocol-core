@@ -1,5 +1,5 @@
 import { expect } from "chai"
-import { ethers } from "ethers"
+import { ethers } from "hardhat"
 import { Wallet } from "@coti-io/coti-ethers"
 import { initializeFixture } from "./Initialize.fixture"
 import { RunContext } from "./models/RunContext"

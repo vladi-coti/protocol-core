@@ -4,7 +4,7 @@
 // For more information, see https://docs.symm.io/legal-disclaimer/license
 pragma solidity >=0.8.18;
 
-import "./PartyAFacetImpl.sol";
+import "./PrivatePartyAFacetImpl.sol";
 import "../../utils/Accessibility.sol";
 import "../../utils/Pausable.sol";
 import "./IPrivatePartyAFacet.sol";
@@ -24,7 +24,7 @@ contract PrivatePartyAFacet is Accessibility, Pausable, IPrivatePartyAFacet {
 		PrivateQuoteParams calldata encryptedParams,
 		SingleUpnlAndPriceSig calldata upnlSig
 	) external whenNotPartyAActionsPaused notLiquidatedPartyA(msg.sender) notSuspended(msg.sender) returns (uint256 quoteId) {
-		quoteId = PartyAFacetImpl.sendPrivateQuote(
+		quoteId = PrivatePartyAFacetImpl.sendPrivateQuote(
 			basicParams.partyBsWhiteList,
 			basicParams.symbolId,
 			basicParams.positionType,

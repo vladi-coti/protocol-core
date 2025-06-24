@@ -35,7 +35,7 @@ const beraAPIKey: string = process.env.BERA_API_KEY || ""
 const hardhatDockerUrl: string | undefined = process.env.HARDHAT_DOCKER_URL || ""
 
 const config: HardhatUserConfig = {
-	defaultNetwork: "hardhat",
+	defaultNetwork: "coti-testnet",
 	gasReporter: {
 		currency: "USD",
 		enabled: true,

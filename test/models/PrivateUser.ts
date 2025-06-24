@@ -3,7 +3,7 @@ import { Wallet, ctUint256, itUint256 } from "@coti-io/coti-ethers";
 import { User } from "./User";
 import { RunContext } from "./RunContext";
 import { PositionType, OrderType } from "./Enums";
-import { serializeToJson } from "../utils/Common";
+import { decimal, serializeToJson } from "../utils/Common";
 import { logger } from "../utils/LoggerUtils";
 import { PrivateQuoteParamsStruct, QuoteBasicParamsStruct } from "../../src/types/contracts/facets/PartyA/IPrivatePartyAFacet";
 
@@ -54,8 +54,7 @@ export class PrivateUser extends User {
 		);
 
 		const contractAddress = this.context.diamond;
-		const functionFragment = this.context.privatePartyAFacet.interface.getFunction("sendPrivateQuote");
-		const selector = functionFragment.selector;
+		const selector = this.context.privatePartyAFacet.interface.getFunction('sendPrivateQuote').selector
 
 		const basicParams: QuoteBasicParamsStruct = {
 			partyBsWhiteList: request.partyBWhiteList,
@@ -83,10 +82,9 @@ export class PrivateUser extends User {
 			encryptedPartyBmm: encryptedPartyBmm,
 		};
 
-		// Connect the private wallet to the diamond contract
-		const diamondWithPrivateWallet = this.context.privatePartyAFacet.connect(this.privateWallet);
+		const connectedContract = this.context.privatePartyAFacet.connect(this.privateWallet as any);
 
-		let tx = await diamondWithPrivateWallet.sendPrivateQuote(basicParams, encryptedParams, await request.upnlSig);
+		let tx = await connectedContract.sendPrivateQuote(basicParams, encryptedParams, await request.upnlSig);
 
 		const receipt = await tx.wait();
 
@@ -110,21 +108,13 @@ export class PrivateUser extends User {
 			symbolId: 1n,
 			positionType: PositionType.LONG,
 			orderType: OrderType.LIMIT,
-			// price: decimal(1000n),
-			// quantity: decimal(100n),
-			// cva: decimal(50n),
-			// lf: decimal(25n),
-			// partyAmm: decimal(75n),
-			// partyBmm: decimal(75n),
-			// maxFundingRate: decimal(5n),
-			// Use smaller values that fit within 64-bit encryption limit
-			price: 1000000n, // 1,000,000 (fits in 64 bits)
-			quantity: 100000n, // 100,000 (fits in 64 bits)
-			cva: 50000n, // 50,000 (fits in 64 bits)
-			lf: 25000n, // 25,000 (fits in 64 bits)
-			partyAmm: 75000n, // 75,000 (fits in 64 bits)
-			partyBmm: 75000n, // 75,000 (fits in 64 bits)
-			maxFundingRate: 5000n, // 5,000 (fits in 64 bits)
+			price: decimal(1000n),
+            quantity: decimal(100n),
+            cva: decimal(50n),
+            lf: decimal(25n),
+            partyAmm: decimal(75n),
+            partyBmm: decimal(75n),
+            maxFundingRate: decimal(5n),
 			deadline: Promise.resolve(BigInt(Math.floor(Date.now() / 1000) + 1000)),
 			affiliate: ethers.ZeroAddress,
 			upnlSig: null,
