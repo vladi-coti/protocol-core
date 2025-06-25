@@ -13,6 +13,24 @@ import "../../storages/SymbolStorage.sol";
 import "../../storages/QuoteStorage.sol";
 
 contract PrivatePartyAFacet is Accessibility, Pausable, IPrivatePartyAFacet {
+	event PrivateParamsTest(gtUint256 gtPrice, gtUint256 gtQuantity, gtUint256 gtCva, gtUint256 gtLf, gtUint256 gtPartyAmm, gtUint256 gtPartyBmm);
+
+	function privateParamsTest(
+		QuoteBasicParams calldata basicParams,
+		PrivateQuoteParams calldata encryptedParams,
+		SingleUpnlAndPriceSig calldata upnlSig
+	) external {
+		// Validate encrypted inputs without decrypting
+		gtUint256 memory gtPrice = MpcCore.validateCiphertext(encryptedParams.encryptedPrice);
+		gtUint256 memory gtQuantity = MpcCore.validateCiphertext(encryptedParams.encryptedQuantity);
+		gtUint256 memory gtCva = MpcCore.validateCiphertext(encryptedParams.encryptedCva);
+		gtUint256 memory gtLf = MpcCore.validateCiphertext(encryptedParams.encryptedLf);
+		gtUint256 memory gtPartyAmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyAmm);
+		gtUint256 memory gtPartyBmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyBmm);
+
+		emit PrivateParamsTest(gtPrice, gtQuantity, gtCva, gtLf, gtPartyAmm, gtPartyBmm);
+	}
+
 	/**
 	 * @notice Send a Private Quote to the protocol with encrypted parameters. The quote status will be pending.
 	 * @param basicParams Struct containing basic quote parameters
@@ -24,17 +42,25 @@ contract PrivatePartyAFacet is Accessibility, Pausable, IPrivatePartyAFacet {
 		PrivateQuoteParams calldata encryptedParams,
 		SingleUpnlAndPriceSig calldata upnlSig
 	) external whenNotPartyAActionsPaused notLiquidatedPartyA(msg.sender) notSuspended(msg.sender) returns (uint256 quoteId) {
+		// Validate encrypted inputs without decrypting
+		gtUint256 memory gtPrice = MpcCore.validateCiphertext(encryptedParams.encryptedPrice);
+		gtUint256 memory gtQuantity = MpcCore.validateCiphertext(encryptedParams.encryptedQuantity);
+		gtUint256 memory gtCva = MpcCore.validateCiphertext(encryptedParams.encryptedCva);
+		gtUint256 memory gtLf = MpcCore.validateCiphertext(encryptedParams.encryptedLf);
+		gtUint256 memory gtPartyAmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyAmm);
+		gtUint256 memory gtPartyBmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyBmm);
+
 		quoteId = PrivatePartyAFacetImpl.sendPrivateQuote(
 			basicParams.partyBsWhiteList,
 			basicParams.symbolId,
 			basicParams.positionType,
 			basicParams.orderType,
-			encryptedParams.encryptedPrice,
-			encryptedParams.encryptedQuantity,
-			encryptedParams.encryptedCva,
-			encryptedParams.encryptedLf,
-			encryptedParams.encryptedPartyAmm,
-			encryptedParams.encryptedPartyBmm,
+			gtPrice,
+			gtQuantity,
+			gtCva,
+			gtLf,
+			gtPartyAmm,
+			gtPartyBmm,
 			basicParams.maxFundingRate,
 			basicParams.deadline,
 			basicParams.affiliate,

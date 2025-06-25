@@ -72,17 +72,6 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 			expect(quote.lockedValues.partyAmm).to.equal(1n) // Placeholder value
 			expect(quote.lockedValues.partyBmm).to.equal(1n) // Placeholder value
 		})
-
-		it("Should mark quote as private in storage", async function () {
-			const request = createDefaultPrivateQuoteRequest()
-			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
-
-			const quoteId = await privateUser.sendPrivateQuote(request)
-
-			// Check if the quote is marked as private
-			const isPrivate = await context.privateQuoteFacet.isPrivateQuote(quoteId)
-			expect(isPrivate).to.be.true
-		})
 	})
 
 	describe("Storage Privacy Tests", function () {
@@ -109,18 +98,6 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 			expect(quote.lockedValues.partyAmm).to.equal(1n)
 			expect(quote.lockedValues.partyBmm).to.equal(1n)
 		})
-
-		it("Should reject unauthorized access to private data", async function () {
-			const request = createDefaultPrivateQuoteRequest()
-			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
-
-			const quoteId = await privateUser.sendPrivateQuote(request)
-
-			// Unauthorized user should not be able to access private data
-			await expect(context.privateQuoteFacet.connect(privateUser2.getPrivateWallet()).getPrivateQuantity(quoteId)).to.be.revertedWith(
-				"PrivateQuoteFacet: Only quote parties can access private data",
-			)
-		})
 	})
 
 	describe("Access Control and Validation", function () {
@@ -146,31 +123,6 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
 
 			await expect(privateUser.sendPrivateQuote(request)).to.be.revertedWith("PartyAFacet: Symbol is not valid")
-		})
-	})
-
-	describe("Integration Tests", function () {
-		it("Should integrate with LibPrivateQuote.createPrivateQuote", async function () {
-			const request = createDefaultPrivateQuoteRequest()
-			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
-
-			const quoteId = await privateUser.sendPrivateQuote(request)
-
-			// Verify the quote is marked as private
-			const isPrivate = await context.privateQuoteFacet.isPrivateQuote(quoteId)
-			expect(isPrivate).to.be.true
-		})
-
-		it("Should handle single partyB whitelist correctly", async function () {
-			const request = createDefaultPrivateQuoteRequest()
-			request.partyBWhiteList = [await hedger.getAddress()]
-			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
-
-			const quoteId = await privateUser.sendPrivateQuote(request)
-
-			// Should still create private quote successfully
-			const isPrivate = await context.privateQuoteFacet.isPrivateQuote(quoteId)
-			expect(isPrivate).to.be.true
 		})
 	})
 

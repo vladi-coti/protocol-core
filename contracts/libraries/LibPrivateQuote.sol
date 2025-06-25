@@ -11,35 +11,27 @@ library LibPrivateQuote {
 	/**
 	 * @notice Creates a private quote with encrypted parameters
 	 * @param quoteId The ID of the quote
-	 * @param encryptedQuantity Encrypted quantity for partyB
-	 * @param encryptedPrice Encrypted price for partyB
-	 * @param encryptedCva Encrypted CVA for partyB
-	 * @param encryptedLf Encrypted LF for partyB
-	 * @param encryptedPartyAmm Encrypted partyA MM for partyB
-	 * @param encryptedPartyBmm Encrypted partyB MM for partyB
+	 * @param gtQuantity Garbled quantity for partyB
+	 * @param gtPrice Garbled price for partyB
+	 * @param gtCva Garbled CVA for partyB
+	 * @param gtLf Garbled LF for partyB
+	 * @param gtPartyAmm Garbled partyA MM for partyB
+	 * @param gtPartyBmm Garbled partyB MM for partyB
 	 * @param partyA The partyA address
 	 * @param partyB The partyB address (can be address(0) for whitelisted quotes)
 	 */
 	function createPrivateQuote(
 		uint256 quoteId,
-		itUint256 calldata encryptedQuantity,
-		itUint256 calldata encryptedPrice,
-		itUint256 calldata encryptedCva,
-		itUint256 calldata encryptedLf,
-		itUint256 calldata encryptedPartyAmm,
-		itUint256 calldata encryptedPartyBmm,
+		gtUint256 memory gtQuantity,
+		gtUint256 memory gtPrice,
+		gtUint256 memory gtCva,
+		gtUint256 memory gtLf,
+		gtUint256 memory gtPartyAmm,
+		gtUint256 memory gtPartyBmm,
 		address partyA,
 		address partyB
 	) internal {
 		PrivateQuoteStorage.Layout storage layout = PrivateQuoteStorage.layout();
-
-		// Validate and store encrypted parameters for partyB decryption
-		gtUint256 memory gtQuantity = MpcCore.validateCiphertext(encryptedQuantity);
-		gtUint256 memory gtPrice = MpcCore.validateCiphertext(encryptedPrice);
-		gtUint256 memory gtCva = MpcCore.validateCiphertext(encryptedCva);
-		gtUint256 memory gtLf = MpcCore.validateCiphertext(encryptedLf);
-		gtUint256 memory gtPartyAmm = MpcCore.validateCiphertext(encryptedPartyAmm);
-		gtUint256 memory gtPartyBmm = MpcCore.validateCiphertext(encryptedPartyBmm);
 
 		// Store encrypted for partyB (so they can decrypt and process)
 		if (partyB != address(0)) {

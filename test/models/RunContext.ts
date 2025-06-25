@@ -15,7 +15,6 @@ import {
 	PartyBPositionActionsPrivateFacet,
 	PartyBQuoteActionsFacet,
 	PrivatePartyAFacet,
-	PrivateQuoteFacet,
 	SettlementFacet,
 	ViewFacet,
 } from "../../src/types"
@@ -38,9 +37,8 @@ export class RunContext {
 	settlementFacet!: SettlementFacet
 	forceActionsFacet!: ForceActionsFacet
 	// Private variables facets
-	privateQuoteFacet!: PrivateQuoteFacet // Will be properly typed when contracts are deployed
-	privatePartyAFacet!: PrivatePartyAFacet // Will be properly typed when contracts are deployed
-	partyBPositionActionsPrivateFacet!: PartyBPositionActionsPrivateFacet // Will be properly typed when contracts are deployed
+	privatePartyAFacet!: PrivatePartyAFacet
+	partyBPositionActionsPrivateFacet!: PartyBPositionActionsPrivateFacet
 	signers!: {
 		admin: SignerWithAddress
 		user: SignerWithAddress
@@ -105,7 +103,6 @@ export async function createRunContext(
 	context.forceActionsFacet = await ethers.getContractAt("ForceActionsFacet", diamond)
 
 	// Initialize private facets
-	context.privateQuoteFacet = await ethers.getContractAt("PrivateQuoteFacet", diamond)
 	context.privatePartyAFacet = await ethers.getContractAt("PrivatePartyAFacet", diamond)
 	context.partyBPositionActionsPrivateFacet = await ethers.getContractAt("PartyBPositionActionsPrivateFacet", diamond)
 

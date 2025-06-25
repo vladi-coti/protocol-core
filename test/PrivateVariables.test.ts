@@ -1,8 +1,8 @@
 import hre from "hardhat"
 import { expect } from "chai"
 import { setupAccounts } from "./utils/accounts"
-import { shouldBehaveLikePrivateOpenPosition } from "./PrivateOpenPosition.behavior"
 import { shouldBehaveLikeSendPrivateQuote } from "./SendPrivateQuote.behavior"
+import { shouldBehaveLikePrivateParamsTest } from "./PrivateParamsTest.behavior"
 
 const GAS_LIMIT = 12000000
 
@@ -12,12 +12,12 @@ describe("COTI.io v2 Private Variables Integration", function () {
 	})
 
 	if (process.env.TEST_MODE == "static") {
-		describe("PrivateOpenPosition", async function () {
-			shouldBehaveLikePrivateOpenPosition()
-		})
-
 		describe("SendPrivateQuote", async function () {
 			shouldBehaveLikeSendPrivateQuote()
+		})
+
+		describe("PrivateParamsTest", async function () {
+			shouldBehaveLikePrivateParamsTest()
 		})
 	} else if (process.env.TEST_MODE == "fuzz") {
 		describe("FuzzTest", async function () {})

@@ -33,4 +33,10 @@ interface IPrivatePartyAFacet is IPrivatePartyAEvents {
 		PrivateQuoteParams calldata encryptedParams,
 		SingleUpnlAndPriceSig memory upnlSig
 	) external returns (uint256);
+
+	function privateParamsTest(
+		QuoteBasicParams calldata basicParams,
+		PrivateQuoteParams calldata encryptedParams,
+		SingleUpnlAndPriceSig calldata upnlSig
+	) external;
 }

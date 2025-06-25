@@ -33,12 +33,12 @@ library PrivatePartyAFacetImpl {
 		uint256 symbolId,
 		PositionType positionType,
 		OrderType orderType,
-		itUint256 calldata encryptedPrice,
-		itUint256 calldata encryptedQuantity,
-		itUint256 calldata encryptedCva,
-		itUint256 calldata encryptedLf,
-		itUint256 calldata encryptedPartyAmm,
-		itUint256 calldata encryptedPartyBmm,
+		gtUint256 memory gtPrice,
+		gtUint256 memory gtQuantity,
+		gtUint256 memory gtCva,
+		gtUint256 memory gtLf,
+		gtUint256 memory gtPartyAmm,
+		gtUint256 memory gtPartyBmm,
 		uint256 maxFundingRate,
 		uint256 deadline,
 		address affiliate,
@@ -56,16 +56,6 @@ library PrivatePartyAFacetImpl {
 		);
 		require(symbolLayout.symbols[symbolId].isValid, "PrivatePartyAFacet: Symbol is not valid");
 		require(deadline >= block.timestamp, "PrivatePartyAFacet: Low deadline");
-
-		// Validate encrypted inputs without decrypting
-		gtUint256 memory gtPrice = MpcCore.validateCiphertext(encryptedPrice);
-		gtUint256 memory gtQuantity = MpcCore.validateCiphertext(encryptedQuantity);
-		gtUint256 memory gtCva = MpcCore.validateCiphertext(encryptedCva);
-		gtUint256 memory gtLf = MpcCore.validateCiphertext(encryptedLf);
-		gtUint256 memory gtPartyAmm = MpcCore.validateCiphertext(encryptedPartyAmm);
-		gtUint256 memory gtPartyBmm = MpcCore.validateCiphertext(encryptedPartyBmm);
-
-		revert("test1");
 
 		// Create encrypted locked values struct
 		EncryptedLockedValues memory encryptedLockedValues = EncryptedLockedValues({
@@ -166,12 +156,12 @@ library PrivatePartyAFacetImpl {
 		address partyB = partyBsWhiteList.length == 1 ? partyBsWhiteList[0] : address(0);
 		LibPrivateQuote.createPrivateQuote(
 			currentId,
-			encryptedQuantity,
-			encryptedPrice,
-			encryptedCva,
-			encryptedLf,
-			encryptedPartyAmm,
-			encryptedPartyBmm,
+			gtQuantity,
+			gtPrice,
+			gtCva,
+			gtLf,
+			gtPartyAmm,
+			gtPartyBmm,
 			msg.sender,
 			partyB
 		);

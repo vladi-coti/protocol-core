@@ -13,7 +13,6 @@ export const FacetNames = [
 	"PartyBQuoteActionsFacet",
 	"PartyBGroupActionsFacet",
 	"PartyBPositionActionsPrivateFacet",
-	"PrivateQuoteFacet",
 	"PrivatePartyAFacet",
 ]
 
