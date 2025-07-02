@@ -4,12 +4,11 @@
 // For more information, see https://docs.symm.io/legal-disclaimer/license
 pragma solidity >=0.8.18;
 
-import "../storages/QuoteStorage.sol";
+import "../storages/PrivateQuoteStorage.sol";
 import "../storages/MuonStorage.sol";
-import { ctUint256 } from "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
 interface IPrivatePartiesEvents {
-	event AcceptCancelRequest(uint256 quoteId, QuoteStatus quoteStatus); // TODO: change to private?
+	event AcceptCancelRequest(uint256 quoteId, QuoteStatus quoteStatus); // TODO: change to private
 
 	event SendPrivateQuoteForPartyA(
 		address partyA,
@@ -18,43 +17,40 @@ interface IPrivatePartiesEvents {
 		uint256 symbolId,
 		PositionType positionType,
 		OrderType orderType,
-		ctUint256 encryptedDataA, // Encrypted for PartyA (price, quantity, etc.)
-		uint256 marketPrice,
-		uint256 tradingFee,
+		ctUint256 price,
+		ctUint256 marketPrice,
+		ctUint256 quantity,
+		ctUint256 cva,
+		ctUint256 lf,
+		ctUint256 partyAmm,
+		ctUint256 partyBmm,
+		ctUint256 tradingFee,
 		uint256 deadline
 	);
 
 	event SendPrivateQuoteForPartyB(
 		address partyA,
 		uint256 quoteId,
-		address[] partyBsWhiteList,
+		address partyB,
 		uint256 symbolId,
 		PositionType positionType,
 		OrderType orderType,
-		ctUint256 encryptedDataB, // Encrypted for PartyB (price, quantity, etc.)
-		uint256 marketPrice,
-		uint256 tradingFee,
+		ctUint256 price,
+		ctUint256 marketPrice,
+		ctUint256 quantity,
+		ctUint256 cva,
+		ctUint256 lf,
+		ctUint256 partyAmm,
+		ctUint256 partyBmm,
+		ctUint256 tradingFee,
 		uint256 deadline
 	);
 
-	// Public event for non-sensitive data
-	event SendPrivateQuotePublic(
-		address partyA,
-		uint256 quoteId,
-		address[] partyBsWhiteList,
-		uint256 symbolId,
-		PositionType positionType,
-		OrderType orderType,
-		uint256 marketPrice,
-		uint256 tradingFee,
-		uint256 deadline
-	);
+	event ExpireQuoteOpen(QuoteStatus quoteStatus, uint256 quoteId); // TODO: change to private
 
-	event ExpireQuoteOpen(QuoteStatus quoteStatus, uint256 quoteId); // TODO: change to private?
+	event ExpireQuoteClose(QuoteStatus quoteStatus, uint256 quoteId, uint256 closeId); // TODO: change to private
 
-	event ExpireQuoteClose(QuoteStatus quoteStatus, uint256 quoteId, uint256 closeId); // TODO: change to private?
-
-	event OpenPosition(uint256 quoteId, address partyA, address partyB, uint256 filledAmount, uint256 openedPrice); // TODO: change to private?
+	event OpenPosition(uint256 quoteId, address partyA, address partyB, uint256 filledAmount, uint256 openedPrice); // TODO: change to private
 
 	event FillCloseRequest(
 		uint256 quoteId,
@@ -64,7 +60,7 @@ interface IPrivatePartiesEvents {
 		uint256 closedPrice,
 		QuoteStatus quoteStatus,
 		uint256 closeId
-	); // TODO: change to private?
+	); // TODO: change to private
 
-	event LiquidatePartyB(address liquidator, address partyB, address partyA, uint256 partyBAllocatedBalance, int256 upnl); // TODO: change to private?
+	event LiquidatePartyB(address liquidator, address partyB, address partyA, uint256 partyBAllocatedBalance, int256 upnl); // TODO: change to private
 }

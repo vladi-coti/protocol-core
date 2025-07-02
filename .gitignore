@@ -36,3 +36,5 @@ pnpm-lock.yaml
 docs
 .yarn/
 .venv
+
+.DS_Store

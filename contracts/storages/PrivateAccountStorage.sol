@@ -4,7 +4,7 @@
 // For more information, see https://docs.symm.io/legal-disclaimer/license
 pragma solidity >=0.8.18;
 
-import "../libraries/LibLockedValues.sol";
+import "../libraries/LibLockedPrivateValues.sol";
 
 enum LiquidationType {
 	NONE,
@@ -39,19 +39,20 @@ struct Price {
 	uint256 timestamp;
 }
 
-library AccountStorage {
-	bytes32 internal constant ACCOUNT_STORAGE_SLOT = keccak256("diamond.standard.storage.account");
+library PrivateAccountStorage {
+	bytes32 internal constant PRIVATE_ACCOUNT_STORAGE_SLOT = keccak256("diamond.standard.storage.privateaccount");
 
 	struct Layout {
 		// Users deposited amounts
 		mapping(address => uint256) balances;
 		mapping(address => uint256) allocatedBalances;
 		// position value will become pending locked before openPosition and will be locked after that
-		mapping(address => LockedValues) pendingLockedBalances;
-		mapping(address => LockedValues) lockedBalances;
+		// Encrypted versions for privacy-preserving operations
+		mapping(address => PrivateLockedValues) encryptedPendingLockedBalances;
+		mapping(address => PrivateLockedValues) encryptedLockedBalances;
 		mapping(address => mapping(address => uint256)) partyBAllocatedBalances;
-		mapping(address => mapping(address => LockedValues)) partyBPendingLockedBalances;
-		mapping(address => mapping(address => LockedValues)) partyBLockedBalances;
+		mapping(address => mapping(address => PrivateLockedValues)) partyBEncryptedPendingLockedBalances;
+		mapping(address => mapping(address => PrivateLockedValues)) partyBEncryptedLockedBalances;
 		mapping(address => uint256) withdrawCooldown; // is better to call lastDeallocateTime
 		mapping(address => uint256) partyANonces;
 		mapping(address => mapping(address => uint256)) partyBNonces;
@@ -63,10 +64,12 @@ library AccountStorage {
 		// partyA => partyB => SettlementState
 		mapping(address => mapping(address => SettlementState)) settlementStates;
 		mapping(address => uint256) reserveVault;
+		// User encryption address management
+		mapping(address => address) userEncryptionAddress;
 	}
 
 	function layout() internal pure returns (Layout storage l) {
-		bytes32 slot = ACCOUNT_STORAGE_SLOT;
+		bytes32 slot = PRIVATE_ACCOUNT_STORAGE_SLOT;
 		assembly {
 			l.slot := slot
 		}

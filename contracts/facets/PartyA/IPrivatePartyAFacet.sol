@@ -6,7 +6,6 @@ pragma solidity >=0.8.18;
 
 import "./IPrivatePartyAEvents.sol";
 import "../../storages/MuonStorage.sol";
-import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
 struct PrivateQuoteParams {
 	itUint256 encryptedPrice;
@@ -37,21 +36,15 @@ struct QuoteBasicParams {
 }
 
 interface IPrivatePartyAFacet is IPrivatePartyAEvents {
-	// function sendPrivateQuote(
-	// 	QuoteBasicParams memory basicParams,
-	// 	PrivateQuoteParams calldata encryptedParams,
-	// 	SingleUpnlAndPriceSig memory upnlSig
-	// ) external returns (uint256);
-
 	function sendPrivateQuote(
+		QuoteBasicParams memory basicParams,
+		PrivateQuoteParams calldata encryptedParams,
+		SingleUpnlAndPriceSig memory upnlSig
+	) external returns (uint256);
+
+	function sendPrivateQuotePlaintext(
 		QuoteBasicParams memory basicParams,
 		TempQuoteParams calldata encryptedParams,
 		SingleUpnlAndPriceSig memory upnlSig
 	) external returns (uint256);
-
-	function privateParamsTest(
-		QuoteBasicParams calldata basicParams,
-		PrivateQuoteParams calldata encryptedParams,
-		SingleUpnlAndPriceSig calldata upnlSig
-	) external;
 }

@@ -4,12 +4,11 @@
 // For more information, see https://docs.symm.io/legal-disclaimer/license
 pragma solidity >=0.8.18;
 
-import "../../storages/QuoteStorage.sol";
+import "../../storages/PrivateQuoteStorage.sol";
 import "../../interfaces/IPrivatePartiesEvents.sol";
-import { ctUint256 } from "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
 interface IPrivatePartyAEvents is IPrivatePartiesEvents {
-	event RequestToCancelQuote(address partyA, address partyB, QuoteStatus quoteStatus, uint256 quoteId);
+	event RequestToCancelQuote(address partyA, address partyB, QuoteStatus quoteStatus, uint256 quoteId); // TODO: change to private
 	event RequestToClosePosition(
 		address partyA,
 		address partyB,
@@ -20,17 +19,6 @@ interface IPrivatePartyAEvents is IPrivatePartiesEvents {
 		uint256 deadline,
 		QuoteStatus quoteStatus,
 		uint256 closeId
-	);
-	event RequestToClosePosition(
-		address partyA,
-		address partyB,
-		uint256 quoteId,
-		uint256 closePrice,
-		uint256 quantityToClose,
-		OrderType orderType,
-		uint256 deadline,
-		QuoteStatus quoteStatus
-	); // For backward compatibility, will be removed in future
-	event RequestToCancelCloseRequest(address partyA, address partyB, uint256 quoteId, QuoteStatus quoteStatus, uint256 closeId);
-	event RequestToCancelCloseRequest(address partyA, address partyB, uint256 quoteId, QuoteStatus quoteStatus); // For backward compatibility, will be removed in future
+	); // TODO: change to private
+	event RequestToCancelCloseRequest(address partyA, address partyB, uint256 quoteId, QuoteStatus quoteStatus, uint256 closeId); // TODO: change to private
 }
