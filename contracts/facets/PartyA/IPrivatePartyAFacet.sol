@@ -17,6 +17,15 @@ struct PrivateQuoteParams {
 	itUint256 encryptedPartyBmm;
 }
 
+struct TempQuoteParams { // TODO: remove this once the proper way to handling encrypted parameters is fixed
+	uint256 encryptedPrice;
+	uint256 encryptedQuantity;
+	uint256 encryptedCva;
+	uint256 encryptedLf;
+	uint256 encryptedPartyAmm;
+	uint256 encryptedPartyBmm;
+}
+
 struct QuoteBasicParams {
 	address[] partyBsWhiteList;
 	uint256 symbolId;
@@ -28,9 +37,15 @@ struct QuoteBasicParams {
 }
 
 interface IPrivatePartyAFacet is IPrivatePartyAEvents {
+	// function sendPrivateQuote(
+	// 	QuoteBasicParams memory basicParams,
+	// 	PrivateQuoteParams calldata encryptedParams,
+	// 	SingleUpnlAndPriceSig memory upnlSig
+	// ) external returns (uint256);
+
 	function sendPrivateQuote(
 		QuoteBasicParams memory basicParams,
-		PrivateQuoteParams calldata encryptedParams,
+		TempQuoteParams calldata encryptedParams,
 		SingleUpnlAndPriceSig memory upnlSig
 	) external returns (uint256);
 

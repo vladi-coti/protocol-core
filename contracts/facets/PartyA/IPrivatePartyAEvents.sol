@@ -5,10 +5,10 @@
 pragma solidity >=0.8.18;
 
 import "../../storages/QuoteStorage.sol";
-import "../../interfaces/IPartiesEvents.sol";
+import "../../interfaces/IPrivatePartiesEvents.sol";
 import { ctUint256 } from "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
-interface IPrivatePartyAEvents is IPartiesEvents {
+interface IPrivatePartyAEvents is IPrivatePartiesEvents {
 	event RequestToCancelQuote(address partyA, address partyB, QuoteStatus quoteStatus, uint256 quoteId);
 	event RequestToClosePosition(
 		address partyA,
@@ -33,43 +33,4 @@ interface IPrivatePartyAEvents is IPartiesEvents {
 	); // For backward compatibility, will be removed in future
 	event RequestToCancelCloseRequest(address partyA, address partyB, uint256 quoteId, QuoteStatus quoteStatus, uint256 closeId);
 	event RequestToCancelCloseRequest(address partyA, address partyB, uint256 quoteId, QuoteStatus quoteStatus); // For backward compatibility, will be removed in future
-
-	event SendPrivateQuoteForPartyA(
-		address partyA,
-		uint256 quoteId,
-		address[] partyBsWhiteList,
-		uint256 symbolId,
-		PositionType positionType,
-		OrderType orderType,
-		ctUint256 encryptedDataA, // Encrypted for PartyA (price, quantity, etc.)
-		uint256 marketPrice,
-		uint256 tradingFee,
-		uint256 deadline
-	);
-
-	event SendPrivateQuoteForPartyB(
-		address partyA,
-		uint256 quoteId,
-		address[] partyBsWhiteList,
-		uint256 symbolId,
-		PositionType positionType,
-		OrderType orderType,
-		ctUint256 encryptedDataB, // Encrypted for PartyB (price, quantity, etc.)
-		uint256 marketPrice,
-		uint256 tradingFee,
-		uint256 deadline
-	);
-
-	// Public event for non-sensitive data
-	event SendPrivateQuotePublic(
-		address partyA,
-		uint256 quoteId,
-		address[] partyBsWhiteList,
-		uint256 symbolId,
-		PositionType positionType,
-		OrderType orderType,
-		uint256 marketPrice,
-		uint256 tradingFee,
-		uint256 deadline
-	);
 }

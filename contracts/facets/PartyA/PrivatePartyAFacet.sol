@@ -31,24 +31,37 @@ contract PrivatePartyAFacet is Accessibility, Pausable, IPrivatePartyAFacet {
 		emit PrivateParamsTest(gtPrice, gtQuantity, gtCva, gtLf, gtPartyAmm, gtPartyBmm);
 	}
 
-	/**
-	 * @notice Send a Private Quote to the protocol with encrypted parameters. The quote status will be pending.
-	 * @param basicParams Struct containing basic quote parameters
-	 * @param encryptedParams Struct containing all encrypted parameters
-	 * @param upnlSig The Muon signature for user upnl and symbol price
-	 */
+	// /**
+	//  * @notice Send a Private Quote to the protocol with encrypted parameters. The quote status will be pending.
+	//  * @param basicParams Struct containing basic quote parameters
+	//  * @param encryptedParams Struct containing all encrypted parameters
+	//  * @param upnlSig The Muon signature for user upnl and symbol price
+	//  */
+	// function sendPrivateQuote(
+	// 	QuoteBasicParams calldata basicParams,
+	// 	PrivateQuoteParams calldata encryptedParams,
+	// 	SingleUpnlAndPriceSig calldata upnlSig
+	// ) external whenNotPartyAActionsPaused notLiquidatedPartyA(msg.sender) notSuspended(msg.sender) returns (uint256 quoteId) {
+	// 	// Validate encrypted inputs without decrypting
+	// 	gtUint256 memory gtPrice = MpcCore.validateCiphertext(encryptedParams.encryptedPrice);
+	// 	gtUint256 memory gtQuantity = MpcCore.validateCiphertext(encryptedParams.encryptedQuantity);
+	// 	gtUint256 memory gtCva = MpcCore.validateCiphertext(encryptedParams.encryptedCva);
+	// 	gtUint256 memory gtLf = MpcCore.validateCiphertext(encryptedParams.encryptedLf);
+	// 	gtUint256 memory gtPartyAmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyAmm);
+	// 	gtUint256 memory gtPartyBmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyBmm);
+
 	function sendPrivateQuote(
 		QuoteBasicParams calldata basicParams,
-		PrivateQuoteParams calldata encryptedParams,
+		TempQuoteParams calldata encryptedParams,
 		SingleUpnlAndPriceSig calldata upnlSig
 	) external whenNotPartyAActionsPaused notLiquidatedPartyA(msg.sender) notSuspended(msg.sender) returns (uint256 quoteId) {
-		// Validate encrypted inputs without decrypting
-		gtUint256 memory gtPrice = MpcCore.validateCiphertext(encryptedParams.encryptedPrice);
-		gtUint256 memory gtQuantity = MpcCore.validateCiphertext(encryptedParams.encryptedQuantity);
-		gtUint256 memory gtCva = MpcCore.validateCiphertext(encryptedParams.encryptedCva);
-		gtUint256 memory gtLf = MpcCore.validateCiphertext(encryptedParams.encryptedLf);
-		gtUint256 memory gtPartyAmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyAmm);
-		gtUint256 memory gtPartyBmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyBmm);
+		// FIXME: Remove this once the proper way to handling encrypted parameters is fixed
+		gtUint256 memory gtPrice = MpcCore.setPublic256(encryptedParams.encryptedPrice);
+		gtUint256 memory gtQuantity = MpcCore.setPublic256(encryptedParams.encryptedQuantity);
+		gtUint256 memory gtCva = MpcCore.setPublic256(encryptedParams.encryptedCva);
+		gtUint256 memory gtLf = MpcCore.setPublic256(encryptedParams.encryptedLf);
+		gtUint256 memory gtPartyAmm = MpcCore.setPublic256(encryptedParams.encryptedPartyAmm);
+		gtUint256 memory gtPartyBmm = MpcCore.setPublic256(encryptedParams.encryptedPartyBmm);
 
 		quoteId = PrivatePartyAFacetImpl.sendPrivateQuote(
 			basicParams.partyBsWhiteList,
@@ -88,7 +101,7 @@ contract PrivatePartyAFacet is Accessibility, Pausable, IPrivatePartyAFacet {
 				basicParams.symbolId,
 				basicParams.positionType,
 				basicParams.orderType,
-				MpcCore.offBoardToUser(MpcCore.validateCiphertext(encryptedParams.encryptedQuantity), msg.sender),
+				MpcCore.offBoardToUser(MpcCore.setPublic256(encryptedParams.encryptedQuantity), msg.sender),
 				upnlSig.price,
 				SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee,
 				basicParams.deadline
@@ -105,7 +118,7 @@ contract PrivatePartyAFacet is Accessibility, Pausable, IPrivatePartyAFacet {
 					basicParams.symbolId,
 					basicParams.positionType,
 					basicParams.orderType,
-					MpcCore.offBoardToUser(MpcCore.validateCiphertext(encryptedParams.encryptedQuantity), basicParams.partyBsWhiteList[0]),
+					MpcCore.offBoardToUser(MpcCore.setPublic256(encryptedParams.encryptedQuantity), basicParams.partyBsWhiteList[0]),
 					upnlSig.price,
 					SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee,
 					basicParams.deadline
