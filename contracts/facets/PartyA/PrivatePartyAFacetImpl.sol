@@ -8,17 +8,12 @@ import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 import "../../libraries/LibLockedValues.sol";
 import "../../libraries/LibLockedPrivateValues.sol";
 import "../../libraries/muon/LibMuonPartyA.sol";
-import "../../libraries/LibAccount.sol";
 import "../../libraries/LibSolvency.sol";
-import "../../libraries/LibQuote.sol";
-import "../../libraries/LibLiquidation.sol";
 import "../../libraries/LibAccessibility.sol";
 import "../../libraries/SharedEvents.sol";
 import "../../libraries/LibSettlement.sol";
 import "../../storages/MAStorage.sol";
-import "../../storages/QuoteStorage.sol";
 import "../../storages/MuonStorage.sol";
-import "../../storages/AccountStorage.sol";
 import "../../storages/SymbolStorage.sol";
 import "../../libraries/LibPrivateQuote.sol";
 import "../../libraries/LibPrivateAccount.sol";
@@ -32,8 +27,8 @@ library PrivatePartyAFacetImpl {
 	function sendPrivateQuote(
 		address[] memory partyBsWhiteList,
 		uint256 symbolId,
-		PositionType positionType,
-		OrderType orderType,
+		PrivatePositionType positionType,
+		PrivateOrderType orderType,
 		gtUint256 memory gtPrice,
 		gtUint256 memory gtQuantity,
 		gtUint256 memory gtCva,
@@ -139,7 +134,7 @@ library PrivatePartyAFacetImpl {
 			maxFundingRate: maxFundingRate,
 			partyA: MpcCore.setPublic256(uint256(uint160(msg.sender))).offBoard(partyAEncryptionAddress),
 			partyB: MpcCore.setPublic256(0).offBoard(partyAEncryptionAddress),
-			quoteStatus: QuoteStatus.PENDING,
+			quoteStatus: PrivateQuoteStatus.PENDING,
 			avgClosedPrice: MpcCore.setPublic256(0).offBoard(partyAEncryptionAddress),
 			requestedClosePrice: MpcCore.setPublic256(0).offBoard(partyAEncryptionAddress),
 			parentId: 0,

@@ -28,8 +28,8 @@ struct TempQuoteParams { // TODO: remove this once the proper way to handling en
 struct QuoteBasicParams {
 	address[] partyBsWhiteList;
 	uint256 symbolId;
-	PositionType positionType;
-	OrderType orderType;
+	PrivatePositionType positionType;
+	PrivateOrderType orderType;
 	uint256 maxFundingRate;
 	uint256 deadline;
 	address affiliate;

@@ -6,23 +6,23 @@ pragma solidity >=0.8.18;
 
 import "../libraries/LibLockedPrivateValues.sol";
 
-enum LiquidationType {
+enum PrivateLiquidationType {
 	NONE,
 	NORMAL,
 	LATE,
 	OVERDUE
 }
 
-struct SettlementState {
+struct PrivateSettlementState {
 	int256 actualAmount;
 	int256 expectedAmount;
 	uint256 cva;
 	bool pending;
 }
 
-struct LiquidationDetail {
+struct PrivateLiquidationDetail {
 	bytes liquidationId;
-	LiquidationType liquidationType;
+	PrivateLiquidationType liquidationType;
 	int256 upnl;
 	int256 totalUnrealizedLoss;
 	uint256 deficit;
@@ -34,7 +34,7 @@ struct LiquidationDetail {
 	uint256 liquidationTimestamp;
 }
 
-struct Price {
+struct PrivatePrice {
 	uint256 price;
 	uint256 timestamp;
 }
@@ -57,12 +57,12 @@ library PrivateAccountStorage {
 		mapping(address => uint256) partyANonces;
 		mapping(address => mapping(address => uint256)) partyBNonces;
 		mapping(address => bool) suspendedAddresses;
-		mapping(address => LiquidationDetail) liquidationDetails;
-		mapping(address => mapping(uint256 => Price)) symbolsPrices;
+		mapping(address => PrivateLiquidationDetail) liquidationDetails;
+		mapping(address => mapping(uint256 => PrivatePrice)) symbolsPrices;
 		mapping(address => address[]) liquidators;
 		mapping(address => uint256) partyAReimbursement;
 		// partyA => partyB => SettlementState
-		mapping(address => mapping(address => SettlementState)) settlementStates;
+		mapping(address => mapping(address => PrivateSettlementState)) settlementStates;
 		mapping(address => uint256) reserveVault;
 		// User encryption address management
 		mapping(address => address) userEncryptionAddress;

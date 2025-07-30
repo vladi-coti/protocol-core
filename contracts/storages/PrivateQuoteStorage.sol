@@ -6,17 +6,17 @@ pragma solidity >=0.8.18;
 
 import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
-enum PositionType {
+enum PrivatePositionType {
 	LONG,
 	SHORT
 }
 
-enum OrderType {
+enum PrivateOrderType {
 	LIMIT,
 	MARKET
 }
 
-enum QuoteStatus {
+enum PrivateQuoteStatus {
 	PENDING, //0
 	LOCKED, //1
 	CANCEL_PENDING, //2
@@ -48,8 +48,8 @@ struct PrivateQuote {
 	uint256 id;
 	address[] partyBsWhiteList;
 	uint256 symbolId;
-	PositionType positionType;
-	OrderType orderType;
+	PrivatePositionType positionType;
+	PrivateOrderType orderType;
 	// Price of quote which PartyB opened in 18 decimals (encrypted)
 	utUint256 openedPrice;
 	utUint256 initialOpenedPrice;
@@ -66,7 +66,7 @@ struct PrivateQuote {
 	// Encrypted addresses converted to uint256 for privacy
 	utUint256 partyA;
 	utUint256 partyB;
-	QuoteStatus quoteStatus;
+	PrivateQuoteStatus quoteStatus;
 	utUint256 avgClosedPrice;
 	utUint256 requestedClosePrice;
 	utUint256 quantityToClose;

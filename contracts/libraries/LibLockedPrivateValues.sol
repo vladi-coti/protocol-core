@@ -24,10 +24,10 @@ library LockedPrivateValuesOps {
 	function onBoard(PrivateLockedValues memory self) internal returns (GarbledPrivateLockedValues memory) {
 		return
 			GarbledPrivateLockedValues({
-				cva: MpcCore.onBoard(self.cva),
-				partyAmm: MpcCore.onBoard(self.partyAmm),
-				partyBmm: MpcCore.onBoard(self.partyBmm),
-				lf: MpcCore.onBoard(self.lf)
+				cva: MpcCore.onBoard(self.cva.ciphertext),
+				partyAmm: MpcCore.onBoard(self.partyAmm.ciphertext),
+				partyBmm: MpcCore.onBoard(self.partyBmm.ciphertext),
+				lf: MpcCore.onBoard(self.lf.ciphertext)
 			});
 	}
 
@@ -84,7 +84,7 @@ library LockedPrivateValuesOps {
 	 * @return A zero GarbledPrivateLockedValues struct.
 	 */
 	function makeZero() internal returns (GarbledPrivateLockedValues memory) {
-		gtUint256 memory zero = MpcCore.setPublic256(0);
+		gtUint256 memory zero = MpcCore.setPublic256(uint256(0));
 		return GarbledPrivateLockedValues({ cva: zero, partyAmm: zero, partyBmm: zero, lf: zero });
 	}
 
@@ -181,11 +181,11 @@ library LockedPrivateValuesOps {
 		GarbledPrivateLockedValues memory falseValue
 	) internal returns (GarbledPrivateLockedValues memory) {
 		return
-			PrivateLockedValues({
-				cva: condition.mux(trueValue.cva, falseValue.cva),
-				partyAmm: condition.mux(trueValue.partyAmm, falseValue.partyAmm),
-				partyBmm: condition.mux(trueValue.partyBmm, falseValue.partyBmm),
-				lf: condition.mux(trueValue.lf, falseValue.lf)
+			GarbledPrivateLockedValues({
+				cva: MpcCore.mux(condition, trueValue.cva, falseValue.cva),
+				partyAmm: MpcCore.mux(condition, trueValue.partyAmm, falseValue.partyAmm),
+				partyBmm: MpcCore.mux(condition, trueValue.partyBmm, falseValue.partyBmm),
+				lf: MpcCore.mux(condition, trueValue.lf, falseValue.lf)
 			});
 	}
 }

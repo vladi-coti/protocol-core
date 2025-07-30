@@ -8,17 +8,17 @@ import "../../storages/PrivateQuoteStorage.sol";
 import "../../interfaces/IPrivatePartiesEvents.sol";
 
 interface IPrivatePartyAEvents is IPrivatePartiesEvents {
-	event RequestToCancelQuote(address partyA, address partyB, QuoteStatus quoteStatus, uint256 quoteId); // TODO: change to private
+	event RequestToCancelQuote(address partyA, address partyB, PrivateQuoteStatus quoteStatus, uint256 quoteId); // TODO: change to private
 	event RequestToClosePosition(
 		address partyA,
 		address partyB,
 		uint256 quoteId,
 		uint256 closePrice,
 		uint256 quantityToClose,
-		OrderType orderType,
+		PrivateOrderType orderType,
 		uint256 deadline,
-		QuoteStatus quoteStatus,
+		PrivateQuoteStatus quoteStatus,
 		uint256 closeId
 	); // TODO: change to private
-	event RequestToCancelCloseRequest(address partyA, address partyB, uint256 quoteId, QuoteStatus quoteStatus, uint256 closeId); // TODO: change to private
+	event RequestToCancelCloseRequest(address partyA, address partyB, uint256 quoteId, PrivateQuoteStatus quoteStatus, uint256 closeId); // TODO: change to private
 }

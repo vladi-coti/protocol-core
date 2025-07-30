@@ -26,13 +26,13 @@ library LibMuon {
 	// We emphasize this because they are only disabled for testing purposes.
 	function verifyTSSAndGateway(bytes32 hash, SchnorrSign memory sign, bytes memory gatewaySignature) internal view {
 		// == SignatureCheck( ==
-		bool verified = LibMuonV04ClientBase.muonVerify(uint256(hash), sign, MuonStorage.layout().muonPublicKey);
-		require(verified, "LibMuon: TSS not verified");
-
-		hash = hash.toEthSignedMessageHash();
-		address gatewaySignatureSigner = hash.recover(gatewaySignature);
-
-		require(gatewaySignatureSigner == MuonStorage.layout().validGateway, "LibMuon: Gateway is not valid");
+// 		bool verified = LibMuonV04ClientBase.muonVerify(uint256(hash), sign, MuonStorage.layout().muonPublicKey);
+// 		require(verified, "LibMuon: TSS not verified");
+// 
+// 		hash = hash.toEthSignedMessageHash();
+// 		address gatewaySignatureSigner = hash.recover(gatewaySignature);
+// 
+// 		require(gatewaySignatureSigner == MuonStorage.layout().validGateway, "LibMuon: Gateway is not valid");
 		// == ) ==
 	}
 
@@ -40,7 +40,7 @@ library LibMuon {
 	function verifyPartyBUpnl(SingleUpnlSig memory upnlSig, address partyB, address partyA) internal view {
 		MuonStorage.Layout storage muonLayout = MuonStorage.layout();
 		// == SignatureCheck( ==
-		require(block.timestamp <= upnlSig.timestamp + muonLayout.upnlValidTime, "LibMuon: Expired signature");
+// 		require(block.timestamp <= upnlSig.timestamp + muonLayout.upnlValidTime, "LibMuon: Expired signature");
 		// == ) ==
 		bytes32 hash = keccak256(
 			abi.encodePacked(

@@ -8,15 +8,15 @@ import "../storages/PrivateQuoteStorage.sol";
 import "../storages/MuonStorage.sol";
 
 interface IPrivatePartiesEvents {
-	event AcceptCancelRequest(uint256 quoteId, QuoteStatus quoteStatus); // TODO: change to private
+	event AcceptCancelRequest(uint256 quoteId, PrivateQuoteStatus quoteStatus); // TODO: change to private
 
 	event SendPrivateQuoteForPartyA(
 		address partyA,
 		uint256 quoteId,
 		address[] partyBsWhiteList,
 		uint256 symbolId,
-		PositionType positionType,
-		OrderType orderType,
+		PrivatePositionType positionType,
+		PrivateOrderType orderType,
 		ctUint256 price,
 		ctUint256 marketPrice,
 		ctUint256 quantity,
@@ -33,8 +33,8 @@ interface IPrivatePartiesEvents {
 		uint256 quoteId,
 		address partyB,
 		uint256 symbolId,
-		PositionType positionType,
-		OrderType orderType,
+		PrivatePositionType positionType,
+		PrivateOrderType orderType,
 		ctUint256 price,
 		ctUint256 marketPrice,
 		ctUint256 quantity,
@@ -46,9 +46,9 @@ interface IPrivatePartiesEvents {
 		uint256 deadline
 	);
 
-	event ExpireQuoteOpen(QuoteStatus quoteStatus, uint256 quoteId); // TODO: change to private
+	event ExpireQuoteOpen(PrivateQuoteStatus quoteStatus, uint256 quoteId); // TODO: change to private
 
-	event ExpireQuoteClose(QuoteStatus quoteStatus, uint256 quoteId, uint256 closeId); // TODO: change to private
+	event ExpireQuoteClose(PrivateQuoteStatus quoteStatus, uint256 quoteId, uint256 closeId); // TODO: change to private
 
 	event OpenPosition(uint256 quoteId, address partyA, address partyB, uint256 filledAmount, uint256 openedPrice); // TODO: change to private
 
@@ -58,7 +58,7 @@ interface IPrivatePartiesEvents {
 		address partyB,
 		uint256 filledAmount,
 		uint256 closedPrice,
-		QuoteStatus quoteStatus,
+		PrivateQuoteStatus quoteStatus,
 		uint256 closeId
 	); // TODO: change to private
 

@@ -8,7 +8,11 @@ import "./LibLockedPrivateValues.sol";
 import "../storages/PrivateAccountStorage.sol";
 
 library LibPrivateAccount {
+	using MpcCore for gtUint256;
+	using MpcCore for gtInt256;
+	using MpcCore for gtBool;
 	using LockedPrivateValuesOps for PrivateLockedValues;
+	using LockedPrivateValuesOps for GarbledPrivateLockedValues;
 
 	/**
 	 * @notice Gets the user encryption address.
@@ -32,10 +36,10 @@ library LibPrivateAccount {
 	function partyATotalLockedBalances(address partyA) internal view returns (gtUint256 memory) {
 		PrivateAccountStorage.Layout storage privateAccountLayout = PrivateAccountStorage.layout();
 		// Add encrypted pending and locked balances for Party A
-		PrivateLockedValues memory totalPending = privateAccountLayout.gtPendingLockedBalances[partyA];
-		PrivateLockedValues memory totalLocked = privateAccountLayout.gtLockedBalances[partyA];
-		gtUint256 memory pendingTotal = totalPending.totalForPartyA();
-		gtUint256 memory lockedTotal = totalLocked.totalForPartyA();
+		PrivateLockedValues memory totalPending = privateAccountLayout.encryptedPendingLockedBalances[partyA];
+		PrivateLockedValues memory totalLocked = privateAccountLayout.encryptedLockedBalances[partyA];
+		gtUint256 memory pendingTotal = totalPending.onBoard().totalForPartyA();
+		gtUint256 memory lockedTotal = totalLocked.onBoard().totalForPartyA();
 		gtUint256 memory grandTotal = pendingTotal.add(lockedTotal);
 		return grandTotal;
 	}
@@ -51,8 +55,8 @@ library LibPrivateAccount {
 		// Add encrypted pending and locked balances for Party B
 		PrivateLockedValues memory totalPending = privateAccountLayout.partyBEncryptedPendingLockedBalances[partyB][partyA];
 		PrivateLockedValues memory totalLocked = privateAccountLayout.partyBEncryptedLockedBalances[partyB][partyA];
-		gtUint256 memory pendingTotal = totalPending.totalForPartyB();
-		gtUint256 memory lockedTotal = totalLocked.totalForPartyB();
+		gtUint256 memory pendingTotal = totalPending.onBoard().totalForPartyB();
+		gtUint256 memory lockedTotal = totalLocked.onBoard().totalForPartyB();
 		gtUint256 memory grandTotal = pendingTotal.add(lockedTotal);
 		return grandTotal;
 	}
@@ -66,32 +70,32 @@ library LibPrivateAccount {
 	function partyAAvailableForQuote(int256 upnl, address partyA) internal view returns (gtInt256 memory) {
 		PrivateAccountStorage.Layout storage privateAccountLayout = PrivateAccountStorage.layout();
 		gtUint256 memory allocatedBalance = MpcCore.setPublic256(privateAccountLayout.allocatedBalances[partyA]);
-		gtInt256 memory gtUpnl = MpcCore.setPublicSigned256(upnl);
+		gtInt256 memory gtUpnl = MpcCore.setPublic256(int256(upnl));
 
 		if (upnl >= 0) {
 			// Calculate total locked amounts using encrypted operations
-			PrivateLockedValues memory pending = privateAccountLayout.gtPendingLockedBalances[partyA];
-			PrivateLockedValues memory locked = privateAccountLayout.gtLockedBalances[partyA];
-			gtUint256 memory totalLockedAmount = locked.totalForPartyA().add(pending.totalForPartyA());
+			PrivateLockedValues memory pending = privateAccountLayout.encryptedPendingLockedBalances[partyA];
+			PrivateLockedValues memory locked = privateAccountLayout.encryptedLockedBalances[partyA];
+			gtUint256 memory totalLockedAmount = locked.onBoard().totalForPartyA().add(pending.onBoard().totalForPartyA());
 
-			gtInt256 memory available = gtInt256.wrap(allocatedBalance.val).add(gtUpnl).sub(gtInt256.wrap(totalLockedAmount.val));
+			gtInt256 memory available = allocatedBalance.add(gtUpnl).sub(totalLockedAmount);
 			return available;
 		} else {
 			// Get gt partyAmm for comparison
-			gtUint256 memory gtMm = privateAccountLayout.gtLockedBalances[partyA].partyAmm;
+			gtUint256 memory gtMm = privateAccountLayout.encryptedLockedBalances[partyA].onBoard().partyAmm;
 			gtInt256 memory negUpnl = gtUpnl.neg();
 			gtInt256 memory mm = gtInt256.wrap(gtMm.val);
 			gtBool condition = negUpnl.gt(mm);
 			gtInt256 memory considering_mm = condition.mux(negUpnl, mm);
 
 			// Calculate CVA + LF + pending total using gt operations
-			PrivateLockedValues memory locked = privateAccountLayout.gtLockedBalances[partyA];
-			PrivateLockedValues memory pending = privateAccountLayout.gtPendingLockedBalances[partyA];
-			gtUint256 memory cvaLfAmount = locked.cva.add(locked.lf);
-			gtUint256 memory pendingTotal = pending.totalForPartyA();
+			PrivateLockedValues memory locked = privateAccountLayout.encryptedLockedBalances[partyA];
+			PrivateLockedValues memory pending = privateAccountLayout.encryptedPendingLockedBalances[partyA];
+			gtUint256 memory cvaLfAmount = locked.onBoard().cva.add(locked.onBoard().lf);
+			gtUint256 memory pendingTotal = pending.onBoard().totalForPartyA();
 			gtUint256 memory totalAmount = cvaLfAmount.add(pendingTotal);
 
-			gtInt256 memory available = gtInt256.wrap(allocatedBalance.val).sub(gtInt256.wrap(totalAmount.val)).sub(considering_mm);
+			gtInt256 memory available = allocatedBalance.sub(totalAmount).sub(considering_mm);
 			return available;
 		}
 	}
@@ -105,23 +109,23 @@ library LibPrivateAccount {
 	function partyAAvailableBalance(int256 upnl, address partyA) internal view returns (gtInt256 memory) {
 		PrivateAccountStorage.Layout storage privateAccountLayout = PrivateAccountStorage.layout();
 		gtUint256 memory allocatedBalance = MpcCore.setPublic256(privateAccountLayout.allocatedBalances[partyA]);
-		gtInt256 memory gtUpnl = MpcCore.setPublicSigned256(upnl);
+		gtInt256 memory gtUpnl = MpcCore.setPublic256(int256(upnl));
 
 		if (upnl >= 0) {
-			gtUint256 memory totalLocked = privateAccountLayout.gtLockedBalances[partyA].totalForPartyA();
-			gtInt256 memory available = gtInt256.wrap(allocatedBalance.val).add(gtUpnl).sub(gtInt256.wrap(totalLocked.val));
+			gtUint256 memory totalLocked = privateAccountLayout.encryptedLockedBalances[partyA].totalForPartyA();
+			gtInt256 memory available = allocatedBalance.add(gtUpnl).sub(totalLocked);
 			return available;
 		} else {
-			gtUint256 memory gtMm = privateAccountLayout.gtLockedBalances[partyA].partyAmm;
+			gtUint256 memory gtMm = privateAccountLayout.encryptedLockedBalances[partyA].partyAmm;
 			gtInt256 memory negUpnl = gtUpnl.neg();
 			gtInt256 memory mm = gtInt256.wrap(gtMm.val);
 			gtBool condition = negUpnl.gt(mm);
 			gtInt256 memory considering_mm = condition.mux(negUpnl, mm);
 
-			PrivateLockedValues memory locked = privateAccountLayout.gtLockedBalances[partyA];
-			gtUint256 memory cvaLfAmount = locked.cva.add(locked.lf);
+			PrivateLockedValues memory locked = privateAccountLayout.encryptedLockedBalances[partyA];
+			gtUint256 memory cvaLfAmount = locked.onBoard().cva.add(locked.onBoard().lf);
 
-			gtInt256 memory available = gtInt256.wrap(allocatedBalance.val).sub(gtInt256.wrap(cvaLfAmount.val)).sub(considering_mm);
+			gtInt256 memory available = allocatedBalance.sub(cvaLfAmount).sub(considering_mm);
 			return available;
 		}
 	}
@@ -135,11 +139,11 @@ library LibPrivateAccount {
 	 */
 	function partyAAvailableBalanceForLiquidation(int256 upnl, uint256 allocatedBalance, address partyA) internal view returns (gtInt256 memory) {
 		PrivateAccountStorage.Layout storage privateAccountLayout = PrivateAccountStorage.layout();
-		PrivateLockedValues memory locked = privateAccountLayout.gtLockedBalances[partyA];
+		PrivateLockedValues memory locked = privateAccountLayout.encryptedLockedBalances[partyA];
 		gtUint256 memory cvaLfAmount = locked.cva.add(locked.lf);
-		gtInt256 memory gtAllocated = MpcCore.setPublicSigned256(int256(allocatedBalance));
-		gtInt256 memory gtUpnl = MpcCore.setPublicSigned256(upnl);
-		gtInt256 memory freeBalance = gtAllocated.sub(gtInt256.wrap(cvaLfAmount.val));
+		gtInt256 memory gtAllocated = MpcCore.setPublic256(int256(allocatedBalance));
+		gtInt256 memory gtUpnl = MpcCore.setPublic256(int256(upnl));
+		gtInt256 memory freeBalance = gtAllocated.sub(cvaLfAmount);
 		return freeBalance.add(gtUpnl);
 	}
 
@@ -153,17 +157,17 @@ library LibPrivateAccount {
 	function partyBAvailableForQuote(int256 upnl, address partyB, address partyA) internal view returns (gtInt256 memory) {
 		PrivateAccountStorage.Layout storage privateAccountLayout = PrivateAccountStorage.layout();
 		gtUint256 memory allocatedBalance = MpcCore.setPublic256(privateAccountLayout.partyBAllocatedBalances[partyB][partyA]);
-		gtInt256 memory gtUpnl = MpcCore.setPublicSigned256(upnl);
+		gtInt256 memory gtUpnl = MpcCore.setPublic256(int256(upnl));
 
 		if (upnl >= 0) {
 			PrivateLockedValues memory pending = privateAccountLayout.partyBEncryptedPendingLockedBalances[partyB][partyA];
 			PrivateLockedValues memory locked = privateAccountLayout.partyBEncryptedLockedBalances[partyB][partyA];
-			gtUint256 memory totalLockedAmount = locked.totalForPartyB().add(pending.totalForPartyB());
+			gtUint256 memory totalLockedAmount = locked.onBoard().totalForPartyB().add(pending.onBoard().totalForPartyB());
 
-			gtInt256 memory available = gtInt256.wrap(allocatedBalance.val).add(gtUpnl).sub(gtInt256.wrap(totalLockedAmount.val));
+			gtInt256 memory available = allocatedBalance.add(gtUpnl).sub(totalLockedAmount);
 			return available;
 		} else {
-			gtUint256 memory gtMm = privateAccountLayout.partyBEncryptedLockedBalances[partyB][partyA].partyBmm;
+			gtUint256 memory gtMm = privateAccountLayout.partyBEncryptedLockedBalances[partyB][partyA].onBoard().partyBmm;
 			gtInt256 memory negUpnl = gtUpnl.neg();
 			gtInt256 memory mm = gtInt256.wrap(gtMm.val);
 			gtBool condition = negUpnl.gt(mm);
@@ -171,11 +175,11 @@ library LibPrivateAccount {
 
 			PrivateLockedValues memory locked = privateAccountLayout.partyBEncryptedLockedBalances[partyB][partyA];
 			PrivateLockedValues memory pending = privateAccountLayout.partyBEncryptedPendingLockedBalances[partyB][partyA];
-			gtUint256 memory cvaLfAmount = locked.cva.add(locked.lf);
-			gtUint256 memory pendingTotal = pending.totalForPartyB();
+			gtUint256 memory cvaLfAmount = locked.onBoard().cva.add(locked.onBoard().lf);
+			gtUint256 memory pendingTotal = pending.onBoard().totalForPartyB();
 			gtUint256 memory totalAmount = cvaLfAmount.add(pendingTotal);
 
-			gtInt256 memory available = gtInt256.wrap(allocatedBalance.val).sub(gtInt256.wrap(totalAmount.val)).sub(considering_mm);
+			gtInt256 memory available = allocatedBalance.sub(totalAmount).sub(considering_mm);
 			return available;
 		}
 	}
@@ -190,23 +194,23 @@ library LibPrivateAccount {
 	function partyBAvailableBalance(int256 upnl, address partyB, address partyA) internal view returns (gtInt256 memory) {
 		PrivateAccountStorage.Layout storage privateAccountLayout = PrivateAccountStorage.layout();
 		gtUint256 memory allocatedBalance = MpcCore.setPublic256(privateAccountLayout.partyBAllocatedBalances[partyB][partyA]);
-		gtInt256 memory gtUpnl = MpcCore.setPublicSigned256(upnl);
+		gtInt256 memory gtUpnl = MpcCore.setPublic256(int256(upnl));
 
 		if (upnl >= 0) {
-			gtUint256 memory totalLocked = privateAccountLayout.partyBEncryptedLockedBalances[partyB][partyA].totalForPartyB();
-			gtInt256 memory available = gtInt256.wrap(allocatedBalance.val).add(gtUpnl).sub(gtInt256.wrap(totalLocked.val));
+			gtUint256 memory totalLocked = privateAccountLayout.partyBEncryptedLockedBalances[partyB][partyA].onBoard().totalForPartyB();
+			gtInt256 memory available = allocatedBalance.add(gtUpnl).sub(totalLocked);
 			return available;
 		} else {
-			gtUint256 memory gtMm = privateAccountLayout.partyBEncryptedLockedBalances[partyB][partyA].partyBmm;
+			gtUint256 memory gtMm = privateAccountLayout.partyBEncryptedLockedBalances[partyB][partyA].onBoard().partyBmm;
 			gtInt256 memory negUpnl = gtUpnl.neg();
 			gtInt256 memory mm = gtInt256.wrap(gtMm.val);
 			gtBool condition = negUpnl.gt(mm);
 			gtInt256 memory considering_mm = condition.mux(negUpnl, mm);
 
 			PrivateLockedValues memory locked = privateAccountLayout.partyBEncryptedLockedBalances[partyB][partyA];
-			gtUint256 memory cvaLfAmount = locked.cva.add(locked.lf);
+			gtUint256 memory cvaLfAmount = locked.onBoard().cva.add(locked.onBoard().lf);
 
-			gtInt256 memory available = gtInt256.wrap(allocatedBalance.val).sub(gtInt256.wrap(cvaLfAmount.val)).sub(considering_mm);
+			gtInt256 memory available = allocatedBalance.sub(cvaLfAmount).sub(considering_mm);
 			return available;
 		}
 	}
@@ -221,10 +225,10 @@ library LibPrivateAccount {
 	function partyBAvailableBalanceForLiquidation(int256 upnl, address partyB, address partyA) internal view returns (gtInt256 memory) {
 		PrivateAccountStorage.Layout storage privateAccountLayout = PrivateAccountStorage.layout();
 		PrivateLockedValues memory locked = privateAccountLayout.partyBEncryptedLockedBalances[partyB][partyA];
-		gtUint256 memory cvaLfAmount = locked.cva.add(locked.lf);
-		gtInt256 memory gtAllocated = MpcCore.setPublicSigned256(int256(privateAccountLayout.partyBAllocatedBalances[partyB][partyA]));
-		gtInt256 memory gtUpnl = MpcCore.setPublicSigned256(upnl);
-		gtInt256 memory a = gtAllocated.sub(gtInt256.wrap(cvaLfAmount.val));
+		gtUint256 memory cvaLfAmount = locked.onBoard().cva.add(locked.onBoard().lf);
+		gtInt256 memory gtAllocated = MpcCore.setPublic256(int256(privateAccountLayout.partyBAllocatedBalances[partyB][partyA]));
+		gtInt256 memory gtUpnl = MpcCore.setPublic256(int256(upnl));
+		gtInt256 memory a = gtAllocated.sub(cvaLfAmount);
 		return a.add(gtUpnl);
 	}
 }
