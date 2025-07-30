@@ -20,6 +20,7 @@ import "../../libraries/LibPrivateAccount.sol";
 
 library PrivatePartyAFacetImpl {
 	using MpcCore for gtUint256;
+	using MpcCore for gtInt256;
 	using MpcCore for gtBool;
 	using LockedPrivateValuesOps for PrivateLockedValues;
 	using LockedPrivateValuesOps for GarbledPrivateLockedValues;
@@ -73,7 +74,7 @@ library PrivatePartyAFacetImpl {
 
 		// Check minimum LF requirement: lf >= (minAcceptablePortionLF * totalForPartyA) / 1e18
 		gtUint256 memory minLfRequired = gtTotalForPartyA.mul(MpcCore.setPublic256(symbolLayout.symbols[symbolId].minAcceptablePortionLF)).div(
-			MpcCore.setPublic256(1e18)
+			MpcCore.setPublic256(uint256(1e18))
 		);
 		gtBool lfSufficient = gtLf.ge(minLfRequired);
 
@@ -82,7 +83,7 @@ library PrivatePartyAFacetImpl {
 
 		// Calculate gt trading fee: (quantity * tradingPrice * tradingFee) / 1e36
 		gtUint256 memory gtTradingFee = gtQuantity.mul(gtTradingPrice).mul(MpcCore.setPublic256(symbolLayout.symbols[symbolId].tradingFee)).div(
-			MpcCore.setPublic256(1e36)
+			MpcCore.setPublic256(uint256(1e36))
 		);
 
 		// Calculate total required balance: totalForPartyA + tradingFee
@@ -90,7 +91,7 @@ library PrivatePartyAFacetImpl {
 
 		// Check available balance sufficiency using LibPrivateAccount
 		gtInt256 memory gtAvailableBalance = LibPrivateAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
-		gtBool balanceSufficient = totalRequired.le(gtAvailableBalance);
+		gtBool balanceSufficient = totalRequired.toSigned().le(gtAvailableBalance);
 
 		// Combine all validation results
 		gtBool allValidationsPassed = lfSufficient.and(quoteSufficient).and(balanceSufficient);
@@ -123,27 +124,27 @@ library PrivatePartyAFacetImpl {
 			symbolId: symbolId,
 			positionType: positionType,
 			orderType: orderType,
-			openedPrice: MpcCore.setPublic256(0).offBoard(partyAEncryptionAddress),
-			initialOpenedPrice: MpcCore.setPublic256(0).offBoard(partyAEncryptionAddress),
-			requestedOpenPrice: gtPrice.offBoard(partyAEncryptionAddress),
-			marketPrice: MpcCore.setPublic256(upnlSig.price).offBoard(partyAEncryptionAddress),
-			quantity: gtQuantity.offBoard(partyAEncryptionAddress),
-			closedAmount: MpcCore.setPublic256(0).offBoard(partyAEncryptionAddress),
-			lockedValues: garbledPrivateLockedValues.onBoard().offBoard(partyAEncryptionAddress),
-			initialLockedValues: garbledPrivateLockedValues.onBoard().offBoard(partyAEncryptionAddress),
+			openedPrice: MpcCore.setPublic256(uint256(0)).offBoardCombined(partyAEncryptionAddress),
+			initialOpenedPrice: MpcCore.setPublic256(uint256(0)).offBoardCombined(partyAEncryptionAddress),
+			requestedOpenPrice: gtPrice.offBoardCombined(partyAEncryptionAddress),
+			marketPrice: MpcCore.setPublic256(upnlSig.price).offBoardCombined(partyAEncryptionAddress),
+			quantity: gtQuantity.offBoardCombined(partyAEncryptionAddress),
+			closedAmount: MpcCore.setPublic256(uint256(0)).offBoardCombined(partyAEncryptionAddress),
+			lockedValues: garbledPrivateLockedValues.offBoard(partyAEncryptionAddress),
+			initialLockedValues: garbledPrivateLockedValues.offBoard(partyAEncryptionAddress),
 			maxFundingRate: maxFundingRate,
-			partyA: MpcCore.setPublic256(uint256(uint160(msg.sender))).offBoard(partyAEncryptionAddress),
-			partyB: MpcCore.setPublic256(0).offBoard(partyAEncryptionAddress),
+			partyA: MpcCore.setPublic256(uint256(uint160(msg.sender))).offBoardCombined(partyAEncryptionAddress),
+			partyB: MpcCore.setPublic256(uint256(0)).offBoardCombined(partyAEncryptionAddress),
 			quoteStatus: PrivateQuoteStatus.PENDING,
-			avgClosedPrice: MpcCore.setPublic256(0).offBoard(partyAEncryptionAddress),
-			requestedClosePrice: MpcCore.setPublic256(0).offBoard(partyAEncryptionAddress),
+			avgClosedPrice: MpcCore.setPublic256(uint256(0)).offBoardCombined(partyAEncryptionAddress),
+			requestedClosePrice: MpcCore.setPublic256(uint256(0)).offBoardCombined(partyAEncryptionAddress),
 			parentId: 0,
 			createTimestamp: block.timestamp,
 			statusModifyTimestamp: block.timestamp,
-			quantityToClose: MpcCore.setPublic256(0).offBoard(partyAEncryptionAddress),
+			quantityToClose: MpcCore.setPublic256(uint256(0)).offBoardCombined(partyAEncryptionAddress),
 			lastFundingPaymentTimestamp: 0,
 			deadline: deadline,
-			tradingFee: gtTradingFee.offBoard(partyAEncryptionAddress),
+			tradingFee: gtTradingFee.offBoardCombined(partyAEncryptionAddress),
 			affiliate: affiliate
 		});
 

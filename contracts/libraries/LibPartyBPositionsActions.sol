@@ -54,8 +54,7 @@ library LibPartyBPositionsActions {
 			? appLayout.defaultFeeCollector
 			: appLayout.affiliateFeeCollector[quote.affiliate];
 
-		// Get quantity from private storage if available, otherwise use public
-		uint256 quoteQuantity = LibPrivateQuote.isPrivateQuote(quoteId) ? LibPrivateQuote.getPrivateQuantity(quoteId) : quote.quantity;
+		uint256 quoteQuantity = quote.quantity;
 
 		if (quote.orderType == OrderType.LIMIT) {
 			require(quoteQuantity >= filledAmount && filledAmount > 0, "PartyBFacet: Invalid filledAmount");
@@ -170,13 +169,7 @@ library LibPartyBPositionsActions {
 			newQuote.initialLockedValues = newQuote.lockedValues;
 
 			// Update quantities in both public and private storage if applicable
-			if (LibPrivateQuote.isPrivateQuote(quoteId)) {
-				LibPrivateQuote.setPrivateQuantity(quoteId, filledAmount, quote.partyA);
-				// Set private quantity for new quote if it was created
-				LibPrivateQuote.setPrivateQuantity(currentId, quoteQuantity - filledAmount, quote.partyA);
-			} else {
-				quote.quantity = filledAmount;
-			}
+			quote.quantity = filledAmount;
 
 			quote.lockedValues = appliedFilledLockedValues;
 		}
@@ -185,7 +178,7 @@ library LibPartyBPositionsActions {
 		accountLayout.partyBLockedBalances[quote.partyB][quote.partyA].addQuote(quote);
 
 		// check leverage (is in 18 decimals)
-		uint256 finalQuantity = LibPrivateQuote.isPrivateQuote(quoteId) ? LibPrivateQuote.getPrivateQuantity(quoteId) : quote.quantity;
+		uint256 finalQuantity = quote.quantity;
 		require(
 			(finalQuantity * quote.openedPrice) / quote.lockedValues.totalForPartyA() <= SymbolStorage.layout().symbols[quote.symbolId].maxLeverage,
 			"PartyBFacet: Leverage is high"
