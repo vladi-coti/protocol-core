@@ -8,6 +8,18 @@ import "../storages/PrivateQuoteStorage.sol";
 import "../storages/MuonStorage.sol";
 
 interface IPrivatePartiesEvents {
+	// Struct to hold encrypted quote values to reduce stack depth
+	struct EncryptedQuoteValues {
+		ctUint256 price;
+		ctUint256 marketPrice;
+		ctUint256 quantity;
+		ctUint256 cva;
+		ctUint256 lf;
+		ctUint256 partyAmm;
+		ctUint256 partyBmm;
+		ctUint256 tradingFee;
+	}
+
 	event AcceptCancelRequest(uint256 quoteId, PrivateQuoteStatus quoteStatus); // TODO: change to private
 
 	event SendPrivateQuoteForPartyA(
@@ -17,14 +29,7 @@ interface IPrivatePartiesEvents {
 		uint256 symbolId,
 		PrivatePositionType positionType,
 		PrivateOrderType orderType,
-		ctUint256 price,
-		ctUint256 marketPrice,
-		ctUint256 quantity,
-		ctUint256 cva,
-		ctUint256 lf,
-		ctUint256 partyAmm,
-		ctUint256 partyBmm,
-		ctUint256 tradingFee,
+		EncryptedQuoteValues values,
 		uint256 deadline
 	);
 
@@ -35,14 +40,7 @@ interface IPrivatePartiesEvents {
 		uint256 symbolId,
 		PrivatePositionType positionType,
 		PrivateOrderType orderType,
-		ctUint256 price,
-		ctUint256 marketPrice,
-		ctUint256 quantity,
-		ctUint256 cva,
-		ctUint256 lf,
-		ctUint256 partyAmm,
-		ctUint256 partyBmm,
-		ctUint256 tradingFee,
+		EncryptedQuoteValues values,
 		uint256 deadline
 	);
 
