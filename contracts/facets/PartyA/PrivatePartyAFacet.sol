@@ -14,6 +14,43 @@ import "../../storages/SymbolStorage.sol";
 import "../../storages/PrivateQuoteStorage.sol";
 
 contract PrivatePartyAFacet is Accessibility, Pausable, IPrivatePartyAFacet {
+
+	event PrivateParamsTest(uint256 price);
+
+	function privateParamsTest(
+		QuoteBasicParams calldata basicParams,
+		PrivateQuoteParams calldata encryptedParams,
+		SingleUpnlAndPriceSig calldata upnlSig
+	) external returns (gtUint256 memory) {
+		gtUint256 memory gtPrice = MpcCore.validateCiphertext(encryptedParams.encryptedPrice);
+		gtUint256 memory gtQuantity = MpcCore.validateCiphertext(encryptedParams.encryptedQuantity);
+		gtUint256 memory gtCva = MpcCore.validateCiphertext(encryptedParams.encryptedCva);
+		gtUint256 memory gtLf = MpcCore.validateCiphertext(encryptedParams.encryptedLf);
+		gtUint256 memory gtPartyAmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyAmm);
+		gtUint256 memory gtPartyBmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyBmm);
+
+		emit PrivateParamsTest(MpcCore.decrypt(gtPrice));
+
+		return gtPrice;
+	}
+
+	function privateParamsTestPlaintext(
+		QuoteBasicParams calldata basicParams,
+		TempQuoteParams calldata encryptedParams,
+		SingleUpnlAndPriceSig calldata upnlSig
+	) external returns (gtUint256 memory) {
+		gtUint256 memory gtPrice = MpcCore.setPublic256(encryptedParams.encryptedPrice);
+		gtUint256 memory gtQuantity = MpcCore.setPublic256(encryptedParams.encryptedQuantity);
+		gtUint256 memory gtCva = MpcCore.setPublic256(encryptedParams.encryptedCva);
+		gtUint256 memory gtLf = MpcCore.setPublic256(encryptedParams.encryptedLf);
+		gtUint256 memory gtPartyAmm = MpcCore.setPublic256(encryptedParams.encryptedPartyAmm);
+		gtUint256 memory gtPartyBmm = MpcCore.setPublic256(encryptedParams.encryptedPartyBmm);
+
+		emit PrivateParamsTest(MpcCore.decrypt(gtPrice));
+
+		return gtPrice;
+	}
+
 	/**
 	 * @notice Send a Private Quote to the protocol with encrypted parameters. The quote status will be pending.
 	 * @param basicParams Struct containing basic quote parameters
@@ -130,17 +167,17 @@ contract PrivatePartyAFacet is Accessibility, Pausable, IPrivatePartyAFacet {
 			basicParams.affiliate,
 			upnlSig
 		);
-		PrivateQuote storage quote = PrivateQuoteStorage.layout().quotes[quoteId];
+
 		{
 			address partyAEncryptionAddress = LibPrivateAccount.getUserEncryptionAddress(msg.sender);
 			IPrivatePartiesEvents.EncryptedQuoteValues memory partyAValues = IPrivatePartiesEvents.EncryptedQuoteValues({
 				price: MpcCore.offBoardToUser(gtPrice, partyAEncryptionAddress),
 				marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyAEncryptionAddress),
 				quantity: MpcCore.offBoardToUser(gtQuantity, partyAEncryptionAddress),
-				cva: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.cva.ciphertext), partyAEncryptionAddress),
-				lf: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.lf.ciphertext), partyAEncryptionAddress),
-				partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyAmm.ciphertext), partyAEncryptionAddress),
-				partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyBmm.ciphertext), partyAEncryptionAddress),
+				cva: MpcCore.offBoardToUser(gtCva, partyAEncryptionAddress),
+				lf: MpcCore.offBoardToUser(gtLf, partyAEncryptionAddress),
+				partyAmm: MpcCore.offBoardToUser(gtPartyAmm, partyAEncryptionAddress),
+				partyBmm: MpcCore.offBoardToUser(gtPartyBmm, partyAEncryptionAddress),
 				tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee), partyAEncryptionAddress)
 			});
 			emit SendPrivateQuoteForPartyA(
@@ -154,30 +191,54 @@ contract PrivatePartyAFacet is Accessibility, Pausable, IPrivatePartyAFacet {
 				basicParams.deadline
 			);
 		}
-		{
-			for (uint256 i = 0; i < basicParams.partyBsWhiteList.length; i++) {
-				address partyBEncryptionAddress = LibPrivateAccount.getUserEncryptionAddress(basicParams.partyBsWhiteList[i]);
-				IPrivatePartiesEvents.EncryptedQuoteValues memory partyBValues = IPrivatePartiesEvents.EncryptedQuoteValues({
-					price: MpcCore.offBoardToUser(gtPrice, partyBEncryptionAddress),
-					marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyBEncryptionAddress),
-					quantity: MpcCore.offBoardToUser(gtQuantity, partyBEncryptionAddress),
-					cva: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.cva.ciphertext), partyBEncryptionAddress),
-					lf: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.lf.ciphertext), partyBEncryptionAddress),
-					partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyAmm.ciphertext), partyBEncryptionAddress),
-					partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyBmm.ciphertext), partyBEncryptionAddress),
-					tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee), partyBEncryptionAddress)
-				});
-				emit SendPrivateQuoteForPartyB(
-					msg.sender,
-					quoteId,
-					partyBEncryptionAddress,
-					basicParams.symbolId,
-					basicParams.positionType,
-					basicParams.orderType,
-					partyBValues,
-					basicParams.deadline
-				);
-			}
-		}
+		// PrivateQuote storage quote = PrivateQuoteStorage.layout().quotes[quoteId];
+		// {
+		// 	address partyAEncryptionAddress = LibPrivateAccount.getUserEncryptionAddress(msg.sender);
+		// 	IPrivatePartiesEvents.EncryptedQuoteValues memory partyAValues = IPrivatePartiesEvents.EncryptedQuoteValues({
+		// 		price: MpcCore.offBoardToUser(gtPrice, partyAEncryptionAddress),
+		// 		marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyAEncryptionAddress),
+		// 		quantity: MpcCore.offBoardToUser(gtQuantity, partyAEncryptionAddress),
+		// 		cva: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.cva.ciphertext), partyAEncryptionAddress),
+		// 		lf: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.lf.ciphertext), partyAEncryptionAddress),
+		// 		partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyAmm.ciphertext), partyAEncryptionAddress),
+		// 		partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyBmm.ciphertext), partyAEncryptionAddress),
+		// 		tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee), partyAEncryptionAddress)
+		// 	});
+		// 	emit SendPrivateQuoteForPartyA(
+		// 		msg.sender,
+		// 		quoteId,
+		// 		basicParams.partyBsWhiteList,
+		// 		basicParams.symbolId,
+		// 		basicParams.positionType,
+		// 		basicParams.orderType,
+		// 		partyAValues,
+		// 		basicParams.deadline
+		// 	);
+		// }
+		// {
+		// 	for (uint256 i = 0; i < basicParams.partyBsWhiteList.length; i++) {
+		// 		address partyBEncryptionAddress = LibPrivateAccount.getUserEncryptionAddress(basicParams.partyBsWhiteList[i]);
+		// 		IPrivatePartiesEvents.EncryptedQuoteValues memory partyBValues = IPrivatePartiesEvents.EncryptedQuoteValues({
+		// 			price: MpcCore.offBoardToUser(gtPrice, partyBEncryptionAddress),
+		// 			marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyBEncryptionAddress),
+		// 			quantity: MpcCore.offBoardToUser(gtQuantity, partyBEncryptionAddress),
+		// 			cva: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.cva.ciphertext), partyBEncryptionAddress),
+		// 			lf: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.lf.ciphertext), partyBEncryptionAddress),
+		// 			partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyAmm.ciphertext), partyBEncryptionAddress),
+		// 			partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyBmm.ciphertext), partyBEncryptionAddress),
+		// 			tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee), partyBEncryptionAddress)
+		// 		});
+		// 		emit SendPrivateQuoteForPartyB(
+		// 			msg.sender,
+		// 			quoteId,
+		// 			partyBEncryptionAddress,
+		// 			basicParams.symbolId,
+		// 			basicParams.positionType,
+		// 			basicParams.orderType,
+		// 			partyBValues,
+		// 			basicParams.deadline
+		// 		);
+		// 	}
+		// }
 	}
 }

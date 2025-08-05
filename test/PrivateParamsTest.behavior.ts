@@ -82,7 +82,7 @@ export function shouldBehaveLikePrivateParamsTest(): void {
 				const privateParamsTestEvent = receipt.logs.find((log: any): log is EventLog => {
 					return (log as EventLog).eventName === "PrivateParamsTest"
 				})
-				console.log(privateParamsTestEvent)
+				console.log(privateParamsTestEvent?.args[0])
 			}
 		})
 	})
@@ -146,7 +146,117 @@ export function shouldBehaveLikePrivateParamsTest(): void {
 				const privateParamsTestEvent = receipt.logs.find((log: any): log is EventLog => {
 					return (log as EventLog).eventName === "PrivateParamsTest"
 				})
-				console.log(privateParamsTestEvent)
+				console.log(privateParamsTestEvent?.args[0])
+			}
+		})
+	})
+
+	describe("Direct Call Tests - Plaintext", function () {
+		let privatePartyAFacet: PrivatePartyAFacet
+		beforeEach(async function () {
+			// deploy the contract directly
+			const PrivatePartyAFacetFactory = await ethers.getContractFactory("PrivatePartyAFacet")
+			privatePartyAFacet = await PrivatePartyAFacetFactory.deploy({ gasLimit: 12000000 })
+			await privatePartyAFacet.waitForDeployment()
+			console.log(`deployed privatePartyAFacet at ${await privatePartyAFacet.getAddress()}`)
+
+			// Setup private wallets using Coti accounts
+			const accounts = await setupAccounts()
+			userWallet = accounts[1]
+			const wallet2 = accounts[2]
+
+			const partyBWhiteList = [wallet2.address]
+			createDefaultPrivateQuoteRequest = () => PrivateUser.createDefaultPrivateQuoteRequest(partyBWhiteList)
+		})
+
+		it("Should emit PrivateParamsTest event when called directly", async function () {
+			const request = createDefaultPrivateQuoteRequest()
+			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
+
+			const basicParams = {
+				partyBsWhiteList: request.partyBWhiteList,
+				symbolId: request.symbolId,
+				positionType: request.positionType,
+				orderType: request.orderType,
+				maxFundingRate: request.maxFundingRate,
+				deadline: await request.deadline,
+				affiliate: request.affiliate,
+			}
+
+			const encryptedParams = {
+				encryptedPrice: request.price,
+				encryptedQuantity: request.quantity,
+				encryptedCva: request.cva,
+				encryptedLf: request.lf,
+				encryptedPartyAmm: request.partyAmm,
+				encryptedPartyBmm: request.partyBmm,
+			}
+
+			const connectedContract = privatePartyAFacet.connect(userWallet)
+
+			const tx = await connectedContract.privateParamsTestPlaintext(basicParams, encryptedParams, await request.upnlSig, {
+				gasLimit: 12000000,
+			})
+			const receipt = await tx.wait()
+			if (receipt?.logs) {
+				const privateParamsTestEvent = receipt.logs.find((log: any): log is EventLog => {
+					return (log as EventLog).eventName === "PrivateParamsTest"
+				})
+				console.log(privateParamsTestEvent?.args[0])
+			}
+		})
+	})
+
+	describe("Proxy Call Tests - Plaintext", function () {
+		let proxy: any
+		beforeEach(async function () {
+			// Setup private wallets using Coti accounts
+			const accounts = await setupAccounts()
+			userWallet = accounts[1]
+
+			// deploy the contract using a transparent proxy
+			const { contract } = await deployProxy(ethers, userWallet)
+			proxy = contract
+
+			const partyBWhiteList = [accounts[2].address]
+			createDefaultPrivateQuoteRequest = () => PrivateUser.createDefaultPrivateQuoteRequest(partyBWhiteList)
+		})
+
+		it("Should work through proxy call", async function () {
+			const request = createDefaultPrivateQuoteRequest()
+			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
+
+			const basicParams = {
+				partyBsWhiteList: request.partyBWhiteList,
+				symbolId: request.symbolId,
+				positionType: request.positionType,
+				orderType: request.orderType,
+				maxFundingRate: request.maxFundingRate,
+				deadline: await request.deadline,
+				affiliate: request.affiliate,
+			}
+
+			const encryptedParams = {
+				encryptedPrice: request.price,
+				encryptedQuantity: request.quantity,
+				encryptedCva: request.cva,
+				encryptedLf: request.lf,
+				encryptedPartyAmm: request.partyAmm,
+				encryptedPartyBmm: request.partyBmm,
+			}
+
+			// Call through the proxy
+			const connectedContract = proxy.connect(userWallet)
+
+			const tx = await connectedContract.privateParamsTestPlaintext(basicParams, encryptedParams, await request.upnlSig, {
+				gasLimit: 12000000,
+			})
+			const receipt = await tx.wait()
+			if (receipt?.logs) {
+				const privateParamsTestEvent = receipt.logs.find((log: any): log is EventLog => {
+					return (log as EventLog).eventName === "PrivateParamsTest"
+				})
+				console.log(privateParamsTestEvent?.args[0])
 			}
 		})
 	})

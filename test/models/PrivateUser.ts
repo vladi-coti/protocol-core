@@ -1,4 +1,4 @@
-import { ethers, EventLog } from "ethers"
+import { ZeroAddress, EventLog } from "ethers"
 import { Wallet, ctUint256, itUint256 } from "@coti-io/coti-ethers"
 import { User } from "./User"
 import { RunContext } from "./RunContext"
@@ -53,8 +53,7 @@ export class PrivateUser extends User {
 			}),
 		)
 
-		const contractAddress = this.context.diamond
-		const selector = this.context.privatePartyAFacet.interface.getFunction("sendPrivateQuote").selector
+		const connectedContract = this.context.privatePartyAFacet.connect(this.privateWallet as any)
 
 		const basicParams: QuoteBasicParamsStruct = {
 			partyBsWhiteList: request.partyBWhiteList,
@@ -65,6 +64,9 @@ export class PrivateUser extends User {
 			deadline: await request.deadline,
 			affiliate: request.affiliate,
 		}
+
+		// const contractAddress = this.context.diamond
+		// const selector = this.context.privatePartyAFacet.interface.getFunction("sendPrivateQuote").selector
 
 		// const encryptedPrice = await this.encryptUint256(request.price, contractAddress, selector);
 		// const encryptedQuantity = await this.encryptUint256(request.quantity, contractAddress, selector);
@@ -82,6 +84,8 @@ export class PrivateUser extends User {
 		// 	encryptedPartyBmm: encryptedPartyBmm,
 		// };
 
+		// let tx = await connectedContract.sendPrivateQuote(basicParams, encryptedParams, await request.upnlSig)
+
 		// FIXME: remove this once the proper way to handling encrypted parameters is fixed
 		const encryptedParams = {
 			encryptedPrice: request.price,
@@ -92,24 +96,22 @@ export class PrivateUser extends User {
 			encryptedPartyBmm: request.partyBmm,
 		}
 
-		const connectedContract = this.context.privatePartyAFacet.connect(this.privateWallet as any)
-
-		let tx = await connectedContract.sendPrivateQuote(basicParams, encryptedParams, await request.upnlSig)
+		let tx = await connectedContract.sendPrivateQuotePlaintext(basicParams, encryptedParams, await request.upnlSig)
 
 		const receipt = await tx.wait()
 
 		if (receipt && receipt.logs) {
-			const sendQuotePublicEvent = receipt.logs.find((log: any): log is EventLog => {
-				return (log as EventLog).eventName === "SendPrivateQuotePublic"
+			const SendPrivateQuoteForPartyA = receipt.logs.find((log: any): log is EventLog => {
+				return (log as EventLog).eventName === "SendPrivateQuoteForPartyA"
 			})
 
-			if (sendQuotePublicEvent && sendQuotePublicEvent.args) {
-				const id = sendQuotePublicEvent.args.quoteId
-				logger.info("PrivateUser::::SendPrivateQuote: " + id)
+			if (SendPrivateQuoteForPartyA && SendPrivateQuoteForPartyA.args) {
+				const id = SendPrivateQuoteForPartyA.args.quoteId
+				console.log("PrivateUser::::SendPrivateQuote: " + id)
 				return id.toString()
 			}
 		}
-		throw new Error("SendPrivateQuotePublic event not found in transaction receipt")
+		throw new Error("SendPrivateQuoteForPartyA event not found in transaction receipt")
 	}
 
 	public static createDefaultPrivateQuoteRequest(partyBWhiteList: string[]): PrivateQuoteRequest {
@@ -126,7 +128,7 @@ export class PrivateUser extends User {
 			partyBmm: decimal(75n),
 			maxFundingRate: decimal(5n),
 			deadline: Promise.resolve(BigInt(Math.floor(Date.now() / 1000) + 1000)),
-			affiliate: ethers.ZeroAddress,
+			affiliate: ZeroAddress,
 			upnlSig: null,
 		}
 	}
