@@ -101,6 +101,7 @@ export class PrivateUser extends User {
 		const receipt = await tx.wait()
 
 		if (receipt && receipt.logs) {
+			console.log("PrivateUser::::Receipt gas used: " + receipt.gasUsed.toString())
 			const SendPrivateQuoteForPartyA = receipt.logs.find((log: any): log is EventLog => {
 				return (log as EventLog).eventName === "SendPrivateQuoteForPartyA"
 			})

@@ -39,8 +39,8 @@ export async function getNetworkGasOptions() {
 	if (network.chainId === 7082400n) {
 		// COTI testnet
 		return {
-			gasLimit: 3000000,
-			gasPrice: ethers.parseUnits("1.2", "gwei"),
+			gasLimit: 120000000,
+			// gasPrice: ethers.parseUnits("1.2", "gwei"),
 		}
 	}
 
@@ -213,6 +213,9 @@ async function addGasOptionsToCall(originalMethod: any, target: any, args: any[]
 							// If static call succeeds but transaction failed, re-throw original error
 							throw error
 						} catch (staticError: any) {
+							if (staticError.message.includes("missing revert data")) {
+								throw error
+							}
 							console.log(`[DEBUG] Static call also failed, using static error for better message`)
 							// Use static call error which has better revert reason
 							throw staticError

@@ -70,29 +70,27 @@ library PrivatePartyAFacetImpl {
 		);
 
 		// Perform gt validations
-		gtUint256 memory gtTotalForPartyA = LockedPrivateValuesOps.totalForPartyA(garbledPrivateLockedValues);
+		gtUint256 memory gtTotalForPartyA = garbledPrivateLockedValues.totalForPartyA();
 
-		// Check minimum LF requirement: lf >= (minAcceptablePortionLF * totalForPartyA) / 1e18
-		gtUint256 memory minAcceptablePortionLF = MpcCore.setPublic256(symbolLayout.symbols[symbolId].minAcceptablePortionLF);
-		return gtTotalForPartyA.decrypt();
-		// gtUint256 memory minLfRequiredMul = gtTotalForPartyA.mul(minAcceptablePortionLF);
-		// gtUint256 memory minLfRequiredDiv = minLfRequiredMul.div(MpcCore.setPublic256(uint256(1e18)));
-		// gtBool lfSufficient = gtLf.ge(minLfRequiredDiv);
+		gtUint256 memory minLfRequired = gtTotalForPartyA.mul(MpcCore.setPublic256(symbolLayout.symbols[symbolId].minAcceptablePortionLF)).div(
+			MpcCore.setPublic256(uint256(1e18))
+		);
+		gtBool lfSufficient = gtLf.ge(minLfRequired);
 
-		// // Check minimum quote value: totalForPartyA >= minAcceptableQuoteValue
-		// gtBool quoteSufficient = gtTotalForPartyA.ge(MpcCore.setPublic256(symbolLayout.symbols[symbolId].minAcceptableQuoteValue));
+		// Check minimum quote value: totalForPartyA >= minAcceptableQuoteValue
+		gtBool quoteSufficient = gtTotalForPartyA.ge(MpcCore.setPublic256(symbolLayout.symbols[symbolId].minAcceptableQuoteValue));
 
-		// // Calculate gt trading fee: (quantity * tradingPrice * tradingFee) / 1e36
-		// gtUint256 memory gtTradingFee = gtQuantity.mul(gtTradingPrice).mul(MpcCore.setPublic256(symbolLayout.symbols[symbolId].tradingFee)).div(
-		// 	MpcCore.setPublic256(uint256(1e36))
-		// );
+		// Calculate gt trading fee: (quantity * tradingPrice * tradingFee) / 1e36
+		gtUint256 memory gtTradingFee = gtQuantity.mul(gtTradingPrice).mul(MpcCore.setPublic256(symbolLayout.symbols[symbolId].tradingFee)).div(
+			MpcCore.setPublic256(uint256(1e36))
+		);
 
-		// // Calculate total required balance: totalForPartyA + tradingFee
-		// gtUint256 memory totalRequired = gtTotalForPartyA.add(gtTradingFee);
+		// Calculate total required balance: totalForPartyA + tradingFee
+		gtUint256 memory totalRequired = gtTotalForPartyA.add(gtTradingFee);
 
-		// // Check available balance sufficiency using LibPrivateAccount
-		// gtInt256 memory gtAvailableBalance = LibPrivateAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
-		// gtBool balanceSufficient = totalRequired.toSigned().le(gtAvailableBalance);
+		// Check available balance sufficiency using LibPrivateAccount
+		gtInt256 memory gtAvailableBalance = LibPrivateAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
+		gtBool balanceSufficient = totalRequired.toSigned().le(gtAvailableBalance);
 
 		// // Combine all validation results
 		// gtBool allValidationsPassed = lfSufficient.and(quoteSufficient).and(balanceSufficient);
