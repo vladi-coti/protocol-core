@@ -3,7 +3,7 @@ import { ContractFactory } from "ethers"
 import { HardhatUpgrades } from "@openzeppelin/hardhat-upgrades"
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers"
 import { readData, writeData } from "../utils/fs"
-import { DEPLOYMENT_LOG_FILE } from "./constants"
+import { DEPLOYMENT_LOG_FILE, testnetChainId } from "./constants"
 
 task("deploy:multiAccount", "Deploys the MultiAccount")
 	.addParam("symmioAddress", "The address of the Symmio contract")
@@ -19,7 +19,7 @@ task("deploy:multiAccount", "Deploys the MultiAccount")
 		const SymmioPartyA = await ethers.getContractFactory("SymmioPartyA")
 
 		const network = await ethers.provider.getNetwork()
-		const isCotiTestnet = network.chainId === 7082400n
+		const isCotiTestnet = network.chainId === testnetChainId
 
 		const { contract, proxyAddress, proxyAdminAddress, implementationAddress } = await (isCotiTestnet
 			? deployMultiAccountManually(ethers, admin, symmioAddress, deployer, SymmioPartyA)

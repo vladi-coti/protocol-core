@@ -2,6 +2,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers"
 import { ethers } from "hardhat"
 import { RunContext } from "../models/RunContext"
 import { time } from "@nomicfoundation/hardhat-network-helpers"
+import { testnetChainId } from "../../tasks/deploy/constants"
 
 /**
  * Helper function to load fixture compatible with both local and testnet environments
@@ -24,23 +25,16 @@ export async function loadFixtureCompatible(fixtureFunction: () => Promise<RunCo
 }
 
 /**
- * Utility function to check if we're running on a testnet
- */
-export function isTestnet(): Promise<boolean> {
-	return ethers.provider.getNetwork().then(network => network.chainId !== 31337n)
-}
-
-/**
  * Utility function to get network-specific gas options
  */
 export async function getNetworkGasOptions() {
 	const network = await ethers.provider.getNetwork()
 
-	if (network.chainId === 7082400n) {
+	if (network.chainId === testnetChainId) {
 		// COTI testnet
 		return {
 			gasLimit: 120000000,
-			// gasPrice: ethers.parseUnits("1.2", "gwei"),
+			gasPrice: ethers.parseUnits("0.1", "gwei"),
 		}
 	}
 
@@ -52,7 +46,7 @@ export async function getNetworkGasOptions() {
  */
 async function isTestnetRequiringGas(): Promise<boolean> {
 	const network = await ethers.provider.getNetwork()
-	return network.chainId === 7082400n // COTI testnet
+	return network.chainId === testnetChainId // COTI testnet
 }
 
 /**

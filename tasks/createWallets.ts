@@ -1,4 +1,5 @@
 import { task } from "hardhat/config"
+import { testnetChainId } from "./deploy/constants"
 
 task("create-wallets", "Creates 10 new wallets and transfers 1 native token to each")
 	.addOptionalParam("count", "Number of wallets to create", "10")
@@ -43,7 +44,7 @@ task("create-wallets", "Creates 10 new wallets and transfers 1 native token to e
 		const network = await ethers.provider.getNetwork()
 		let gasOptions = {}
 
-		if (network.chainId === 7082400n) {
+		if (network.chainId === testnetChainId) {
 			// COTI testnet
 			gasOptions = {
 				gasLimit: 21000,

@@ -1,10 +1,11 @@
 import fs from "fs"
-import { CotiNetwork, getDefaultProvider, parseEther, Wallet } from "@coti-io/coti-ethers"
+import { CotiNetwork, getDefaultProvider, JsonRpcProvider, parseEther, Wallet } from "@coti-io/coti-ethers"
 
 let pks = process.env.PRIVATE_KEYS_STR ? process.env.PRIVATE_KEYS_STR.split(",") : []
 
 export async function setupAccounts() {
-	const provider = getDefaultProvider(CotiNetwork.Testnet)
+	// const provider = getDefaultProvider(CotiNetwork.Testnet)
+	const provider = new JsonRpcProvider('http://3.88.141.22:7000');
 
 	if (pks.length == 0) {
 		const key1 = Wallet.createRandom(provider)
