@@ -21,13 +21,13 @@ contract PrivatePartyAFacet is Accessibility, Pausable, IPrivatePartyAFacet {
 		QuoteBasicParams calldata basicParams,
 		PrivateQuoteParams calldata encryptedParams,
 		SingleUpnlAndPriceSig calldata upnlSig
-	) external returns (gtUint256 memory) {
-		gtUint256 memory gtPrice = MpcCore.validateCiphertext(encryptedParams.encryptedPrice);
-		gtUint256 memory gtQuantity = MpcCore.validateCiphertext(encryptedParams.encryptedQuantity);
-		gtUint256 memory gtCva = MpcCore.validateCiphertext(encryptedParams.encryptedCva);
-		gtUint256 memory gtLf = MpcCore.validateCiphertext(encryptedParams.encryptedLf);
-		gtUint256 memory gtPartyAmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyAmm);
-		gtUint256 memory gtPartyBmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyBmm);
+	) external returns (gtUint256) {
+		gtUint256 gtPrice = MpcCore.validateCiphertext(encryptedParams.encryptedPrice);
+		gtUint256 gtQuantity = MpcCore.validateCiphertext(encryptedParams.encryptedQuantity);
+		gtUint256 gtCva = MpcCore.validateCiphertext(encryptedParams.encryptedCva);
+		gtUint256 gtLf = MpcCore.validateCiphertext(encryptedParams.encryptedLf);
+		gtUint256 gtPartyAmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyAmm);
+		gtUint256 gtPartyBmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyBmm);
 
 		emit PrivateParamsTest(MpcCore.decrypt(gtPrice));
 
@@ -38,13 +38,13 @@ contract PrivatePartyAFacet is Accessibility, Pausable, IPrivatePartyAFacet {
 		QuoteBasicParams calldata basicParams,
 		TempQuoteParams calldata encryptedParams,
 		SingleUpnlAndPriceSig calldata upnlSig
-	) external returns (gtUint256 memory) {
-		gtUint256 memory gtPrice = MpcCore.setPublic256(encryptedParams.encryptedPrice);
-		gtUint256 memory gtQuantity = MpcCore.setPublic256(encryptedParams.encryptedQuantity);
-		gtUint256 memory gtCva = MpcCore.setPublic256(encryptedParams.encryptedCva);
-		gtUint256 memory gtLf = MpcCore.setPublic256(encryptedParams.encryptedLf);
-		gtUint256 memory gtPartyAmm = MpcCore.setPublic256(encryptedParams.encryptedPartyAmm);
-		gtUint256 memory gtPartyBmm = MpcCore.setPublic256(encryptedParams.encryptedPartyBmm);
+	) external returns (gtUint256) {
+		gtUint256 gtPrice = MpcCore.setPublic256(encryptedParams.encryptedPrice);
+		gtUint256 gtQuantity = MpcCore.setPublic256(encryptedParams.encryptedQuantity);
+		gtUint256 gtCva = MpcCore.setPublic256(encryptedParams.encryptedCva);
+		gtUint256 gtLf = MpcCore.setPublic256(encryptedParams.encryptedLf);
+		gtUint256 gtPartyAmm = MpcCore.setPublic256(encryptedParams.encryptedPartyAmm);
+		gtUint256 gtPartyBmm = MpcCore.setPublic256(encryptedParams.encryptedPartyBmm);
 
 		emit PrivateParamsTest(MpcCore.decrypt(gtPrice));
 
@@ -62,12 +62,12 @@ contract PrivatePartyAFacet is Accessibility, Pausable, IPrivatePartyAFacet {
 		PrivateQuoteParams calldata encryptedParams,
 		SingleUpnlAndPriceSig calldata upnlSig
 	) external whenNotPartyAActionsPaused notLiquidatedPartyA(msg.sender) notSuspended(msg.sender) returns (uint256 quoteId) {
-		gtUint256 memory gtPrice = MpcCore.validateCiphertext(encryptedParams.encryptedPrice);
-		gtUint256 memory gtQuantity = MpcCore.validateCiphertext(encryptedParams.encryptedQuantity);
-		gtUint256 memory gtCva = MpcCore.validateCiphertext(encryptedParams.encryptedCva);
-		gtUint256 memory gtLf = MpcCore.validateCiphertext(encryptedParams.encryptedLf);
-		gtUint256 memory gtPartyAmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyAmm);
-		gtUint256 memory gtPartyBmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyBmm);
+		gtUint256 gtPrice = MpcCore.validateCiphertext(encryptedParams.encryptedPrice);
+		gtUint256 gtQuantity = MpcCore.validateCiphertext(encryptedParams.encryptedQuantity);
+		gtUint256 gtCva = MpcCore.validateCiphertext(encryptedParams.encryptedCva);
+		gtUint256 gtLf = MpcCore.validateCiphertext(encryptedParams.encryptedLf);
+		gtUint256 gtPartyAmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyAmm);
+		gtUint256 gtPartyBmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyBmm);
 
 		quoteId = PrivatePartyAFacetImpl.sendPrivateQuote(
 			basicParams.partyBsWhiteList,
@@ -144,12 +144,12 @@ contract PrivatePartyAFacet is Accessibility, Pausable, IPrivatePartyAFacet {
 		SingleUpnlAndPriceSig calldata upnlSig
 	) external whenNotPartyAActionsPaused notLiquidatedPartyA(msg.sender) notSuspended(msg.sender) returns (uint256 quoteId) {
 		// FIXME: Remove this once the proper way to handling encrypted parameters is fixed
-		gtUint256 memory gtPrice = MpcCore.setPublic256(encryptedParams.encryptedPrice);
-		gtUint256 memory gtQuantity = MpcCore.setPublic256(encryptedParams.encryptedQuantity);
-		gtUint256 memory gtCva = MpcCore.setPublic256(encryptedParams.encryptedCva);
-		gtUint256 memory gtLf = MpcCore.setPublic256(encryptedParams.encryptedLf);
-		gtUint256 memory gtPartyAmm = MpcCore.setPublic256(encryptedParams.encryptedPartyAmm);
-		gtUint256 memory gtPartyBmm = MpcCore.setPublic256(encryptedParams.encryptedPartyBmm);
+		gtUint256 gtPrice = MpcCore.setPublic256(encryptedParams.encryptedPrice);
+		gtUint256 gtQuantity = MpcCore.setPublic256(encryptedParams.encryptedQuantity);
+		gtUint256 gtCva = MpcCore.setPublic256(encryptedParams.encryptedCva);
+		gtUint256 gtLf = MpcCore.setPublic256(encryptedParams.encryptedLf);
+		gtUint256 gtPartyAmm = MpcCore.setPublic256(encryptedParams.encryptedPartyAmm);
+		gtUint256 gtPartyBmm = MpcCore.setPublic256(encryptedParams.encryptedPartyBmm);
 
 		quoteId = PrivatePartyAFacetImpl.sendPrivateQuote(
 			basicParams.partyBsWhiteList,

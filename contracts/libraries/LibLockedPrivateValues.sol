@@ -84,7 +84,7 @@ library LockedPrivateValuesOps {
 	 * @return A zero GarbledPrivateLockedValues struct.
 	 */
 	function makeZero() internal returns (GarbledPrivateLockedValues memory) {
-		gtUint256 memory zero = MpcCore.setPublic256(uint256(0));
+		gtUint256 zero = MpcCore.setPublic256(uint256(0));
 		return GarbledPrivateLockedValues({ cva: zero, partyAmm: zero, partyBmm: zero, lf: zero });
 	}
 
@@ -93,7 +93,7 @@ library LockedPrivateValuesOps {
 	 * @param self The GarbledPrivateLockedValues struct containing locked values.
 	 * @return The total encrypted locked balance for Party A.
 	 */
-	function totalForPartyA(GarbledPrivateLockedValues memory self) internal returns (gtUint256 memory) {
+	function totalForPartyA(GarbledPrivateLockedValues memory self) internal returns (gtUint256) {
 		return self.cva.add(self.partyAmm).add(self.lf);
 	}
 
@@ -102,7 +102,7 @@ library LockedPrivateValuesOps {
 	 * @param self The GarbledPrivateLockedValues struct containing locked values.
 	 * @return The total encrypted locked balance for Party B.
 	 */
-	function totalForPartyB(GarbledPrivateLockedValues memory self) internal returns (gtUint256 memory) {
+	function totalForPartyB(GarbledPrivateLockedValues memory self) internal returns (gtUint256) {
 		return self.cva.add(self.partyBmm).add(self.lf);
 	}
 
@@ -112,7 +112,7 @@ library LockedPrivateValuesOps {
 	 * @param a The encrypted scalar value to multiply by.
 	 * @return The updated GarbledPrivateLockedValues struct.
 	 */
-	function mul(GarbledPrivateLockedValues memory self, gtUint256 memory a) internal returns (GarbledPrivateLockedValues memory) {
+	function mul(GarbledPrivateLockedValues memory self, gtUint256 a) internal returns (GarbledPrivateLockedValues memory) {
 		return
 			GarbledPrivateLockedValues({ cva: self.cva.mul(a), partyAmm: self.partyAmm.mul(a), partyBmm: self.partyBmm.mul(a), lf: self.lf.mul(a) });
 	}
@@ -124,7 +124,7 @@ library LockedPrivateValuesOps {
 	 * @return The updated GarbledPrivateLockedValues struct.
 	 */
 	function mulPublic(GarbledPrivateLockedValues memory self, uint256 a) internal returns (GarbledPrivateLockedValues memory) {
-		gtUint256 memory encryptedScalar = MpcCore.setPublic256(a);
+		gtUint256 encryptedScalar = MpcCore.setPublic256(a);
 		return mul(self, encryptedScalar);
 	}
 
@@ -134,7 +134,7 @@ library LockedPrivateValuesOps {
 	 * @param a The encrypted scalar value to divide by.
 	 * @return The updated GarbledPrivateLockedValues struct.
 	 */
-	function div(GarbledPrivateLockedValues memory self, gtUint256 memory a) internal returns (GarbledPrivateLockedValues memory) {
+	function div(GarbledPrivateLockedValues memory self, gtUint256 a) internal returns (GarbledPrivateLockedValues memory) {
 		self.cva = self.cva.div(a);
 		self.partyAmm = self.partyAmm.div(a);
 		self.partyBmm = self.partyBmm.div(a);
@@ -149,7 +149,7 @@ library LockedPrivateValuesOps {
 	 * @return The updated GarbledPrivateLockedValues struct.
 	 */
 	function divPublic(GarbledPrivateLockedValues memory self, uint256 a) internal returns (GarbledPrivateLockedValues memory) {
-		gtUint256 memory encryptedScalar = MpcCore.setPublic256(a);
+		gtUint256 encryptedScalar = MpcCore.setPublic256(a);
 		return div(self, encryptedScalar);
 	}
 

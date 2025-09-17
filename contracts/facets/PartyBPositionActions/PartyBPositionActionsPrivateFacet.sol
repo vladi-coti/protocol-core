@@ -35,7 +35,7 @@ contract PartyBPositionActionsPrivateFacet is Accessibility, Pausable, IPartyBPo
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
 
 		// Validate the encrypted filled amount
-		gtUint256 memory gtFilledAmount = MpcCore.validateCiphertext(filledAmount);
+		gtUint256 gtFilledAmount = MpcCore.validateCiphertext(filledAmount);
 
 		// Decrypt the filled amount for internal processing
 		uint256 decryptedFilledAmount = uint256(MpcCore.decrypt(gtFilledAmount));

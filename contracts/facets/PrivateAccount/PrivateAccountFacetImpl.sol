@@ -58,9 +58,9 @@ library PrivateAccountFacetImpl {
 		LibMuonAccount.verifyPartyAUpnl(upnlSig, msg.sender);
 
 		// Get encrypted available balance
-		gtInt256 memory gtAvailableBalance = LibPrivateAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
-		gtInt256 memory gtZero = MpcCore.setPublic256(int256(0));
-		gtInt256 memory gtAmount = MpcCore.setPublic256(int256(amount));
+		gtInt256 gtAvailableBalance = LibPrivateAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
+		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
+		gtInt256 gtAmount = MpcCore.setPublic256(int256(amount));
 
 		// Encrypted comparisons
 		gtBool availablePositive = gtAvailableBalance.ge(gtZero);
@@ -86,9 +86,9 @@ library PrivateAccountFacetImpl {
 		LibMuonAccount.verifyPartyBUpnl(upnlSig, msg.sender, origin);
 
 		// Get encrypted available balance
-		gtInt256 memory gtAvailableBalance = LibPrivateAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, origin);
-		gtInt256 memory gtZero = MpcCore.setPublic256(int256(0));
-		gtInt256 memory gtAmount = MpcCore.setPublic256(int256(amount));
+		gtInt256 gtAvailableBalance = LibPrivateAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, origin);
+		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
+		gtInt256 gtAmount = MpcCore.setPublic256(int256(amount));
 
 		// Encrypted comparisons
 		gtBool availablePositive = gtAvailableBalance.ge(gtZero);
@@ -129,9 +129,9 @@ library PrivateAccountFacetImpl {
 		LibMuonAccount.verifyPartyBUpnl(upnlSig, msg.sender, partyA);
 
 		// Get encrypted available balance
-		gtInt256 memory gtAvailableBalance = LibPrivateAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, partyA);
-		gtInt256 memory gtZero = MpcCore.setPublic256(int256(0));
-		gtInt256 memory gtAmount = MpcCore.setPublic256(int256(amount));
+		gtInt256 gtAvailableBalance = LibPrivateAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, partyA);
+		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
+		gtInt256 gtAmount = MpcCore.setPublic256(int256(amount));
 
 		// Encrypted comparisons
 		gtBool availablePositive = gtAvailableBalance.ge(gtZero);
