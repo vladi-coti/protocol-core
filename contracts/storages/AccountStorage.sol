@@ -63,6 +63,8 @@ library AccountStorage {
 		// partyA => partyB => SettlementState
 		mapping(address => mapping(address => SettlementState)) settlementStates;
 		mapping(address => uint256) reserveVault;
+		// User encryption address management
+		mapping(address => address) userEncryptionAddress;
 	}
 
 	function layout() internal pure returns (Layout storage l) {

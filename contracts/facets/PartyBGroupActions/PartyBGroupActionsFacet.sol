@@ -35,23 +35,74 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 		if (newId != 0) {
 			Quote storage newQuote = QuoteStorage.layout().quotes[newId];
 			if (newQuote.quoteStatus == QuoteStatus.PENDING) {
-				emit SendQuote(
-					newQuote.partyA,
-					newQuote.id,
-					newQuote.partyBsWhiteList,
-					newQuote.symbolId,
-					newQuote.positionType,
-					newQuote.orderType,
-					newQuote.requestedOpenPrice,
-					newQuote.marketPrice,
-					newQuote.quantity,
-					newQuote.lockedValues.cva,
-					newQuote.lockedValues.lf,
-					newQuote.lockedValues.partyAmm,
-					newQuote.lockedValues.partyBmm,
-					newQuote.tradingFee,
-					newQuote.deadline
-				);
+				gtUint256 gtPrice = MpcCore.onBoard(newQuote.requestedOpenPrice.ciphertext);
+				gtUint256 gtQuantity = MpcCore.onBoard(newQuote.quantity.ciphertext);
+				{
+					address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
+					EncryptedQuoteValues memory partyAValues = EncryptedQuoteValues({
+						price: MpcCore.offBoardToUser(gtPrice, partyAEncryptionAddress),
+						marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyAEncryptionAddress),
+						quantity: MpcCore.offBoardToUser(gtQuantity, partyAEncryptionAddress),
+						cva: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.cva.ciphertext), partyAEncryptionAddress),
+						lf: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.lf.ciphertext), partyAEncryptionAddress),
+						partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.partyAmm.ciphertext), partyAEncryptionAddress),
+						partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.partyBmm.ciphertext), partyAEncryptionAddress),
+						tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[newQuote.symbolId].tradingFee), partyAEncryptionAddress)
+					});
+					emit SendQuoteForPartyA(
+						msg.sender,
+						quoteId,
+						newQuote.partyBsWhiteList,
+						newQuote.symbolId,
+						newQuote.positionType,
+						newQuote.orderType,
+						partyAValues,
+						newQuote.deadline
+					);
+				}
+				{
+					for (uint256 i = 0; i < newQuote.partyBsWhiteList.length; i++) {
+						address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(newQuote.partyBsWhiteList[i]);
+						EncryptedQuoteValues memory partyBValues = EncryptedQuoteValues({
+							price: MpcCore.offBoardToUser(gtPrice, partyBEncryptionAddress),
+							marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyBEncryptionAddress),
+							quantity: MpcCore.offBoardToUser(gtQuantity, partyBEncryptionAddress),
+							cva: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.cva.ciphertext), partyBEncryptionAddress),
+							lf: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.lf.ciphertext), partyBEncryptionAddress),
+							partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.partyAmm.ciphertext), partyBEncryptionAddress),
+							partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.partyBmm.ciphertext), partyBEncryptionAddress),
+							tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[newQuote.symbolId].tradingFee), partyBEncryptionAddress)
+						});
+						emit SendQuoteForPartyB(
+							msg.sender,
+							quoteId,
+							partyBEncryptionAddress,
+							newQuote.symbolId,
+							newQuote.positionType,
+							newQuote.orderType,
+							partyBValues,
+							newQuote.deadline
+						);
+					}
+				}
+
+				// emit SendQuote(
+				// 	newQuote.partyA,
+				// 	newQuote.id,
+				// 	newQuote.partyBsWhiteList,
+				// 	newQuote.symbolId,
+				// 	newQuote.positionType,
+				// 	newQuote.orderType,
+				// 	newQuote.requestedOpenPrice,
+				// 	newQuote.marketPrice,
+				// 	newQuote.quantity,
+				// 	newQuote.lockedValues.cva,
+				// 	newQuote.lockedValues.lf,
+				// 	newQuote.lockedValues.partyAmm,
+				// 	newQuote.lockedValues.partyBmm,
+				// 	newQuote.tradingFee,
+				// 	newQuote.deadline
+				// );
 			} else if (newQuote.quoteStatus == QuoteStatus.CANCELED) {
 				emit AcceptCancelRequest(newQuote.id, QuoteStatus.CANCELED);
 			}

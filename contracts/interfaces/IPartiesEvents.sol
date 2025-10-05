@@ -10,25 +10,27 @@ import "../storages/MuonStorage.sol";
 interface IPartiesEvents {
 	event AcceptCancelRequest(uint256 quoteId, QuoteStatus quoteStatus);
 
-	event SendQuote(
+	event SendQuoteForPartyA(
 		address partyA,
 		uint256 quoteId,
 		address[] partyBsWhiteList,
 		uint256 symbolId,
 		PositionType positionType,
 		OrderType orderType,
-		uint256 price,
-		uint256 marketPrice,
-		uint256 quantity,
-		uint256 cva,
-		uint256 lf,
-		uint256 partyAmm,
-		uint256 partyBmm,
-		uint256 tradingFee,
+		EncryptedQuoteValues values,
 		uint256 deadline
 	);
 
-	event ExpireQuote(QuoteStatus quoteStatus, uint256 quoteId); // For backward compatibility, will be removed in future
+	event SendQuoteForPartyB(
+		address partyA,
+		uint256 quoteId,
+		address partyB,
+		uint256 symbolId,
+		PositionType positionType,
+		OrderType orderType,
+		EncryptedQuoteValues values,
+		uint256 deadline
+	);
 
 	event ExpireQuoteOpen(QuoteStatus quoteStatus, uint256 quoteId);
 

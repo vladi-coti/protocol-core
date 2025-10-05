@@ -5,7 +5,6 @@
 pragma solidity >=0.8.18;
 
 import "./LibQuote.sol";
-import "./LibPrivateQuote.sol";
 
 library LibPartyBPositionsActions {
 	using LockedValuesOps for LockedValues;

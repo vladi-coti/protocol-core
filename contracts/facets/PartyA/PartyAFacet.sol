@@ -12,146 +12,231 @@ import "../../storages/SymbolStorage.sol";
 import "../../storages/QuoteStorage.sol";
 
 contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
-	/**
-	 * @notice Send a Quote to the protocol. The quote status will be pending.
-	 * @param partyBsWhiteList List of party B addresses allowed to act on this quote.
-	 * @param symbolId Each symbol within the system possesses a unique identifier, for instance, BTCUSDT carries its own distinct ID
-	 * @param positionType Can be SHORT or LONG (0 or 1)
-	 * @param orderType Can be LIMIT or MARKET (0 or 1)
-	 * @param price For limit orders, this is the user-requested price for the position, and for market orders, this acts as the price threshold
-	 * 				that the user is willing to open a position. For example, if the market price for an arbitrary symbol is $1000 and the user wants to
-	 * 				open a short position on this symbol they might be ok with prices up to $990
-	 * @param quantity Size of the position
-	 * @param cva The Credit Valuation Adjustment value. In the system, either partyA or partyB can get liquidated and CVA is the penalty that the
-	 * 			liquidated side should pay to the other one
-	 * @param lf Liquidation Fee. It is the prize that will be paid to the liquidator user
-	 * @param partyAmm The partyA Maintenance Margin value. The amount that is actually behind the position and is considered in liquidation status
-	 * @param partyBmm The partyB Maintenance Margin value. The amount that is actually behind the position and is considered in liquidation status
-	 * @param maxFundingRate The maximum funding rate allowed from user side.
-	 * @param deadline The user should set a deadline for their request. If no PartyB takes action on the quote within this timeframe, the request will expire
-	 * @param affiliate The affiliate of this quote
-	 * @param upnlSig The Muon signature for user upnl and symbol price
-	 */
-	function sendQuoteWithAffiliate(
-		address[] memory partyBsWhiteList,
-		uint256 symbolId,
-		PositionType positionType,
-		OrderType orderType,
-		uint256 price,
-		uint256 quantity,
-		uint256 cva,
-		uint256 lf,
-		uint256 partyAmm,
-		uint256 partyBmm,
-		uint256 maxFundingRate,
-		uint256 deadline,
-		address affiliate,
-		SingleUpnlAndPriceSig memory upnlSig
-	) external whenNotPartyAActionsPaused notLiquidatedPartyA(msg.sender) notSuspended(msg.sender) returns (uint256 quoteId) {
-		quoteId = PartyAFacetImpl.sendQuote(
-			partyBsWhiteList,
-			symbolId,
-			positionType,
-			orderType,
-			price,
-			quantity,
-			cva,
-			lf,
-			partyAmm,
-			partyBmm,
-			maxFundingRate,
-			deadline,
-			affiliate,
-			upnlSig
-		);
-		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
-		emit SendQuote(
-			msg.sender,
-			quoteId,
-			partyBsWhiteList,
-			symbolId,
-			positionType,
-			orderType,
-			price,
-			upnlSig.price,
-			quantity,
-			quote.lockedValues.cva,
-			quote.lockedValues.lf,
-			quote.lockedValues.partyAmm,
-			quote.lockedValues.partyBmm,
-			quote.tradingFee,
-			deadline
-		);
+	event PrivateParamsTest(uint256 price);
+
+	function privateParamsTest(
+		QuoteBasicParams calldata basicParams,
+		PrivateQuoteParams calldata encryptedParams,
+		SingleUpnlAndPriceSig calldata upnlSig
+	) external returns (gtUint256) {
+		gtUint256 gtPrice = MpcCore.validateCiphertext(encryptedParams.encryptedPrice);
+		gtUint256 gtQuantity = MpcCore.validateCiphertext(encryptedParams.encryptedQuantity);
+		gtUint256 gtCva = MpcCore.validateCiphertext(encryptedParams.encryptedCva);
+		gtUint256 gtLf = MpcCore.validateCiphertext(encryptedParams.encryptedLf);
+		gtUint256 gtPartyAmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyAmm);
+		gtUint256 gtPartyBmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyBmm);
+
+		emit PrivateParamsTest(MpcCore.decrypt(gtPrice));
+
+		return gtPrice;
+	}
+
+	function privateParamsTestPlaintext(
+		QuoteBasicParams calldata basicParams,
+		TempQuoteParams calldata encryptedParams,
+		SingleUpnlAndPriceSig calldata upnlSig
+	) external returns (gtUint256) {
+		gtUint256 gtPrice = MpcCore.setPublic256(encryptedParams.encryptedPrice);
+		gtUint256 gtQuantity = MpcCore.setPublic256(encryptedParams.encryptedQuantity);
+		gtUint256 gtCva = MpcCore.setPublic256(encryptedParams.encryptedCva);
+		gtUint256 gtLf = MpcCore.setPublic256(encryptedParams.encryptedLf);
+		gtUint256 gtPartyAmm = MpcCore.setPublic256(encryptedParams.encryptedPartyAmm);
+		gtUint256 gtPartyBmm = MpcCore.setPublic256(encryptedParams.encryptedPartyBmm);
+
+		emit PrivateParamsTest(MpcCore.decrypt(gtPrice));
+
+		return gtPrice;
 	}
 
 	/**
-	 * @notice Send a Quote to the protocol. The quote status will be pending.
-	 * @param partyBsWhiteList List of party B addresses allowed to act on this quote.
-	 * @param symbolId Each symbol within the system possesses a unique identifier, for instance, BTCUSDT carries its own distinct ID
-	 * @param positionType Can be SHORT or LONG (0 or 1)
-	 * @param orderType Can be LIMIT or MARKET (0 or 1)
-	 * @param price For limit orders, this is the user-requested price for the position, and for market orders, this acts as the price threshold
-	 * 				that the user is willing to open a position. For example, if the market price for an arbitrary symbol is $1000 and the user wants to
-	 * 				open a short position on this symbol they might be ok with prices up to $990
-	 * @param quantity Size of the position
-	 * @param cva The Credit Valuation Adjustment value. In the system, either partyA or partyB can get liquidated and CVA is the penalty that the
-	 * 			liquidated side should pay to the other one
-	 * @param lf Liquidation Fee. It is the prize that will be paid to the liquidator user
-	 * @param partyAmm The partyA Maintenance Margin value. The amount that is actually behind the position and is considered in liquidation status
-	 * @param partyBmm The partyB Maintenance Margin value. The amount that is actually behind the position and is considered in liquidation status
-	 * @param maxFundingRate The maximum funding rate allowed from user side.
-	 * @param deadline The user should set a deadline for their request. If no PartyB takes action on the quote within this timeframe, the request will expire
+	 * @notice Send a Private Quote to the protocol with encrypted parameters. The quote status will be pending.
+	 * @param basicParams Struct containing basic quote parameters
+	 * @param encryptedParams Struct containing all encrypted parameters
 	 * @param upnlSig The Muon signature for user upnl and symbol price
 	 */
 	function sendQuote(
-		address[] memory partyBsWhiteList,
-		uint256 symbolId,
-		PositionType positionType,
-		OrderType orderType,
-		uint256 price,
-		uint256 quantity,
-		uint256 cva,
-		uint256 lf,
-		uint256 partyAmm,
-		uint256 partyBmm,
-		uint256 maxFundingRate,
-		uint256 deadline,
-		SingleUpnlAndPriceSig memory upnlSig
-	) external whenNotPartyAActionsPaused notLiquidatedPartyA(msg.sender) notSuspended(msg.sender) {
-		uint256 quoteId = PartyAFacetImpl.sendQuote(
-			partyBsWhiteList,
-			symbolId,
-			positionType,
-			orderType,
-			price,
-			quantity,
-			cva,
-			lf,
-			partyAmm,
-			partyBmm,
-			maxFundingRate,
-			deadline,
-			address(0),
+		QuoteBasicParams calldata basicParams,
+		PrivateQuoteParams calldata encryptedParams,
+		SingleUpnlAndPriceSig calldata upnlSig
+	) external whenNotPartyAActionsPaused notLiquidatedPartyA(msg.sender) notSuspended(msg.sender) returns (uint256 quoteId) {
+		gtUint256 gtPrice = MpcCore.validateCiphertext(encryptedParams.encryptedPrice);
+		gtUint256 gtQuantity = MpcCore.validateCiphertext(encryptedParams.encryptedQuantity);
+		gtUint256 gtCva = MpcCore.validateCiphertext(encryptedParams.encryptedCva);
+		gtUint256 gtLf = MpcCore.validateCiphertext(encryptedParams.encryptedLf);
+		gtUint256 gtPartyAmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyAmm);
+		gtUint256 gtPartyBmm = MpcCore.validateCiphertext(encryptedParams.encryptedPartyBmm);
+
+		quoteId = PartyAFacetImpl.sendQuote(
+			basicParams.partyBsWhiteList,
+			basicParams.symbolId,
+			basicParams.positionType,
+			basicParams.orderType,
+			gtPrice,
+			gtQuantity,
+			gtCva,
+			gtLf,
+			gtPartyAmm,
+			gtPartyBmm,
+			basicParams.maxFundingRate,
+			basicParams.deadline,
+			basicParams.affiliate,
 			upnlSig
 		);
+		
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
-		emit SendQuote(
-			msg.sender,
-			quoteId,
-			partyBsWhiteList,
-			symbolId,
-			positionType,
-			orderType,
-			price,
-			upnlSig.price,
-			quantity,
-			quote.lockedValues.cva,
-			quote.lockedValues.lf,
-			quote.lockedValues.partyAmm,
-			quote.lockedValues.partyBmm,
-			quote.tradingFee,
-			deadline
+		{
+			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
+			EncryptedQuoteValues memory partyAValues = EncryptedQuoteValues({
+				price: MpcCore.offBoardToUser(gtPrice, partyAEncryptionAddress),
+				marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyAEncryptionAddress),
+				quantity: MpcCore.offBoardToUser(gtQuantity, partyAEncryptionAddress),
+				cva: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.cva.ciphertext), partyAEncryptionAddress),
+				lf: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.lf.ciphertext), partyAEncryptionAddress),
+				partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyAmm.ciphertext), partyAEncryptionAddress),
+				partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyBmm.ciphertext), partyAEncryptionAddress),
+				tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee), partyAEncryptionAddress)
+			});
+			emit SendQuoteForPartyA(
+				msg.sender,
+				quoteId,
+				basicParams.partyBsWhiteList,
+				basicParams.symbolId,
+				basicParams.positionType,
+				basicParams.orderType,
+				partyAValues,
+				basicParams.deadline
+			);
+		}
+		{
+			for (uint256 i = 0; i < basicParams.partyBsWhiteList.length; i++) {
+				address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(basicParams.partyBsWhiteList[i]);
+				EncryptedQuoteValues memory partyBValues = EncryptedQuoteValues({
+					price: MpcCore.offBoardToUser(gtPrice, partyBEncryptionAddress),
+					marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyBEncryptionAddress),
+					quantity: MpcCore.offBoardToUser(gtQuantity, partyBEncryptionAddress),
+					cva: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.cva.ciphertext), partyBEncryptionAddress),
+					lf: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.lf.ciphertext), partyBEncryptionAddress),
+					partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyAmm.ciphertext), partyBEncryptionAddress),
+					partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyBmm.ciphertext), partyBEncryptionAddress),
+					tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee), partyBEncryptionAddress)
+				});
+				emit SendQuoteForPartyB(
+					msg.sender,
+					quoteId,
+					partyBEncryptionAddress,
+					basicParams.symbolId,
+					basicParams.positionType,
+					basicParams.orderType,
+					partyBValues,
+					basicParams.deadline
+				);
+			}
+		}
+	}
+
+	// TEMP function to send private quote with plaintext parameters
+	function sendQuotePlaintext(
+		QuoteBasicParams calldata basicParams,
+		TempQuoteParams calldata encryptedParams,
+		SingleUpnlAndPriceSig calldata upnlSig
+	) external whenNotPartyAActionsPaused notLiquidatedPartyA(msg.sender) notSuspended(msg.sender) returns (uint256 quoteId) {
+		// FIXME: Remove this once the proper way to handling encrypted parameters is fixed
+		gtUint256 gtPrice = MpcCore.setPublic256(encryptedParams.encryptedPrice);
+		gtUint256 gtQuantity = MpcCore.setPublic256(encryptedParams.encryptedQuantity);
+		gtUint256 gtCva = MpcCore.setPublic256(encryptedParams.encryptedCva);
+		gtUint256 gtLf = MpcCore.setPublic256(encryptedParams.encryptedLf);
+		gtUint256 gtPartyAmm = MpcCore.setPublic256(encryptedParams.encryptedPartyAmm);
+		gtUint256 gtPartyBmm = MpcCore.setPublic256(encryptedParams.encryptedPartyBmm);
+
+		quoteId = PartyAFacetImpl.sendQuote(
+			basicParams.partyBsWhiteList,
+			basicParams.symbolId,
+			basicParams.positionType,
+			basicParams.orderType,
+			gtPrice,
+			gtQuantity,
+			gtCva,
+			gtLf,
+			gtPartyAmm,
+			gtPartyBmm,
+			basicParams.maxFundingRate,
+			basicParams.deadline,
+			basicParams.affiliate,
+			upnlSig
 		);
+
+		{
+			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
+			EncryptedQuoteValues memory partyAValues = EncryptedQuoteValues({
+				price: MpcCore.offBoardToUser(gtPrice, partyAEncryptionAddress),
+				marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyAEncryptionAddress),
+				quantity: MpcCore.offBoardToUser(gtQuantity, partyAEncryptionAddress),
+				cva: MpcCore.offBoardToUser(gtCva, partyAEncryptionAddress),
+				lf: MpcCore.offBoardToUser(gtLf, partyAEncryptionAddress),
+				partyAmm: MpcCore.offBoardToUser(gtPartyAmm, partyAEncryptionAddress),
+				partyBmm: MpcCore.offBoardToUser(gtPartyBmm, partyAEncryptionAddress),
+				tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee), partyAEncryptionAddress)
+			});
+			emit SendQuoteForPartyA(
+				msg.sender,
+				quoteId,
+				basicParams.partyBsWhiteList,
+				basicParams.symbolId,
+				basicParams.positionType,
+				basicParams.orderType,
+				partyAValues,
+				basicParams.deadline
+			);
+		}
+		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
+		{
+			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
+			EncryptedQuoteValues memory partyAValues = EncryptedQuoteValues({
+				price: MpcCore.offBoardToUser(gtPrice, partyAEncryptionAddress),
+				marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyAEncryptionAddress),
+				quantity: MpcCore.offBoardToUser(gtQuantity, partyAEncryptionAddress),
+				cva: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.cva.ciphertext), partyAEncryptionAddress),
+				lf: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.lf.ciphertext), partyAEncryptionAddress),
+				partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyAmm.ciphertext), partyAEncryptionAddress),
+				partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyBmm.ciphertext), partyAEncryptionAddress),
+				tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee), partyAEncryptionAddress)
+			});
+			emit SendQuoteForPartyA(
+				msg.sender,
+				quoteId,
+				basicParams.partyBsWhiteList,
+				basicParams.symbolId,
+				basicParams.positionType,
+				basicParams.orderType,
+				partyAValues,
+				basicParams.deadline
+			);
+		}
+		{
+			for (uint256 i = 0; i < basicParams.partyBsWhiteList.length; i++) {
+				address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(basicParams.partyBsWhiteList[i]);
+				EncryptedQuoteValues memory partyBValues = EncryptedQuoteValues({
+					price: MpcCore.offBoardToUser(gtPrice, partyBEncryptionAddress),
+					marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyBEncryptionAddress),
+					quantity: MpcCore.offBoardToUser(gtQuantity, partyBEncryptionAddress),
+					cva: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.cva.ciphertext), partyBEncryptionAddress),
+					lf: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.lf.ciphertext), partyBEncryptionAddress),
+					partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyAmm.ciphertext), partyBEncryptionAddress),
+					partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyBmm.ciphertext), partyBEncryptionAddress),
+					tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee), partyBEncryptionAddress)
+				});
+				emit SendQuoteForPartyB(
+					msg.sender,
+					quoteId,
+					partyBEncryptionAddress,
+					basicParams.symbolId,
+					basicParams.positionType,
+					basicParams.orderType,
+					partyBValues,
+					basicParams.deadline
+				);
+			}
+		}
 	}
 
 	/**
@@ -167,7 +252,6 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 			} else {
 				emit ExpireQuoteOpen(result, expiredQuoteIds[i]);
 			}
-			emit ExpireQuote(result, expiredQuoteIds[i]); // For backward compatibility, will be removed in future
 		}
 	}
 
@@ -185,7 +269,6 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 
 		if (result == QuoteStatus.EXPIRED) {
 			emit ExpireQuoteOpen(result, quoteId);
-			emit ExpireQuote(result, quoteId); // For backward compatibility, will be removed in future
 		} else if (result == QuoteStatus.CANCELED || result == QuoteStatus.CANCEL_PENDING) {
 			emit RequestToCancelQuote(quote.partyA, quote.partyB, result, quoteId);
 		}
@@ -222,7 +305,6 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 			QuoteStatus.CLOSE_PENDING,
 			quoteLayout.closeIds[quoteId]
 		);
-		emit RequestToClosePosition(quote.partyA, quote.partyB, quoteId, closePrice, quantityToClose, orderType, deadline, QuoteStatus.CLOSE_PENDING); // For backward compatibility, will be removed in future
 	}
 
 	/**
@@ -235,10 +317,8 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 		QuoteStatus result = PartyAFacetImpl.requestToCancelCloseRequest(quoteId);
 		if (result == QuoteStatus.OPENED) {
 			emit ExpireQuoteClose(QuoteStatus.OPENED, quoteId, quoteLayout.closeIds[quoteId]);
-			emit ExpireQuote(QuoteStatus.OPENED, quoteId); // For backward compatibility, will be removed in future
 		} else if (result == QuoteStatus.CANCEL_CLOSE_PENDING) {
 			emit RequestToCancelCloseRequest(quote.partyA, quote.partyB, quoteId, QuoteStatus.CANCEL_CLOSE_PENDING, quoteLayout.closeIds[quoteId]);
-			emit RequestToCancelCloseRequest(quote.partyA, quote.partyB, quoteId, QuoteStatus.CANCEL_CLOSE_PENDING); // For backward compatibility, will be removed in future
 		}
 	}
 }

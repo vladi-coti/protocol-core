@@ -8,7 +8,11 @@ import "./LibLockedValues.sol";
 import "../storages/AccountStorage.sol";
 
 library LibAccount {
+	using MpcCore for gtUint256;
+	using MpcCore for gtInt256;
+	using MpcCore for gtBool;
 	using LockedValuesOps for LockedValues;
+	using LockedValuesOps for GarbledLockedValues;
 
 	/**
 	 * @notice Calculates the total locked balances of Party A.

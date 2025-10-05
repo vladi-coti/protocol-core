@@ -7,39 +7,27 @@ pragma solidity >=0.8.18;
 import "./IPartyAEvents.sol";
 import "../../storages/MuonStorage.sol";
 
+struct TempQuoteParams { // TODO: remove this once the proper way to handling encrypted parameters is fixed
+	uint256 encryptedPrice;
+	uint256 encryptedQuantity;
+	uint256 encryptedCva;
+	uint256 encryptedLf;
+	uint256 encryptedPartyAmm;
+	uint256 encryptedPartyBmm;
+}
+
 interface IPartyAFacet is IPartyAEvents {
 	function sendQuote(
-		address[] memory partyBsWhiteList,
-		uint256 symbolId,
-		PositionType positionType,
-		OrderType orderType,
-		uint256 price,
-		uint256 quantity,
-		uint256 cva,
-		uint256 lf,
-		uint256 partyAmm,
-		uint256 partyBmm,
-		uint256 maxFundingRate,
-		uint256 deadline,
+		QuoteBasicParams memory basicParams,
+		PrivateQuoteParams calldata encryptedParams,
 		SingleUpnlAndPriceSig memory upnlSig
-	) external;
+	) external returns (uint256 quoteId);
 
-	function sendQuoteWithAffiliate(
-		address[] memory partyBsWhiteList,
-		uint256 symbolId,
-		PositionType positionType,
-		OrderType orderType,
-		uint256 price,
-		uint256 quantity,
-		uint256 cva,
-		uint256 lf,
-		uint256 partyAmm,
-		uint256 partyBmm,
-		uint256 maxFundingRate,
-		uint256 deadline,
-		address affiliate,
+	function sendQuotePlaintext(
+		QuoteBasicParams memory basicParams,
+		TempQuoteParams calldata encryptedParams,
 		SingleUpnlAndPriceSig memory upnlSig
-	) external returns (uint256);
+	) external returns (uint256 quoteId);
 
 	function expireQuote(uint256[] memory expiredQuoteIds) external;
 

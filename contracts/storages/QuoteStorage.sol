@@ -4,6 +4,8 @@
 // For more information, see https://docs.symm.io/legal-disclaimer/license
 pragma solidity >=0.8.18;
 
+import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
+
 enum PositionType {
 	LONG,
 	SHORT
@@ -29,10 +31,17 @@ enum QuoteStatus {
 }
 
 struct LockedValues {
-	uint256 cva;
-	uint256 lf;
-	uint256 partyAmm;
-	uint256 partyBmm;
+	utUint256 cva;
+	utUint256 lf;
+	utUint256 partyAmm;
+	utUint256 partyBmm;
+}
+
+struct GarbledLockedValues {
+	gtUint256 cva;
+	gtUint256 lf;
+	gtUint256 partyAmm;
+	gtUint256 partyBmm;
 }
 
 struct Quote {
@@ -41,32 +50,63 @@ struct Quote {
 	uint256 symbolId;
 	PositionType positionType;
 	OrderType orderType;
-	// Price of quote which PartyB opened in 18 decimals
-	uint256 openedPrice;
-	uint256 initialOpenedPrice;
-	// Price of quote which PartyA requested in 18 decimals
-	uint256 requestedOpenPrice;
-	uint256 marketPrice;
-	// Quantity of quote which PartyA requested in 18 decimals
-	uint256 quantity;
-	// Quantity of quote which PartyB has closed until now in 18 decimals
-	uint256 closedAmount;
+	// Price of quote which PartyB opened in 18 decimals (encrypted)
+	utUint256 openedPrice;
+	utUint256 initialOpenedPrice;
+	// Price of quote which PartyA requested in 18 decimals (encrypted)
+	utUint256 requestedOpenPrice;
+	utUint256 marketPrice;
+	// Quantity of quote which PartyA requested in 18 decimals (encrypted)
+	utUint256 quantity;
+	// Quantity of quote which PartyB has closed until now in 18 decimals (encrypted)
+	utUint256 closedAmount;
 	LockedValues initialLockedValues;
 	LockedValues lockedValues;
 	uint256 maxFundingRate;
 	address partyA;
 	address partyB;
 	QuoteStatus quoteStatus;
-	uint256 avgClosedPrice;
-	uint256 requestedClosePrice;
-	uint256 quantityToClose;
+	utUint256 avgClosedPrice;
+	utUint256 requestedClosePrice;
+	utUint256 quantityToClose;
 	// handle partially open position
 	uint256 parentId;
 	uint256 createTimestamp;
 	uint256 statusModifyTimestamp;
 	uint256 lastFundingPaymentTimestamp;
 	uint256 deadline;
-	uint256 tradingFee;
+	utUint256 tradingFee;
+	address affiliate;
+}
+
+// Struct to hold encrypted quote values to reduce stack depth
+struct EncryptedQuoteValues {
+	ctUint256 price;
+	ctUint256 marketPrice;
+	ctUint256 quantity;
+	ctUint256 cva;
+	ctUint256 lf;
+	ctUint256 partyAmm;
+	ctUint256 partyBmm;
+	ctUint256 tradingFee;
+}
+
+struct PrivateQuoteParams {
+	itUint256 encryptedPrice;
+	itUint256 encryptedQuantity;
+	itUint256 encryptedCva;
+	itUint256 encryptedLf;
+	itUint256 encryptedPartyAmm;
+	itUint256 encryptedPartyBmm;
+}
+
+struct QuoteBasicParams {
+	address[] partyBsWhiteList;
+	uint256 symbolId;
+	PositionType positionType;
+	OrderType orderType;
+	uint256 maxFundingRate;
+	uint256 deadline;
 	address affiliate;
 }
 
