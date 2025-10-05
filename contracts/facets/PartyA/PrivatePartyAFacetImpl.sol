@@ -96,9 +96,13 @@ library PrivatePartyAFacetImpl {
 		gtBool allValidationsPassed = lfSufficient.and(quoteSufficient).and(balanceSufficient);
 
 		// Only decrypt the final validation result for require check
-		require(MpcCore.decrypt(allValidationsPassed), "PrivatePartyAFacet: Validation failed");
+		bool allValidationsPassedDecrypted = MpcCore.decrypt(allValidationsPassed);
+		require(MpcCore.decrypt(lfSufficient),"1");
+		require(MpcCore.decrypt(quoteSufficient),"2");
+		// require(MpcCore.decrypt(balanceSufficient),"3");
+		// require(allValidationsPassedDecrypted, "PrivatePartyAFacet: Validation failed");
 
-		// Additional non-encrypted validations
+		// // Additional non-encrypted validations
 		for (uint8 i = 0; i < partyBsWhiteList.length; i++) {
 			require(partyBsWhiteList[i] != msg.sender, "PrivatePartyAFacet: Sender isn't allowed in partyBWhiteList");
 		}

@@ -1,4 +1,4 @@
-import { ZeroAddress, EventLog } from "ethers"
+import { ZeroAddress, EventLog, BigNumberish, ethers } from "ethers"
 import { Wallet, ctUint256, itUint256 } from "@coti-io/coti-ethers"
 import { User } from "./User"
 import { RunContext } from "./RunContext"
@@ -6,6 +6,7 @@ import { PositionType, OrderType } from "./Enums"
 import { decimal, serializeToJson } from "../utils/Common"
 import { logger } from "../utils/LoggerUtils"
 import { PrivateQuoteParamsStruct, QuoteBasicParamsStruct } from "../../src/types/contracts/facets/PartyA/IPrivatePartyAFacet"
+import { runTx } from "../utils/TxUtils";
 
 export interface PrivateQuoteRequest {
 	partyBWhiteList: string[]
@@ -31,6 +32,16 @@ export class PrivateUser extends User {
 		super(context, wallet as any)
 		this.privateWallet = wallet
 	}
+
+	// public async setBalances(collateralAmount?: BigNumberish, depositAmount?: BigNumberish, allocatedAmount?: BigNumberish) {
+	// 	const userAddress = this.signer.getAddress()
+
+	// 	await runTx(this.context.collateral.connect(this.signer).approve(this.context.diamond, ethers.MaxUint256))
+
+	// 	if (collateralAmount) await runTx(this.context.collateral.connect(this.signer).mint(userAddress, collateralAmount))
+	// 	if (depositAmount) await runTx(this.context.privateAccountFacet.connect(this.signer).deposit(depositAmount))
+	// 	if (allocatedAmount) await runTx(this.context.privateAccountFacet.connect(this.signer).allocate(allocatedAmount))
+	// }
 
 	public getPrivateWallet(): Wallet {
 		return this.privateWallet
@@ -65,38 +76,38 @@ export class PrivateUser extends User {
 			affiliate: request.affiliate,
 		}
 
-		// const contractAddress = this.context.diamond
-		// const selector = this.context.privatePartyAFacet.interface.getFunction("sendPrivateQuote").selector
+		const contractAddress = this.context.diamond
+		const selector = this.context.privatePartyAFacet.interface.getFunction("sendPrivateQuote").selector
 
-		// const encryptedPrice = await this.encryptUint256(request.price, contractAddress, selector);
-		// const encryptedQuantity = await this.encryptUint256(request.quantity, contractAddress, selector);
-		// const encryptedCva = await this.encryptUint256(request.cva, contractAddress, selector);
-		// const encryptedLf = await this.encryptUint256(request.lf, contractAddress, selector);
-		// const encryptedPartyAmm = await this.encryptUint256(request.partyAmm, contractAddress, selector);
-		// const encryptedPartyBmm = await this.encryptUint256(request.partyBmm, contractAddress, selector);
+		const encryptedPrice = await this.encryptUint256(request.price, contractAddress, selector);
+		const encryptedQuantity = await this.encryptUint256(request.quantity, contractAddress, selector);
+		const encryptedCva = await this.encryptUint256(request.cva, contractAddress, selector);
+		const encryptedLf = await this.encryptUint256(request.lf, contractAddress, selector);
+		const encryptedPartyAmm = await this.encryptUint256(request.partyAmm, contractAddress, selector);
+		const encryptedPartyBmm = await this.encryptUint256(request.partyBmm, contractAddress, selector);
 
-		// const encryptedParams: PrivateQuoteParamsStruct = {
-		// 	encryptedPrice: encryptedPrice,
-		// 	encryptedQuantity: encryptedQuantity,
-		// 	encryptedCva: encryptedCva,
-		// 	encryptedLf: encryptedLf,
-		// 	encryptedPartyAmm: encryptedPartyAmm,
-		// 	encryptedPartyBmm: encryptedPartyBmm,
-		// };
+		const encryptedParams: PrivateQuoteParamsStruct = {
+			encryptedPrice: encryptedPrice,
+			encryptedQuantity: encryptedQuantity,
+			encryptedCva: encryptedCva,
+			encryptedLf: encryptedLf,
+			encryptedPartyAmm: encryptedPartyAmm,
+			encryptedPartyBmm: encryptedPartyBmm,
+		};
 
-		// let tx = await connectedContract.sendPrivateQuote(basicParams, encryptedParams, await request.upnlSig)
+		let tx = await connectedContract.sendPrivateQuote(basicParams, encryptedParams, await request.upnlSig)
 
-		// FIXME: remove this once the proper way to handling encrypted parameters is fixed
-		const encryptedParams = {
-			encryptedPrice: request.price,
-			encryptedQuantity: request.quantity,
-			encryptedCva: request.cva,
-			encryptedLf: request.lf,
-			encryptedPartyAmm: request.partyAmm,
-			encryptedPartyBmm: request.partyBmm,
-		}
+		// // FIXME: remove this once the proper way to handling encrypted parameters is fixed
+		// const encryptedParams = {
+		// 	encryptedPrice: request.price,
+		// 	encryptedQuantity: request.quantity,
+		// 	encryptedCva: request.cva,
+		// 	encryptedLf: request.lf,
+		// 	encryptedPartyAmm: request.partyAmm,
+		// 	encryptedPartyBmm: request.partyBmm,
+		// }
 
-		let tx = await connectedContract.sendPrivateQuotePlaintext(basicParams, encryptedParams, await request.upnlSig)
+		// let tx = await connectedContract.sendPrivateQuotePlaintext(basicParams, encryptedParams, await request.upnlSig)
 
 		const receipt = await tx.wait()
 

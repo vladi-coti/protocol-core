@@ -35,7 +35,7 @@ const beraAPIKey: string = process.env.BERA_API_KEY || ""
 const hardhatDockerUrl: string | undefined = process.env.HARDHAT_DOCKER_URL || ""
 
 const config: HardhatUserConfig = {
-	defaultNetwork: "coti-testnet",
+	defaultNetwork: "soda-testnet",
 	gasReporter: {
 		currency: "USD",
 		enabled: true,
@@ -43,6 +43,17 @@ const config: HardhatUserConfig = {
 		src: "./contracts",
 	},
 	networks: {
+		"soda-testnet": {
+			url: "http://3.88.141.22:7000",
+			chainId: 50505050,
+			accounts: privateKeyList,
+			gasPrice: 1000000000,
+			gasMultiplier: 1.5, // Increased multiplier
+			blockGasLimit: 15000000,
+			timeout: 120000, // Increased timeout to 2 minutes
+			allowUnlimitedContractSize: true,
+			initialBaseFeePerGas: 1200000000, // 1.2 gwei
+		},
 		"coti-testnet": {
 			url: "https://testnet.coti.io/rpc",
 			chainId: 7082400,

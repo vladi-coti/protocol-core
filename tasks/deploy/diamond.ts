@@ -84,18 +84,22 @@ task("deploy:diamond", "Deploys the Diamond contract")
 			})
 		}
 
+		console.log("Upgrading Diamond with Facets")
 		// Upgrade Diamond with Facets
 		const diamondCut = await ethers.getContractAt("IDiamondCut", await diamond.getAddress())
 
+		console.log("Calling Initializer")
 		// Call Initializer
 		const call = diamondInit.interface.encodeFunctionData("init")
 		const tx = await diamondCut.diamondCut(cut, await diamondInit.getAddress(), call, {
-			gasLimit: 8000000,
+			gasLimit: 30000000,
 			gasPrice: 1000000000, // 1 gwei
 		})
+		console.log("Waiting for tx")
 		receipt = (await tx.wait())!
 		totalGasUsed = totalGasUsed + BigInt(receipt.gasUsed.toString())
 
+		console.log("Checking receipt")
 		if (!receipt.status) {
 			throw Error(`Diamond upgrade failed: ${tx.hash}`)
 		}

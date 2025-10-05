@@ -46,7 +46,7 @@ contract PrivateAccountFacet is Accessibility, Pausable, IPrivateAccountFacet {
 	/// @param amount The precise amount of collateral to be allocated, specified in 18 decimals.
 	function allocate(uint256 amount) external whenNotAccountingPaused notSuspended(msg.sender) notLiquidatedPartyA(msg.sender) {
 		PrivateAccountFacetImpl.allocate(amount);
-		emit AllocatePartyA(msg.sender, amount, AccountStorage.layout().allocatedBalances[msg.sender]);
+		emit AllocatePartyA(msg.sender, amount, PrivateAccountStorage.layout().allocatedBalances[msg.sender]);
 		emit AllocatePartyA(msg.sender, amount); // For backward compatibility, will be removed in future
 		emit SharedEvents.BalanceChangePartyA(msg.sender, amount, SharedEvents.BalanceChangeType.ALLOCATE);
 	}
@@ -58,7 +58,7 @@ contract PrivateAccountFacet is Accessibility, Pausable, IPrivateAccountFacet {
 		uint256 amountWith18Decimals = (amount * 1e18) / (10 ** IERC20Metadata(GlobalAppStorage.layout().collateral).decimals());
 		PrivateAccountFacetImpl.allocate(amountWith18Decimals);
 		emit Deposit(msg.sender, msg.sender, amount);
-		emit AllocatePartyA(msg.sender, amountWith18Decimals, AccountStorage.layout().allocatedBalances[msg.sender]);
+		emit AllocatePartyA(msg.sender, amountWith18Decimals, PrivateAccountStorage.layout().allocatedBalances[msg.sender]);
 		emit AllocatePartyA(msg.sender, amountWith18Decimals); // For backward compatibility, will be removed in future
 		emit SharedEvents.BalanceChangePartyA(msg.sender, amountWith18Decimals, SharedEvents.BalanceChangeType.ALLOCATE);
 	}
@@ -68,7 +68,7 @@ contract PrivateAccountFacet is Accessibility, Pausable, IPrivateAccountFacet {
 	/// @param upnlSig The Muon signature for SingleUpnlSig.
 	function deallocate(uint256 amount, SingleUpnlSig memory upnlSig) external whenNotAccountingPaused notLiquidatedPartyA(msg.sender) {
 		PrivateAccountFacetImpl.deallocate(amount, upnlSig);
-		emit DeallocatePartyA(msg.sender, amount, AccountStorage.layout().allocatedBalances[msg.sender]);
+		emit DeallocatePartyA(msg.sender, amount, PrivateAccountStorage.layout().allocatedBalances[msg.sender]);
 		emit DeallocatePartyA(msg.sender, amount); // For backward compatibility, will be removed in future
 		emit SharedEvents.BalanceChangePartyA(msg.sender, amount, SharedEvents.BalanceChangeType.DEALLOCATE);
 	}
@@ -83,9 +83,9 @@ contract PrivateAccountFacet is Accessibility, Pausable, IPrivateAccountFacet {
 		uint256 amount
 	) external whenNotInternalTransferPaused userNotPartyB(user) notSuspended(msg.sender) notSuspended(user) notLiquidatedPartyA(user) {
 		PrivateAccountFacetImpl.internalTransfer(user, amount);
-		emit InternalTransfer(msg.sender, user, AccountStorage.layout().allocatedBalances[user], amount);
+		emit InternalTransfer(msg.sender, user, PrivateAccountStorage.layout().allocatedBalances[user], amount);
 		emit Withdraw(msg.sender, user, ((amount * (10 ** IERC20Metadata(GlobalAppStorage.layout().collateral).decimals())) / (10 ** 18)));
-		emit AllocatePartyA(user, amount, AccountStorage.layout().allocatedBalances[user]);
+		emit AllocatePartyA(user, amount, PrivateAccountStorage.layout().allocatedBalances[user]);
 		emit AllocatePartyA(user, amount); // For backward compatibility, will be removed in future
 		emit SharedEvents.BalanceChangePartyA(user, amount, SharedEvents.BalanceChangeType.ALLOCATE);
 	}
@@ -96,7 +96,7 @@ contract PrivateAccountFacet is Accessibility, Pausable, IPrivateAccountFacet {
 	/// @param partyA The address of Party A
 	function allocateForPartyB(uint256 amount, address partyA) public whenNotPartyBActionsPaused notLiquidatedPartyB(msg.sender, partyA) onlyPartyB {
 		PrivateAccountFacetImpl.allocateForPartyB(amount, partyA);
-		emit AllocateForPartyB(msg.sender, partyA, amount, AccountStorage.layout().partyBAllocatedBalances[msg.sender][partyA]);
+		emit AllocateForPartyB(msg.sender, partyA, amount, PrivateAccountStorage.layout().partyBAllocatedBalances[msg.sender][partyA]);
 		emit AllocateForPartyB(msg.sender, partyA, amount); // For backward compatibility, will be removed in future
 		emit SharedEvents.BalanceChangePartyB(msg.sender, partyA, amount, SharedEvents.BalanceChangeType.ALLOCATE);
 	}
@@ -112,7 +112,7 @@ contract PrivateAccountFacet is Accessibility, Pausable, IPrivateAccountFacet {
 		SingleUpnlSig memory upnlSig
 	) external whenNotPartyBActionsPaused notLiquidatedPartyB(msg.sender, partyA) notSuspended(msg.sender) notLiquidatedPartyA(partyA) onlyPartyB {
 		PrivateAccountFacetImpl.deallocateForPartyB(amount, partyA, upnlSig);
-		emit DeallocateForPartyB(msg.sender, partyA, amount, AccountStorage.layout().partyBAllocatedBalances[msg.sender][partyA]);
+		emit DeallocateForPartyB(msg.sender, partyA, amount, PrivateAccountStorage.layout().partyBAllocatedBalances[msg.sender][partyA]);
 		emit DeallocateForPartyB(msg.sender, partyA, amount); // For backward compatibility, will be removed in future
 		emit SharedEvents.BalanceChangePartyB(msg.sender, partyA, amount, SharedEvents.BalanceChangeType.DEALLOCATE);
 	}
@@ -127,9 +127,9 @@ contract PrivateAccountFacet is Accessibility, Pausable, IPrivateAccountFacet {
 		emit TransferAllocation(
 			amount,
 			origin,
-			AccountStorage.layout().partyBAllocatedBalances[msg.sender][origin],
+			PrivateAccountStorage.layout().partyBAllocatedBalances[msg.sender][origin],
 			recipient,
-			AccountStorage.layout().partyBAllocatedBalances[msg.sender][recipient]
+			PrivateAccountStorage.layout().partyBAllocatedBalances[msg.sender][recipient]
 		);
 		emit TransferAllocation(amount, origin, recipient); // For backward compatibility, will be removed in future
 		emit SharedEvents.BalanceChangePartyB(msg.sender, origin, amount, SharedEvents.BalanceChangeType.DEALLOCATE);

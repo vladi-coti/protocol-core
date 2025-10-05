@@ -16,6 +16,13 @@ library LockedPrivateValuesOps {
 	using MpcCore for gtUint256;
 	using MpcCore for gtBool;
 
+	function safeOnboard(ctUint256 memory value) internal returns (gtUint256) {
+		if (ctUint128.unwrap(value.ciphertextHigh) == uint256(0) && ctUint128.unwrap(value.ciphertextLow) == uint256(0)) {
+			return MpcCore.setPublic256(uint256(0));
+		}
+		return MpcCore.onBoard(value);
+	}
+
 	/**
 	 * @notice Converts a PrivateLockedValues struct to a GarbledPrivateLockedValues struct.
 	 * @param self The PrivateLockedValues struct to be converted.
@@ -24,10 +31,10 @@ library LockedPrivateValuesOps {
 	function onBoard(PrivateLockedValues memory self) internal returns (GarbledPrivateLockedValues memory) {
 		return
 			GarbledPrivateLockedValues({
-				cva: MpcCore.onBoard(self.cva.ciphertext),
-				partyAmm: MpcCore.onBoard(self.partyAmm.ciphertext),
-				partyBmm: MpcCore.onBoard(self.partyBmm.ciphertext),
-				lf: MpcCore.onBoard(self.lf.ciphertext)
+				cva: safeOnboard(self.cva.ciphertext),
+				partyAmm: safeOnboard(self.partyAmm.ciphertext),
+				partyBmm: safeOnboard(self.partyBmm.ciphertext),
+				lf: safeOnboard(self.lf.ciphertext)
 			});
 	}
 
