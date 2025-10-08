@@ -54,7 +54,8 @@ library AccountFacetImpl {
 		);
 		require(accountLayout.allocatedBalances[msg.sender] >= amount, "AccountFacet: Insufficient allocated Balance");
 		LibMuonAccount.verifyPartyAUpnl(upnlSig, msg.sender);
-		int256 availableBalance = LibAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
+		gtInt256 gtAvailableBalance = LibAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
+		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
 		require(availableBalance >= 0, "AccountFacet: Available balance is lower than zero");
 		require(uint256(availableBalance) >= amount, "AccountFacet: partyA will be liquidatable");
 
@@ -73,7 +74,8 @@ library AccountFacetImpl {
 		// deallocate from origin
 		require(accountLayout.partyBAllocatedBalances[msg.sender][origin] >= amount, "PartyBFacet: Insufficient locked balance");
 		LibMuonAccount.verifyPartyBUpnl(upnlSig, msg.sender, origin);
-		int256 availableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, origin);
+		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, origin);
+		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
 		require(availableBalance >= 0, "PartyBFacet: Available balance is lower than zero");
 		require(uint256(availableBalance) >= amount, "PartyBFacet: Will be liquidatable");
 
@@ -107,7 +109,8 @@ library AccountFacetImpl {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		require(accountLayout.partyBAllocatedBalances[msg.sender][partyA] >= amount, "AccountFacet: Insufficient allocated balance");
 		LibMuonAccount.verifyPartyBUpnl(upnlSig, msg.sender, partyA);
-		int256 availableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, partyA);
+		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, partyA);
+		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
 		require(availableBalance >= 0, "AccountFacet: Available balance is lower than zero");
 		require(uint256(availableBalance) >= amount, "AccountFacet: Will be liquidatable");
 

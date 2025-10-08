@@ -12,6 +12,8 @@ import "./ForceActionsFacetImpl.sol";
 import "../Settlement/SettlementFacetEvents.sol";
 
 contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceActionsFacet, SettlementFacetEvents {
+	using MpcCore for gtUint256;
+	using LockedValuesOps for LockedValues;
 	/**
 	 * @notice Forces the cancellation of the specified quote when partyB is not responsive for a certian amount of time(ForceCancelCooldown).
 	 * @param quoteId The ID of the quote to be canceled.
@@ -39,7 +41,11 @@ contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceAct
 	function forceClosePosition(uint256 quoteId, HighLowPriceSig memory sig) external notLiquidated(quoteId) whenNotPartyAActionsPaused {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
-		uint256 filledAmount = quote.quantityToClose;
+		
+		// Decrypt quantityToClose for event
+		gtUint256 gtQuantityToClose = LockedValuesOps.safeOnboard(quote.quantityToClose.ciphertext);
+		uint256 filledAmount = MpcCore.decrypt(gtQuantityToClose);
+		
 		SettlementSig memory settleSig;
 		(uint256 closePrice, bool isPartyBLiquidated, int256 upnlPartyB, uint256 partyBAllocatedBalance) = ForceActionsFacetImpl.forceClosePosition(
 			quoteId,
@@ -70,7 +76,11 @@ contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceAct
 	) external notLiquidated(quoteId) whenNotPartyAActionsPaused {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
-		uint256 filledAmount = quote.quantityToClose;
+		
+		// Decrypt quantityToClose for event
+		gtUint256 gtQuantityToClose = LockedValuesOps.safeOnboard(quote.quantityToClose.ciphertext);
+		uint256 filledAmount = MpcCore.decrypt(gtQuantityToClose);
+		
 		(uint256 closePrice, bool isPartyBLiquidated, int256 upnlPartyB, uint256 partyBAllocatedBalance) = ForceActionsFacetImpl.forceClosePosition(
 			quoteId,
 			highLowPriceSig,

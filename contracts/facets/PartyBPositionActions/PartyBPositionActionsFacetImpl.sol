@@ -9,7 +9,11 @@ import "../../libraries/LibSolvency.sol";
 import "../../libraries/LibPartyBPositionsActions.sol";
 
 library PartyBPositionActionsFacetImpl {
+	using MpcCore for gtUint256;
+	using MpcCore for gtInt256;
+	using MpcCore for gtBool;
 	using LockedValuesOps for LockedValues;
+	using LockedValuesOps for GarbledLockedValues;
 
 	function openPosition(
 		uint256 quoteId,
@@ -82,8 +86,11 @@ library PartyBPositionActionsFacetImpl {
 		require(quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING, "PartyBFacet: Invalid state");
 		quote.statusModifyTimestamp = block.timestamp;
 		quote.quoteStatus = QuoteStatus.OPENED;
-		quote.requestedClosePrice = 0;
-		quote.quantityToClose = 0;
+		
+		// Set encrypted fields to zero
+		gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
+		quote.requestedClosePrice = gtZero.offBoardCombined(quote.partyA);
+		quote.quantityToClose = gtZero.offBoardCombined(quote.partyA);
 	}
 
 	function emergencyClosePosition(uint256 quoteId, PairUpnlAndPriceSig memory upnlSig) internal {
@@ -96,17 +103,24 @@ library PartyBPositionActionsFacetImpl {
 		);
 		require(quote.quoteStatus == QuoteStatus.OPENED || quote.quoteStatus == QuoteStatus.CLOSE_PENDING, "PartyBFacet: Invalid state");
 		LibMuonPartyB.verifyPairUpnlAndPrice(upnlSig, quote.partyB, quote.partyA, quote.symbolId);
-		uint256 filledAmount = LibQuote.quoteOpenAmount(quote);
-		quote.quantityToClose = filledAmount;
-		quote.requestedClosePrice = upnlSig.price;
-		require(
-			LibAccount.partyAAvailableBalanceForLiquidation(upnlSig.upnlPartyA, accountLayout.allocatedBalances[quote.partyA], quote.partyA) >= 0,
-			"PartyBFacet: PartyA is insolvent"
-		);
-		require(
-			LibAccount.partyBAvailableBalanceForLiquidation(upnlSig.upnlPartyB, quote.partyB, quote.partyA) >= 0,
-			"PartyBFacet: PartyB should be solvent"
-		);
+		
+		// Get encrypted quoteOpenAmount and decrypt
+		gtUint256 gtFilledAmount = LibQuote.quoteOpenAmount(quote);
+		uint256 filledAmount = MpcCore.decrypt(gtFilledAmount);
+		
+		// Set encrypted fields
+		gtUint256 gtPrice = MpcCore.setPublic256(upnlSig.price);
+		quote.quantityToClose = gtFilledAmount.offBoardCombined(quote.partyA);
+		quote.requestedClosePrice = gtPrice.offBoardCombined(quote.partyA);
+		
+		// Check solvency with encrypted balance calculations
+		gtInt256 gtPartyAAvailable = LibAccount.partyAAvailableBalanceForLiquidation(upnlSig.upnlPartyA, accountLayout.allocatedBalances[quote.partyA], quote.partyA);
+		gtInt256 gtPartyBAvailable = LibAccount.partyBAvailableBalanceForLiquidation(upnlSig.upnlPartyB, quote.partyB, quote.partyA);
+		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
+		
+		require(MpcCore.decrypt(gtPartyAAvailable.ge(gtZero)), "PartyBFacet: PartyA is insolvent");
+		require(MpcCore.decrypt(gtPartyBAvailable.ge(gtZero)), "PartyBFacet: PartyB should be solvent");
+		
 		accountLayout.partyBNonces[quote.partyB][quote.partyA] += 1;
 		accountLayout.partyANonces[quote.partyA] += 1;
 		LibQuote.closeQuote(quote, filledAmount, upnlSig.price);

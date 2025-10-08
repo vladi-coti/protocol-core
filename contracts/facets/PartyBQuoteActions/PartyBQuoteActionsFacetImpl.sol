@@ -9,15 +9,28 @@ import "../../libraries/LibQuote.sol";
 import "../../libraries/LibPartyBQuoteActions.sol";
 
 library PartyBQuoteActionsFacetImpl {
+	using MpcCore for gtUint256;
+	using MpcCore for gtInt256;
+	using MpcCore for gtBool;
 	using LockedValuesOps for LockedValues;
+	using LockedValuesOps for GarbledLockedValues;
 
 	function lockQuote(uint256 quoteId, SingleUpnlSig memory upnlSig) internal {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
 		LibMuonPartyB.verifyPartyBUpnl(upnlSig, msg.sender, quote.partyA);
-		int256 availableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, quote.partyA);
+		
+		// Get encrypted available balance and decrypt
+		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, quote.partyA);
+		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
 		require(availableBalance >= 0, "PartyBFacet: Available balance is lower than zero");
-		require(uint256(availableBalance) >= quote.lockedValues.totalForPartyB(), "PartyBFacet: insufficient available balance");
+		
+		// Get encrypted totalForPartyB and decrypt
+		GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
+		gtUint256 gtTotalForPartyB = gtLockedValues.totalForPartyB();
+		uint256 totalForPartyB = MpcCore.decrypt(gtTotalForPartyB);
+		require(uint256(availableBalance) >= totalForPartyB, "PartyBFacet: insufficient available balance");
+		
 		LibPartyBQuoteActions.lockQuote(quoteId);
 	}
 
@@ -51,7 +64,8 @@ library PartyBQuoteActionsFacetImpl {
 		accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote);
 
 		// send trading Fee back to partyA
-		uint256 fee = LibQuote.getTradingFee(quoteId);
+		gtUint256 gtFee = LibQuote.getTradingFee(quoteId);
+		uint256 fee = MpcCore.decrypt(gtFee);
 		accountLayout.allocatedBalances[quote.partyA] += fee;
 		emit SharedEvents.BalanceChangePartyA(quote.partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 

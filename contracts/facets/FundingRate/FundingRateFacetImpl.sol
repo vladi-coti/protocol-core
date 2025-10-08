@@ -12,15 +12,25 @@ import "../../storages/AccountStorage.sol";
 import "../../storages/SymbolStorage.sol";
 
 library FundingRateFacetImpl {
+	using MpcCore for gtUint256;
+	using MpcCore for gtInt256;
+	using MpcCore for gtBool;
+	using LockedValuesOps for LockedValues;
+	using LockedValuesOps for GarbledLockedValues;
+
 	function chargeFundingRate(address partyA, uint256[] memory quoteIds, int256[] memory rates, PairUpnlSig memory upnlSig) internal {
 		LibMuonFundingRate.verifyPairUpnl(upnlSig, msg.sender, partyA);
 		require(quoteIds.length == rates.length && quoteIds.length > 0, "ChargeFundingFacet: Length not match");
-		int256 partyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlSig.upnlPartyB, msg.sender, partyA);
-		int256 partyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
+		
+		// Get encrypted available balances and decrypt
+		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlSig.upnlPartyB, msg.sender, partyA);
+		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
 			upnlSig.upnlPartyA,
 			AccountStorage.layout().allocatedBalances[partyA],
 			partyA
 		);
+		int256 partyBAvailableBalance = MpcCore.decrypt(gtPartyBAvailableBalance);
+		int256 partyAAvailableBalance = MpcCore.decrypt(gtPartyAAvailableBalance);
 		uint256 epochDuration;
 		uint256 windowTime;
 		for (uint256 i = 0; i < quoteIds.length; i++) {
@@ -47,26 +57,51 @@ library FundingRateFacetImpl {
 				require(nextEpochTimestamp > quote.lastFundingPaymentTimestamp, "ChargeFundingFacet: Funding already paid for this window");
 				paidTimestamp = nextEpochTimestamp;
 			}
+			// Get encrypted openedPrice and quoteOpenAmount
+			gtUint256 gtOpenedPrice = LockedValuesOps.safeOnboard(quote.openedPrice.ciphertext);
+			gtUint256 gtQuoteOpenAmount = LibQuote.quoteOpenAmount(quote);
+			gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e18));
+			
 			if (rates[i] >= 0) {
 				require(uint256(rates[i]) <= quote.maxFundingRate, "ChargeFundingFacet: High funding rate");
-				uint256 priceDiff = (quote.openedPrice * uint256(rates[i])) / 1e18;
+				
+				// Calculate priceDiff encrypted
+				gtUint256 gtRate = MpcCore.setPublic256(uint256(rates[i]));
+				gtUint256 gtPriceDiff = gtOpenedPrice.mul(gtRate).div(gtScaleFactor);
+				
+				// Update openedPrice
 				if (quote.positionType == PositionType.LONG) {
-					quote.openedPrice += priceDiff;
+					gtOpenedPrice = gtOpenedPrice.add(gtPriceDiff);
 				} else {
-					quote.openedPrice -= priceDiff;
+					gtOpenedPrice = gtOpenedPrice.sub(gtPriceDiff);
 				}
-				partyAAvailableBalance -= int256((LibQuote.quoteOpenAmount(quote) * priceDiff) / 1e18);
-				partyBAvailableBalance += int256((LibQuote.quoteOpenAmount(quote) * priceDiff) / 1e18);
+				quote.openedPrice = gtOpenedPrice.offBoardCombined(quote.partyA);
+				
+				// Calculate impact on balances
+				gtUint256 gtImpact = gtQuoteOpenAmount.mul(gtPriceDiff).div(gtScaleFactor);
+				uint256 impact = MpcCore.decrypt(gtImpact);
+				partyAAvailableBalance -= int256(impact);
+				partyBAvailableBalance += int256(impact);
 			} else {
 				require(uint256(-rates[i]) <= quote.maxFundingRate, "ChargeFundingFacet: High funding rate");
-				uint256 priceDiff = (quote.openedPrice * uint256(-rates[i])) / 1e18;
+				
+				// Calculate priceDiff encrypted
+				gtUint256 gtRate = MpcCore.setPublic256(uint256(-rates[i]));
+				gtUint256 gtPriceDiff = gtOpenedPrice.mul(gtRate).div(gtScaleFactor);
+				
+				// Update openedPrice
 				if (quote.positionType == PositionType.LONG) {
-					quote.openedPrice -= priceDiff;
+					gtOpenedPrice = gtOpenedPrice.sub(gtPriceDiff);
 				} else {
-					quote.openedPrice += priceDiff;
+					gtOpenedPrice = gtOpenedPrice.add(gtPriceDiff);
 				}
-				partyAAvailableBalance += int256((LibQuote.quoteOpenAmount(quote) * priceDiff) / 1e18);
-				partyBAvailableBalance -= int256((LibQuote.quoteOpenAmount(quote) * priceDiff) / 1e18);
+				quote.openedPrice = gtOpenedPrice.offBoardCombined(quote.partyA);
+				
+				// Calculate impact on balances
+				gtUint256 gtImpact = gtQuoteOpenAmount.mul(gtPriceDiff).div(gtScaleFactor);
+				uint256 impact = MpcCore.decrypt(gtImpact);
+				partyAAvailableBalance += int256(impact);
+				partyBAvailableBalance -= int256(impact);
 			}
 			quote.lastFundingPaymentTimestamp = paidTimestamp;
 		}

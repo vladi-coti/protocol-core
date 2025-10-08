@@ -123,30 +123,31 @@ library PartyAFacetImpl {
 		currentId = ++quoteLayout.lastId;
 
 		// Create private quote
+		gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
 		Quote memory privateQuote = Quote({
 			id: currentId,
 			partyBsWhiteList: partyBsWhiteList,
 			symbolId: symbolId,
 			positionType: positionType,
 			orderType: orderType,
-			openedPrice: MpcCore.setPublic256(uint256(0)).offBoardCombined(partyAEncryptionAddress),
-			initialOpenedPrice: MpcCore.setPublic256(uint256(0)).offBoardCombined(partyAEncryptionAddress),
+			openedPrice: gtZero.offBoardCombined(partyAEncryptionAddress),
+			initialOpenedPrice: gtZero.offBoardCombined(partyAEncryptionAddress),
 			requestedOpenPrice: gtPrice.offBoardCombined(partyAEncryptionAddress),
 			marketPrice: MpcCore.setPublic256(upnlSig.price).offBoardCombined(partyAEncryptionAddress),
 			quantity: gtQuantity.offBoardCombined(partyAEncryptionAddress),
-			closedAmount: MpcCore.setPublic256(uint256(0)).offBoardCombined(partyAEncryptionAddress),
+			closedAmount: gtZero.offBoardCombined(partyAEncryptionAddress),
 			lockedValues: garbledLockedValues.offBoard(partyAEncryptionAddress),
 			initialLockedValues: garbledLockedValues.offBoard(partyAEncryptionAddress),
 			maxFundingRate: maxFundingRate,
-			partyA: MpcCore.setPublic256(uint256(uint160(msg.sender))).offBoardCombined(partyAEncryptionAddress),
-			partyB: MpcCore.setPublic256(uint256(0)).offBoardCombined(partyAEncryptionAddress),
+			partyA: msg.sender,
+			partyB: address(0),
 			quoteStatus: QuoteStatus.PENDING,
-			avgClosedPrice: MpcCore.setPublic256(uint256(0)).offBoardCombined(partyAEncryptionAddress),
-			requestedClosePrice: MpcCore.setPublic256(uint256(0)).offBoardCombined(partyAEncryptionAddress),
+			avgClosedPrice: gtZero.offBoardCombined(partyAEncryptionAddress),
+			requestedClosePrice: gtZero.offBoardCombined(partyAEncryptionAddress),
 			parentId: 0,
 			createTimestamp: block.timestamp,
 			statusModifyTimestamp: block.timestamp,
-			quantityToClose: MpcCore.setPublic256(uint256(0)).offBoardCombined(partyAEncryptionAddress),
+			quantityToClose: gtZero.offBoardCombined(partyAEncryptionAddress),
 			lastFundingPaymentTimestamp: 0,
 			deadline: deadline,
 			tradingFee: gtTradingFee.offBoardCombined(partyAEncryptionAddress),
@@ -174,9 +175,13 @@ library PartyAFacetImpl {
 			result = LibQuote.expireQuote(quoteId);
 		} else if (quote.quoteStatus == QuoteStatus.PENDING) {
 			quote.quoteStatus = QuoteStatus.CANCELED;
-			uint256 fee = LibQuote.getTradingFee(quote.id);
+			
+			// Get encrypted trading fee and decrypt for balance update
+			gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
+			uint256 fee = MpcCore.decrypt(gtFee);
 			accountLayout.allocatedBalances[quote.partyA] += fee;
 			emit SharedEvents.BalanceChangePartyA(quote.partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
+			
 			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote);
 			LibQuote.removeFromPartyAPendingQuotes(quote);
 			result = QuoteStatus.CANCELED;
@@ -195,21 +200,37 @@ library PartyAFacetImpl {
 
 		require(quote.quoteStatus == QuoteStatus.OPENED, "PartyAFacet: Invalid state");
 		require(deadline >= block.timestamp, "PartyAFacet: Low deadline");
-		require(LibQuote.quoteOpenAmount(quote) >= quantityToClose, "PartyAFacet: Invalid quantityToClose");
+		
+		// Get encrypted values for validation
+		gtUint256 gtQuoteOpenAmount = LibQuote.quoteOpenAmount(quote);
+		gtUint256 gtQuantityToClose = MpcCore.setPublic256(quantityToClose);
+		
+		// Check quantityToClose is valid
+		gtBool isValidQuantity = gtQuoteOpenAmount.ge(gtQuantityToClose);
+		require(MpcCore.decrypt(isValidQuantity), "PartyAFacet: Invalid quantityToClose");
 
-		// check that remaining position is not too small
-		if (LibQuote.quoteOpenAmount(quote) > quantityToClose) {
-			require(
-				((LibQuote.quoteOpenAmount(quote) - quantityToClose) * quote.lockedValues.totalForPartyA()) / LibQuote.quoteOpenAmount(quote) >=
-					symbolLayout.symbols[quote.symbolId].minAcceptableQuoteValue,
-				"PartyAFacet: Remaining quote value is low"
-			);
+		// Check that remaining position is not too small
+		gtBool isFullClose = gtQuoteOpenAmount.eq(gtQuantityToClose);
+		if (!MpcCore.decrypt(isFullClose)) {
+			// Calculate remaining value: (openAmount - quantityToClose) * totalForPartyA / openAmount
+			gtUint256 gtRemainingAmount = gtQuoteOpenAmount.sub(gtQuantityToClose);
+			GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
+			gtUint256 gtTotalForPartyA = gtLockedValues.totalForPartyA();
+			gtUint256 gtRemainingValue = gtRemainingAmount.mul(gtTotalForPartyA).div(gtQuoteOpenAmount);
+			gtUint256 gtMinValue = MpcCore.setPublic256(symbolLayout.symbols[quote.symbolId].minAcceptableQuoteValue);
+			
+			gtBool isAboveMin = gtRemainingValue.ge(gtMinValue);
+			require(MpcCore.decrypt(isAboveMin), "PartyAFacet: Remaining quote value is low");
 		}
+		
 		quoteLayout.closeIds[quoteId] = ++quoteLayout.lastCloseId;
 		quote.statusModifyTimestamp = block.timestamp;
 		quote.quoteStatus = QuoteStatus.CLOSE_PENDING;
-		quote.requestedClosePrice = closePrice;
-		quote.quantityToClose = quantityToClose;
+		
+		// Store encrypted values
+		gtUint256 gtClosePrice = MpcCore.setPublic256(closePrice);
+		quote.requestedClosePrice = gtClosePrice.offBoardCombined(quote.partyA);
+		quote.quantityToClose = gtQuantityToClose.offBoardCombined(quote.partyA);
 		quote.orderType = orderType;
 		quote.deadline = deadline;
 	}

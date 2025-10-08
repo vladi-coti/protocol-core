@@ -54,6 +54,17 @@ library LockedValuesOps {
 			});
 	}
 
+	function offBoardToUser(LockedValues memory self, address encryptionAddress) internal returns (UserLockedValues memory) {
+		GarbledLockedValues memory gtSelf = onBoard(self);
+		return
+			UserLockedValues({
+				cva: MpcCore.offBoardToUser(gtSelf.cva, encryptionAddress),
+				partyAmm: MpcCore.offBoardToUser(gtSelf.partyAmm, encryptionAddress),
+				partyBmm: MpcCore.offBoardToUser(gtSelf.partyBmm, encryptionAddress),
+				lf: MpcCore.offBoardToUser(gtSelf.lf, encryptionAddress)
+			});
+	}
+
 	/**
 	 * @notice Adds the locked values of a quote to a LockedValues struct (modifies storage in place).
 	 * @param self The LockedValues struct to which values will be added.

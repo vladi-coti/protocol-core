@@ -27,17 +27,16 @@ interface IViewFacet {
 		address partyA
 	)
 		external
-		view
-		returns (bool, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256);
+		returns (bool, uint256, UserLockedValues memory, UserLockedValues memory, uint256, uint256, uint256, uint256);
 
 	function balanceInfoOfPartyA(
 		address partyA
-	) external view returns (uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256);
+	) external returns (uint256, UserLockedValues memory, UserLockedValues memory);
 
 	function balanceInfoOfPartyB(
 		address partyB,
 		address partyA
-	) external view returns (uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256);
+	) external returns (uint256, UserLockedValues memory, UserLockedValues memory);
 
 	function allocatedBalanceOfPartyA(address partyA) external view returns (uint256);
 

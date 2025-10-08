@@ -17,7 +17,11 @@ import "../../storages/AccountStorage.sol";
 import "../../storages/SymbolStorage.sol";
 
 library DeferredLiquidationFacetImpl {
+	using MpcCore for gtUint256;
+	using MpcCore for gtInt256;
+	using MpcCore for gtBool;
 	using LockedValuesOps for LockedValues;
+	using LockedValuesOps for GarbledLockedValues;
 
 	function deferredLiquidatePartyA(address partyA, DeferredLiquidationSig memory liquidationSig) internal {
 		MAStorage.Layout storage maLayout = MAStorage.layout();
@@ -25,18 +29,20 @@ library DeferredLiquidationFacetImpl {
 
 		LibMuonLiquidation.verifyDeferredLiquidationSig(liquidationSig, partyA);
 
-		int256 liquidationAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
+		gtInt256 gtLiquidationAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
 			liquidationSig.upnl,
 			liquidationSig.liquidationAllocatedBalance,
 			partyA
 		);
+		int256 liquidationAvailableBalance = MpcCore.decrypt(gtLiquidationAvailableBalance);
 		require(liquidationAvailableBalance < 0, "LiquidationFacet: PartyA is solvent");
 
-		int256 availableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
+		gtInt256 gtAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
 			liquidationSig.upnl,
 			accountLayout.allocatedBalances[partyA],
 			partyA
 		);
+		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
 		if (availableBalance > 0) {
 			accountLayout.allocatedBalances[partyA] -= uint256(availableBalance);
 			accountLayout.partyAReimbursement[partyA] += uint256(availableBalance);
@@ -73,23 +79,30 @@ library DeferredLiquidationFacetImpl {
 			accountLayout.symbolsPrices[partyA][liquidationSig.symbolIds[index]] = Price(liquidationSig.prices[index], detail.timestamp);
 		}
 
-		int256 availableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
+		gtInt256 gtAvailableBalance2 = LibAccount.partyAAvailableBalanceForLiquidation(
 			liquidationSig.upnl,
 			accountLayout.allocatedBalances[partyA],
 			partyA
 		);
+		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance2);
 
 		if (detail.liquidationType == LiquidationType.NONE) {
-			if (uint256(- availableBalance) < accountLayout.lockedBalances[partyA].lf) {
-				uint256 remainingLf = accountLayout.lockedBalances[partyA].lf - uint256(- availableBalance);
+			// Decrypt lf and cva for liquidation type determination
+			gtUint256 gtLf = LockedValuesOps.safeOnboard(accountLayout.lockedBalances[partyA].lf.ciphertext);
+			gtUint256 gtCva = LockedValuesOps.safeOnboard(accountLayout.lockedBalances[partyA].cva.ciphertext);
+			uint256 lf = MpcCore.decrypt(gtLf);
+			uint256 cva = MpcCore.decrypt(gtCva);
+			
+			if (uint256(-availableBalance) < lf) {
+				uint256 remainingLf = lf - uint256(-availableBalance);
 				detail.liquidationType = LiquidationType.NORMAL;
 				detail.liquidationFee = remainingLf;
-			} else if (uint256(- availableBalance) <= accountLayout.lockedBalances[partyA].lf + accountLayout.lockedBalances[partyA].cva) {
-				uint256 deficit = uint256(- availableBalance) - accountLayout.lockedBalances[partyA].lf;
+			} else if (uint256(-availableBalance) <= lf + cva) {
+				uint256 deficit = uint256(-availableBalance) - lf;
 				detail.liquidationType = LiquidationType.LATE;
 				detail.deficit = deficit;
 			} else {
-				uint256 deficit = uint256(- availableBalance) - accountLayout.lockedBalances[partyA].lf - accountLayout.lockedBalances[partyA].cva;
+				uint256 deficit = uint256(-availableBalance) - lf - cva;
 				detail.liquidationType = LiquidationType.OVERDUE;
 				detail.deficit = deficit;
 			}

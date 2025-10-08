@@ -41,7 +41,7 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 					address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
 					EncryptedQuoteValues memory partyAValues = EncryptedQuoteValues({
 						price: MpcCore.offBoardToUser(gtPrice, partyAEncryptionAddress),
-						marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyAEncryptionAddress),
+						marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(pairUpnlSig.price), partyAEncryptionAddress),
 						quantity: MpcCore.offBoardToUser(gtQuantity, partyAEncryptionAddress),
 						cva: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.cva.ciphertext), partyAEncryptionAddress),
 						lf: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.lf.ciphertext), partyAEncryptionAddress),
@@ -65,7 +65,7 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 						address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(newQuote.partyBsWhiteList[i]);
 						EncryptedQuoteValues memory partyBValues = EncryptedQuoteValues({
 							price: MpcCore.offBoardToUser(gtPrice, partyBEncryptionAddress),
-							marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyBEncryptionAddress),
+							marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(pairUpnlSig.price), partyBEncryptionAddress),
 							quantity: MpcCore.offBoardToUser(gtQuantity, partyBEncryptionAddress),
 							cva: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.cva.ciphertext), partyBEncryptionAddress),
 							lf: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.lf.ciphertext), partyBEncryptionAddress),

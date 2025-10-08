@@ -10,6 +10,8 @@ import "../../utils/Accessibility.sol";
 import "../../utils/Pausable.sol";
 
 contract PartyBPositionActionsFacet is Accessibility, Pausable, IPartyBPositionActionsFacet {
+	using MpcCore for gtUint256;
+	using LockedValuesOps for LockedValues;
 
 	/**
 	 * @notice Opens a position for the specified quote. The opened position's size can't be excessively small or large.
@@ -148,7 +150,11 @@ contract PartyBPositionActionsFacet is Accessibility, Pausable, IPartyBPositionA
 	) external whenNotPartyBActionsPaused onlyPartyBOfQuote(quoteId) notLiquidated(quoteId) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
-		uint256 filledAmount = LibQuote.quoteOpenAmount(quote);
+		
+		// Decrypt quoteOpenAmount for event
+		gtUint256 gtFilledAmount = LibQuote.quoteOpenAmount(quote);
+		uint256 filledAmount = MpcCore.decrypt(gtFilledAmount);
+		
 		PartyBPositionActionsFacetImpl.emergencyClosePosition(quoteId, upnlSig);
 		emit EmergencyClosePosition(
 			quoteId,

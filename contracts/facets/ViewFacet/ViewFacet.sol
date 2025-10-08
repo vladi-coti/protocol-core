@@ -6,6 +6,7 @@ pragma solidity >=0.8.18;
 
 import "../../libraries/LibLockedValues.sol";
 import "../../libraries/LibQuote.sol";
+import "../../libraries/LibAccount.sol";
 import "../../libraries/muon/LibMuon.sol";
 import "../../storages/AccountStorage.sol";
 import "../../storages/MAStorage.sol";
@@ -13,12 +14,13 @@ import "../../storages/QuoteStorage.sol";
 import "../../storages/GlobalAppStorage.sol";
 import "../../storages/SymbolStorage.sol";
 import "../../storages/MuonStorage.sol";
-import "../../libraries/LibLockedValues.sol";
 import "../../storages/BridgeStorage.sol";
 import "./IViewFacet.sol";
 
 contract ViewFacet is IViewFacet {
+	using MpcCore for gtUint256;
 	using LockedValuesOps for LockedValues;
+	using LockedValuesOps for GarbledLockedValues;
 
 	/**
 	 * @notice Returns the balance of the specified user.
@@ -30,12 +32,12 @@ contract ViewFacet is IViewFacet {
 	}
 
 	/**
-	 * @notice Returns various values related to Party A.
+	 * @notice Returns various values related to Party A (encrypted for the user).
 	 * @param partyA The address of Party A.
 	 * @return liquidationStatus The liquidation status of Party A.
 	 * @return allocatedBalances The allocated balances of Party A.
-	 * @return lockedBalances The locked balances of Party A.
-	 * @return pendingLockedBalances The pending locked balances of Party A.
+	 * @return lockedBalances The locked balances of Party A (encrypted for partyA).
+	 * @return pendingLockedBalances The pending locked balances of Party A (encrypted for partyA).
 	 * @return partyAPositionsCount The number of positions held by Party A.
 	 * @return partyAPendingQuotesCount The number of pending quotes submitted by Party A.
 	 * @return partyANonces The nonces of Party A.
@@ -45,23 +47,22 @@ contract ViewFacet is IViewFacet {
 		address partyA
 	)
 		external
-		view
-		returns (bool, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256)
+		returns (bool, uint256, UserLockedValues memory, UserLockedValues memory, uint256, uint256, uint256, uint256)
 	{
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		MAStorage.Layout storage maLayout = MAStorage.layout();
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		
+		// Offboard locked values to the user
+		address userEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
+		UserLockedValues memory lockedBalances = accountLayout.lockedBalances[partyA].offBoardToUser(userEncryptionAddress);
+		UserLockedValues memory pendingLockedBalances = accountLayout.pendingLockedBalances[partyA].offBoardToUser(userEncryptionAddress);
+		
 		return (
 			maLayout.liquidationStatus[partyA],
 			accountLayout.allocatedBalances[partyA],
-			accountLayout.lockedBalances[partyA].cva,
-			accountLayout.lockedBalances[partyA].lf,
-			accountLayout.lockedBalances[partyA].partyAmm,
-			accountLayout.lockedBalances[partyA].partyBmm,
-			accountLayout.pendingLockedBalances[partyA].cva,
-			accountLayout.pendingLockedBalances[partyA].lf,
-			accountLayout.pendingLockedBalances[partyA].partyAmm,
-			accountLayout.pendingLockedBalances[partyA].partyBmm,
+			lockedBalances,
+			pendingLockedBalances,
 			quoteLayout.partyAPositionsCount[partyA],
 			quoteLayout.partyAPendingQuotes[partyA].length,
 			accountLayout.partyANonces[partyA],
@@ -70,52 +71,52 @@ contract ViewFacet is IViewFacet {
 	}
 
 	/**
-	 * @notice Returns balance information of Party A.
+	 * @notice Returns balance information of Party A (encrypted for the user).
 	 * @param partyA The address of Party A.
 	 * @return allocatedBalances The allocated balances of Party A.
-	 * @return lockedBalances The locked balances of Party A.
-	 * @return pendingLockedBalances The pending locked balances of Party A.
+	 * @return lockedBalances The locked balances of Party A (encrypted for partyA).
+	 * @return pendingLockedBalances The pending locked balances of Party A (encrypted for partyA).
 	 */
 	function balanceInfoOfPartyA(
 		address partyA
-	) external view returns (uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256) {
+	) external returns (uint256, UserLockedValues memory, UserLockedValues memory) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		
+		// Offboard locked values to the user
+		address userEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
+		UserLockedValues memory lockedBalances = accountLayout.lockedBalances[partyA].offBoardToUser(userEncryptionAddress);
+		UserLockedValues memory pendingLockedBalances = accountLayout.pendingLockedBalances[partyA].offBoardToUser(userEncryptionAddress);
+		
 		return (
 			accountLayout.allocatedBalances[partyA],
-			accountLayout.lockedBalances[partyA].cva,
-			accountLayout.lockedBalances[partyA].lf,
-			accountLayout.lockedBalances[partyA].partyAmm,
-			accountLayout.lockedBalances[partyA].partyBmm,
-			accountLayout.pendingLockedBalances[partyA].cva,
-			accountLayout.pendingLockedBalances[partyA].lf,
-			accountLayout.pendingLockedBalances[partyA].partyAmm,
-			accountLayout.pendingLockedBalances[partyA].partyBmm
+			lockedBalances,
+			pendingLockedBalances
 		);
 	}
 
 	/**
-	 * @notice Returns balance information of Party B for a specific Party A.
+	 * @notice Returns balance information of Party B for a specific Party A (encrypted for the user).
 	 * @param partyB The address of Party B.
 	 * @param partyA The address of Party A.
 	 * @return allocatedBalances The allocated balances of Party B for Party A.
-	 * @return lockedBalances The locked balances of Party B for Party A.
-	 * @return pendingLockedBalances The pending locked balances of Party B for Party A.
+	 * @return lockedBalances The locked balances of Party B for Party A (encrypted for partyB).
+	 * @return pendingLockedBalances The pending locked balances of Party B for Party A (encrypted for partyB).
 	 */
 	function balanceInfoOfPartyB(
 		address partyB,
 		address partyA
-	) external view returns (uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256, uint256) {
+	) external returns (uint256, UserLockedValues memory, UserLockedValues memory) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		
+		// Offboard locked values to the user (partyB)
+		address userEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
+		UserLockedValues memory lockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].offBoardToUser(userEncryptionAddress);
+		UserLockedValues memory pendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA].offBoardToUser(userEncryptionAddress);
+		
 		return (
 			accountLayout.partyBAllocatedBalances[partyB][partyA],
-			accountLayout.partyBLockedBalances[partyB][partyA].cva,
-			accountLayout.partyBLockedBalances[partyB][partyA].lf,
-			accountLayout.partyBLockedBalances[partyB][partyA].partyAmm,
-			accountLayout.partyBLockedBalances[partyB][partyA].partyBmm,
-			accountLayout.partyBPendingLockedBalances[partyB][partyA].cva,
-			accountLayout.partyBPendingLockedBalances[partyB][partyA].lf,
-			accountLayout.partyBPendingLockedBalances[partyB][partyA].partyAmm,
-			accountLayout.partyBPendingLockedBalances[partyB][partyA].partyBmm
+			lockedBalances,
+			pendingLockedBalances
 		);
 	}
 
