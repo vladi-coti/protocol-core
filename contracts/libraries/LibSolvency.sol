@@ -7,9 +7,14 @@ pragma solidity >=0.8.18;
 import "../storages/QuoteStorage.sol";
 import "./LibAccount.sol";
 import "./LibQuote.sol";
+import "./LibLockedValues.sol";
 
 library LibSolvency {
+	using MpcCore for gtUint256;
+	using MpcCore for gtInt256;
+	using MpcCore for gtBool;
 	using LockedValuesOps for LockedValues;
+	using LockedValuesOps for GarbledLockedValues;
 
 	/**
 	 * @dev Checks whether both parties (Party A and Party B) will remain solvent after opening positions for given quotes.
@@ -30,35 +35,43 @@ library LibSolvency {
 		int256 upnlPartyA,
 		address partyB,
 		address partyA
-	) internal view returns (bool) {
-		int256 partyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
-		int256 partyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
+	) internal returns (bool) {
+		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
+		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
 			upnlPartyA,
 			AccountStorage.layout().allocatedBalances[partyA],
 			partyA
 		);
+		int256 partyBAvailableBalance = MpcCore.decrypt(gtPartyBAvailableBalance);
+		int256 partyAAvailableBalance = MpcCore.decrypt(gtPartyAAvailableBalance);
+		
 		for (uint8 i = 0; i < quoteIds.length; i++) {
 			uint256 quoteId = quoteIds[i];
 			uint256 filledAmount = filledAmounts[i];
 			uint256 marketPrice = marketPrices[i];
 			Quote storage quote = QuoteStorage.layout().quotes[quoteId];
+			
+			// Decrypt openedPrice for comparison
+			gtUint256 gtOpenedPrice = LockedValuesOps.safeOnboard(quote.openedPrice.ciphertext);
+			uint256 openedPrice = MpcCore.decrypt(gtOpenedPrice);
+			
 			if (quote.positionType == PositionType.LONG) {
-				if (quote.openedPrice >= marketPrice) {
-					uint256 diff = (filledAmount * (quote.openedPrice - marketPrice)) / 1e18;
+				if (openedPrice >= marketPrice) {
+					uint256 diff = (filledAmount * (openedPrice - marketPrice)) / 1e18;
 					partyAAvailableBalance -= int256(diff);
 					partyBAvailableBalance += int256(diff);
 				} else {
-					uint256 diff = (filledAmount * (marketPrice - quote.openedPrice)) / 1e18;
+					uint256 diff = (filledAmount * (marketPrice - openedPrice)) / 1e18;
 					partyBAvailableBalance -= int256(diff);
 					partyAAvailableBalance += int256(diff);
 				}
 			} else if (quote.positionType == PositionType.SHORT) {
-				if (quote.openedPrice >= marketPrice) {
-					uint256 diff = (filledAmount * (quote.openedPrice - marketPrice)) / 1e18;
+				if (openedPrice >= marketPrice) {
+					uint256 diff = (filledAmount * (openedPrice - marketPrice)) / 1e18;
 					partyBAvailableBalance -= int256(diff);
 					partyAAvailableBalance += int256(diff);
 				} else {
-					uint256 diff = (filledAmount * (marketPrice - quote.openedPrice)) / 1e18;
+					uint256 diff = (filledAmount * (marketPrice - openedPrice)) / 1e18;
 					partyAAvailableBalance -= int256(diff);
 					partyBAvailableBalance += int256(diff);
 				}
@@ -90,20 +103,30 @@ library LibSolvency {
 		int256 upnlPartyA,
 		address partyB,
 		address partyA
-	) internal view returns (int256 partyBAvailableBalance, int256 partyAAvailableBalance) {
-		partyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
-		partyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
+	) internal returns (int256 partyBAvailableBalance, int256 partyAAvailableBalance) {
+		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
+		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
 			upnlPartyA,
 			AccountStorage.layout().allocatedBalances[partyA],
 			partyA
 		);
+		partyBAvailableBalance = MpcCore.decrypt(gtPartyBAvailableBalance);
+		partyAAvailableBalance = MpcCore.decrypt(gtPartyAAvailableBalance);
+		
 		for (uint8 i = 0; i < quoteIds.length; i++) {
 			uint256 quoteId = quoteIds[i];
 			uint256 filledAmount = filledAmounts[i];
 			uint256 closedPrice = closedPrices[i];
 			uint256 marketPrice = marketPrices[i];
 			Quote storage quote = QuoteStorage.layout().quotes[quoteId];
-			uint256 unlockedAmount = (filledAmount * (quote.lockedValues.cva + quote.lockedValues.lf)) / LibQuote.quoteOpenAmount(quote);
+			
+			// Calculate unlocked amount with encrypted values
+			GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
+			gtUint256 gtCvaLf = gtLockedValues.cva.add(gtLockedValues.lf);
+			gtUint256 gtFilledAmount = MpcCore.setPublic256(filledAmount);
+			gtUint256 gtQuoteOpenAmount = LibQuote.quoteOpenAmount(quote);
+			gtUint256 gtUnlockedAmount = gtFilledAmount.mul(gtCvaLf).div(gtQuoteOpenAmount);
+			uint256 unlockedAmount = MpcCore.decrypt(gtUnlockedAmount);
 
 			partyBAvailableBalance += int256(unlockedAmount);
 
@@ -154,7 +177,7 @@ library LibSolvency {
 		int256 upnlPartyA,
 		address partyB,
 		address partyA
-	) internal view returns (bool) {
+	) internal returns (bool) {
 		(int256 partyBAvailableBalance, int256 partyAAvailableBalance) = getAvailableBalanceAfterClosePosition(
 			quoteIds,
 			filledAmounts,
