@@ -85,23 +85,6 @@ contract PartyBPositionActionsFacet is Accessibility, Pausable, IPartyBPositionA
 						);
 					}
 				}
-				// emit SendQuote(
-				// 	newQuote.partyA,
-				// 	newQuote.id,
-				// 	newQuote.partyBsWhiteList,
-				// 	newQuote.symbolId,
-				// 	newQuote.positionType,
-				// 	newQuote.orderType,
-				// 	newQuote.requestedOpenPrice,
-				// 	newQuote.marketPrice,
-				// 	newQuote.quantity,
-				// 	newQuote.lockedValues.cva,
-				// 	newQuote.lockedValues.lf,
-				// 	newQuote.lockedValues.partyAmm,
-				// 	newQuote.lockedValues.partyBmm,
-				// 	newQuote.tradingFee,
-				// 	newQuote.deadline
-				// );
 			} else if (newQuote.quoteStatus == QuoteStatus.CANCELED) {
 				emit AcceptCancelRequest(newQuote.id, QuoteStatus.CANCELED);
 			}
@@ -148,23 +131,25 @@ contract PartyBPositionActionsFacet is Accessibility, Pausable, IPartyBPositionA
 		uint256 quoteId,
 		PairUpnlAndPriceSig memory upnlSig
 	) external whenNotPartyBActionsPaused onlyPartyBOfQuote(quoteId) notLiquidated(quoteId) {
-		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		Quote storage quote = quoteLayout.quotes[quoteId];
+		// FIXME: commented out because it's pushes the contract size over the limit
 		
-		// Decrypt quoteOpenAmount for event
-		gtUint256 gtFilledAmount = LibQuote.quoteOpenAmount(quote);
-		uint256 filledAmount = MpcCore.decrypt(gtFilledAmount);
+		// QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		// Quote storage quote = quoteLayout.quotes[quoteId];
 		
-		PartyBPositionActionsFacetImpl.emergencyClosePosition(quoteId, upnlSig);
-		emit EmergencyClosePosition(
-			quoteId,
-			quote.partyA,
-			quote.partyB,
-			filledAmount,
-			upnlSig.price,
-			quote.quoteStatus,
-			quoteLayout.closeIds[quoteId]
-		);
-		emit EmergencyClosePosition(quoteId, quote.partyA, quote.partyB, filledAmount, upnlSig.price, quote.quoteStatus); // For backward compatibility, will be removed in future
+		// // Decrypt quoteOpenAmount for event
+		// gtUint256 gtFilledAmount = LibQuote.quoteOpenAmount(quote);
+		// uint256 filledAmount = MpcCore.decrypt(gtFilledAmount);
+		
+		// PartyBPositionActionsFacetImpl.emergencyClosePosition(quoteId, upnlSig);
+		// emit EmergencyClosePosition(
+		// 	quoteId,
+		// 	quote.partyA,
+		// 	quote.partyB,
+		// 	filledAmount,
+		// 	upnlSig.price,
+		// 	quote.quoteStatus,
+		// 	quoteLayout.closeIds[quoteId]
+		// );
+		// emit EmergencyClosePosition(quoteId, quote.partyA, quote.partyB, filledAmount, upnlSig.price, quote.quoteStatus); // For backward compatibility, will be removed in future
 	}
 }

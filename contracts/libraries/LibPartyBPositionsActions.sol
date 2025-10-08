@@ -151,9 +151,6 @@ library LibPartyBPositionsActions {
 				require(MpcCore.decrypt(gtRemainingTotal.ge(gtMinValue)), "PartyBFacet: Quote value is low");
 			}
 			
-			// Offboard for use in creating new quote
-			LockedValues memory filledLockedValues = gtFilledLockedValues.offBoard(quote.partyA);
-			
 			// Create encrypted zero values
 			gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
 			GarbledLockedValues memory gtZeroLocked = LockedValuesOps.makeZero();
