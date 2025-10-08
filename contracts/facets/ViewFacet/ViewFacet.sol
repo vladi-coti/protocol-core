@@ -47,6 +47,7 @@ contract ViewFacet is IViewFacet {
 		address partyA
 	)
 		external
+		view
 		returns (bool, uint256, UserLockedValues memory, UserLockedValues memory, uint256, uint256, uint256, uint256)
 	{
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
@@ -54,9 +55,8 @@ contract ViewFacet is IViewFacet {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		
 		// Offboard locked values to the user
-		address userEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
-		UserLockedValues memory lockedBalances = accountLayout.lockedBalances[partyA].offBoardToUser(userEncryptionAddress);
-		UserLockedValues memory pendingLockedBalances = accountLayout.pendingLockedBalances[partyA].offBoardToUser(userEncryptionAddress);
+		UserLockedValues memory lockedBalances = accountLayout.lockedBalances[partyA].getUserLockedValues();
+		UserLockedValues memory pendingLockedBalances = accountLayout.pendingLockedBalances[partyA].getUserLockedValues();
 		
 		return (
 			maLayout.liquidationStatus[partyA],
@@ -79,20 +79,18 @@ contract ViewFacet is IViewFacet {
 	 */
 	function balanceInfoOfPartyA(
 		address partyA
-	) external returns (uint256, UserLockedValues memory, UserLockedValues memory) {
+	) external view returns (uint256, UserLockedValues memory, UserLockedValues memory) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		
 		// Offboard locked values to the user
-		address userEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
-		UserLockedValues memory lockedBalances = accountLayout.lockedBalances[partyA].offBoardToUser(userEncryptionAddress);
-		UserLockedValues memory pendingLockedBalances = accountLayout.pendingLockedBalances[partyA].offBoardToUser(userEncryptionAddress);
+		UserLockedValues memory lockedBalances = accountLayout.lockedBalances[partyA].getUserLockedValues();
+		UserLockedValues memory pendingLockedBalances = accountLayout.pendingLockedBalances[partyA].getUserLockedValues();
 		
 		return (
 			accountLayout.allocatedBalances[partyA],
 			lockedBalances,
 			pendingLockedBalances
-		);
-	}
+		);}
 
 	/**
 	 * @notice Returns balance information of Party B for a specific Party A (encrypted for the user).
@@ -105,20 +103,18 @@ contract ViewFacet is IViewFacet {
 	function balanceInfoOfPartyB(
 		address partyB,
 		address partyA
-	) external returns (uint256, UserLockedValues memory, UserLockedValues memory) {
+	) external view returns (uint256, UserLockedValues memory, UserLockedValues memory) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		
 		// Offboard locked values to the user (partyB)
-		address userEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
-		UserLockedValues memory lockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].offBoardToUser(userEncryptionAddress);
-		UserLockedValues memory pendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA].offBoardToUser(userEncryptionAddress);
+		UserLockedValues memory lockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].getUserLockedValues();
+		UserLockedValues memory pendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA].getUserLockedValues();
 		
 		return (
 			accountLayout.partyBAllocatedBalances[partyB][partyA],
 			lockedBalances,
 			pendingLockedBalances
-		);
-	}
+		);}
 
 	/**
 	 * @notice Returns the allocated balance of Party A.

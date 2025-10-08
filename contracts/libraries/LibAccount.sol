@@ -19,7 +19,7 @@ library LibAccount {
 	 * @param user The address of the user.
 	 * @return The encryption address for the user.
 	 */
-	function getUserEncryptionAddress(address user) internal returns (address) {
+	function getUserEncryptionAddress(address user) internal view returns (address) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		return accountLayout.userEncryptionAddress[user];
 	}

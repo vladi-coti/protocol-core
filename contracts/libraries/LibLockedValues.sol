@@ -54,14 +54,18 @@ library LockedValuesOps {
 			});
 	}
 
-	function offBoardToUser(LockedValues memory self, address encryptionAddress) internal returns (UserLockedValues memory) {
-		GarbledLockedValues memory gtSelf = onBoard(self);
+	/**
+	 * @notice Offboards LockedValues memory to user-specific encryption.
+	 * @param self The LockedValues memory struct to offboard.
+	 * @return UserLockedValues struct with values encrypted for the user.
+	 */
+	function getUserLockedValues(LockedValues memory self) internal pure returns (UserLockedValues memory) {
 		return
 			UserLockedValues({
-				cva: MpcCore.offBoardToUser(gtSelf.cva, encryptionAddress),
-				partyAmm: MpcCore.offBoardToUser(gtSelf.partyAmm, encryptionAddress),
-				partyBmm: MpcCore.offBoardToUser(gtSelf.partyBmm, encryptionAddress),
-				lf: MpcCore.offBoardToUser(gtSelf.lf, encryptionAddress)
+				cva: self.cva.userCiphertext,
+				partyAmm: self.partyAmm.userCiphertext,
+				partyBmm: self.partyBmm.userCiphertext,
+				lf: self.lf.userCiphertext
 			});
 	}
 
