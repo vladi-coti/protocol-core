@@ -1,5 +1,6 @@
 import {setBalance} from "@nomicfoundation/hardhat-network-helpers"
 import {BigNumberish, ethers, EventLog} from "ethers"
+import {Wallet, ctUint256, itUint256} from "@coti-io/coti-ethers"
 
 import {getPriceFetcher, serializeToJson, unDecimal} from "../utils/Common"
 import {logger} from "../utils/LoggerUtils"
@@ -11,16 +12,28 @@ import {limitQuoteRequestBuilder, QuoteRequest} from "./requestModels/QuoteReque
 import {runTx} from "../utils/TxUtils"
 import {getDummyLiquidationSig} from "../utils/SignatureUtils"
 import {LiquidationSigStruct} from "../../src/types/contracts/facets/liquidation/LiquidationFacet"
-import {QuoteStructOutput, SettlementSigStruct} from "../../src/types/contracts/interfaces/ISymmio"
+import {PrivateQuoteParamsStruct, QuoteBasicParamsStruct, QuoteStructOutput, SettlementSigStruct} from "../../src/types/contracts/interfaces/ISymmio"
 import {HighLowPriceSigStruct} from "../../src/types/contracts/facets/ForceActions/ForceActionsFacet"
 import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers"
 
 export class User {
-	constructor(protected context: RunContext, protected signer: SignerWithAddress) {
+	constructor(protected context: RunContext, protected signer: Wallet) {
 	}
 
 	public async setup() {
 		await this.context.manager.registerUser(this)
+	}
+
+	public getPrivateWallet(): Wallet {
+		return this.signer
+	}
+
+	public async encryptUint256(value: bigint, contractAddress: string, selector: string): Promise<itUint256> {
+		return await this.signer.encryptUint256(value, contractAddress, selector)
+	}
+
+	public async decryptUint256(ciphertext: ctUint256): Promise<bigint> {
+		return await this.signer.decryptUint256(ciphertext)
 	}
 
 	public async setBalances(collateralAmount?: BigNumberish, depositAmount?: BigNumberish, allocatedAmount?: BigNumberish) {
@@ -45,38 +58,53 @@ export class User {
 				userUpnl: await this.getUpnl(),
 			}),
 		)
-		let tx = await this.context.partyAFacet
-			.connect(this.signer)
-			.sendQuoteWithAffiliate(
-				request.partyBWhiteList,
-				request.symbolId,
-				request.positionType,
-				request.orderType,
-				request.price,
-				request.quantity,
-				request.cva,
-				request.lf,
-				request.partyAmm,
-				request.partyBmm,
-				request.maxFundingRate,
-				await request.deadline,
-				this.context.multiAccount,
-				await request.upnlSig,
-			)
+
+		const basicParams: QuoteBasicParamsStruct = {
+			partyBsWhiteList: request.partyBWhiteList,
+			symbolId: request.symbolId,
+			positionType: request.positionType,
+			orderType: request.orderType,
+			maxFundingRate: request.maxFundingRate,
+			deadline: await request.deadline,
+			affiliate: request.affiliate,
+		}
+
+		const contractAddress = this.context.diamond
+		const selector = this.context.partyAFacet.interface.getFunction("sendQuote").selector
+
+		const encryptedPrice = await this.encryptUint256(BigInt(request.price), contractAddress, selector);
+		const encryptedQuantity = await this.encryptUint256(BigInt(request.quantity), contractAddress, selector);
+		const encryptedCva = await this.encryptUint256(BigInt(request.cva), contractAddress, selector);
+		const encryptedLf = await this.encryptUint256(BigInt(request.lf), contractAddress, selector);
+		const encryptedPartyAmm = await this.encryptUint256(BigInt(request.partyAmm), contractAddress, selector);
+		const encryptedPartyBmm = await this.encryptUint256(BigInt(request.partyBmm), contractAddress, selector);
+
+		const encryptedParams: PrivateQuoteParamsStruct = {
+			encryptedPrice: encryptedPrice,
+			encryptedQuantity: encryptedQuantity,
+			encryptedCva: encryptedCva,
+			encryptedLf: encryptedLf,
+			encryptedPartyAmm: encryptedPartyAmm,
+			encryptedPartyBmm: encryptedPartyBmm,
+		};
+
+		let tx = await this.context.partyAFacet.connect(this.signer).sendQuote(basicParams, encryptedParams, await request.upnlSig)
+
 		const receipt = await tx.wait()
 
 		if (receipt && receipt.logs) {
-			const sendQuoteEvent = receipt.logs.find((log): log is EventLog => {
-				return (log as EventLog).eventName === "SendQuote"
+			console.log("User::::Receipt gas used: " + receipt.gasUsed.toString())
+			const SendQuoteForPartyA = receipt.logs.find((log: any): log is EventLog => {
+				return (log as EventLog).eventName === "SendQuoteForPartyA"
 			})
 
-			if (sendQuoteEvent && sendQuoteEvent.args) {
-				const id = sendQuoteEvent.args.quoteId
-				logger.info("User::::SendQuote: " + id)
+			if (SendQuoteForPartyA && SendQuoteForPartyA.args) {
+				const id = SendQuoteForPartyA.args.quoteId
+				console.log("User::::SendQuote: " + id)
 				return id.toString()
 			}
 		}
-		throw new Error("SendQuote event not found in transaction receipt")
+		throw new Error("SendQuoteForPartyA event not found in transaction receipt")
 	}
 
 	public async requestToCancelQuote(id: BigNumberish) {
@@ -116,21 +144,36 @@ export class User {
 	}
 
 	public async getBalanceInfo(): Promise<BalanceInfo> {
-		const b = await this.context.viewFacet.balanceInfoOfPartyA(await this.getAddress())
+		const result = await this.context.viewFacet.balanceInfoOfPartyA(await this.getAddress())
+		const allocatedBalances = result[0]
+		const lockedBalances = result[1]
+		const pendingLockedBalances = result[2]
+		
+		// Decrypt the encrypted locked values
+		const lockedCva = await this.decryptUint256(lockedBalances.cva)
+		const lockedLf = await this.decryptUint256(lockedBalances.lf)
+		const lockedMmPartyA = await this.decryptUint256(lockedBalances.partyAmm)
+		const lockedMmPartyB = await this.decryptUint256(lockedBalances.partyBmm)
+		
+		const pendingLockedCva = await this.decryptUint256(pendingLockedBalances.cva)
+		const pendingLockedLf = await this.decryptUint256(pendingLockedBalances.lf)
+		const pendingLockedMmPartyA = await this.decryptUint256(pendingLockedBalances.partyAmm)
+		const pendingLockedMmPartyB = await this.decryptUint256(pendingLockedBalances.partyBmm)
+		
 		return {
-			allocatedBalances: b[0],
-			lockedCva: b[1],
-			lockedLf: b[2],
-			lockedMmPartyA: b[3],
-			lockedMmPartyB: b[4],
-			totalLockedPartyA: b[1] + b[2] + b[3],
-			totalLockedPartyB: b[1] + b[2] + b[4],
-			pendingLockedCva: b[5],
-			pendingLockedLf: b[6],
-			pendingLockedMmPartyA: b[7],
-			pendingLockedMmPartyB: b[8],
-			totalPendingLockedPartyA: b[5] + b[6] + b[7],
-			totalPendingLockedPartyB: b[5] + b[6] + b[8],
+			allocatedBalances,
+			lockedCva,
+			lockedLf,
+			lockedMmPartyA,
+			lockedMmPartyB,
+			totalLockedPartyA: lockedCva + lockedLf + lockedMmPartyA,
+			totalLockedPartyB: lockedCva + lockedLf + lockedMmPartyB,
+			pendingLockedCva,
+			pendingLockedLf,
+			pendingLockedMmPartyA,
+			pendingLockedMmPartyB,
+			totalPendingLockedPartyA: pendingLockedCva + pendingLockedLf + pendingLockedMmPartyA,
+			totalPendingLockedPartyB: pendingLockedCva + pendingLockedLf + pendingLockedMmPartyB,
 		}
 	}
 
@@ -200,12 +243,17 @@ export class User {
 		let openPositions = await this.getOpenPositions()
 		let upnl = 0n
 		for (const pos of openPositions) {
-			const priceDiff = pos.openedPrice - (
+			// Decrypt encrypted quote fields
+			const openedPrice = await this.decryptUint256(pos.openedPrice.ciphertext)
+			const quantity = await this.decryptUint256(pos.quantity.ciphertext)
+			const closedAmount = await this.decryptUint256(pos.closedAmount.ciphertext)
+			
+			const priceDiff = openedPrice - (
 				symbolIdPriceFetcher != null
 					? await symbolIdPriceFetcher(pos.symbolId)
 					: await symbolNamePriceFetcher((await this.context.viewFacet.getSymbol(pos.symbolId)).name)
 			)
-			const amount = pos.quantity - pos.closedAmount
+			const amount = quantity - closedAmount
 			upnl += unDecimal(amount * priceDiff) * (pos.positionType == BigInt(PositionType.LONG) ? -1n : 1n)
 		}
 		return upnl
@@ -218,12 +266,17 @@ export class User {
 		let openPositions = await this.getOpenPositions()
 		let upnl = 0n
 		for (const pos of openPositions) {
-			const priceDiff = pos.openedPrice - (
+			// Decrypt encrypted quote fields
+			const openedPrice = await this.decryptUint256(pos.openedPrice.ciphertext)
+			const quantity = await this.decryptUint256(pos.quantity.ciphertext)
+			const closedAmount = await this.decryptUint256(pos.closedAmount.ciphertext)
+			
+			const priceDiff = openedPrice - (
 				symbolIdPriceFetcher != null
 					? await symbolIdPriceFetcher(pos.symbolId)
 					: await symbolNamePriceFetcher((await this.context.viewFacet.getSymbol(pos.symbolId)).name)
 			)
-			const amount = pos.quantity - pos.closedAmount
+			const amount = quantity - closedAmount
 			upnl += unDecimal(amount * priceDiff) * (pos.positionType == BigInt(PositionType.LONG) ? 0n : 1n)
 		}
 		return upnl
