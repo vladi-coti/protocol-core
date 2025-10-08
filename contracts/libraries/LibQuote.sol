@@ -13,15 +13,21 @@ import "../storages/SymbolStorage.sol";
 import "../storages/MAStorage.sol";
 
 library LibQuote {
+	using MpcCore for gtUint256;
+	using MpcCore for gtInt256;
+	using MpcCore for gtBool;
 	using LockedValuesOps for LockedValues;
+	using LockedValuesOps for GarbledLockedValues;
 
 	/**
-	 * @notice Calculates the remaining open amount of a quote.
+	 * @notice Calculates the remaining open amount of a quote (encrypted).
 	 * @param quote The quote for which to calculate the remaining open amount.
-	 * @return The remaining open amount of the quote.
+	 * @return The remaining open amount of the quote (encrypted).
 	 */
-	function quoteOpenAmount(Quote storage quote) internal view returns (uint256) {
-		return quote.quantity - quote.closedAmount;
+	function quoteOpenAmount(Quote storage quote) internal returns (gtUint256) {
+		gtUint256 gtQuantity = LockedValuesOps.safeOnboard(quote.quantity.ciphertext);
+		gtUint256 gtClosedAmount = LockedValuesOps.safeOnboard(quote.closedAmount.ciphertext);
+		return gtQuantity.sub(gtClosedAmount);
 	}
 
 	/**
@@ -119,92 +125,129 @@ library LibQuote {
 
 	/**
 	 * @notice Calculates the value of a quote for Party A based on the current price and filled amount.
-	 * @param currentPrice The current price of the quote.
-	 * @param filledAmount The filled amount of the quote.
+	 * @param currentPrice The current price of the quote (plaintext).
+	 * @param filledAmount The filled amount of the quote (plaintext).
 	 * @param quote The quote for which to calculate the value.
 	 * @return hasMadeProfit A boolean indicating whether Party A has made a profit.
-	 * @return pnl The profit or loss value for Party A.
+	 * @return pnl The profit or loss value for Party A (encrypted).
 	 */
 	function getValueOfQuoteForPartyA(
 		uint256 currentPrice,
 		uint256 filledAmount,
 		Quote storage quote
-	) internal view returns (bool hasMadeProfit, uint256 pnl) {
-		if (currentPrice > quote.openedPrice) {
+	) internal returns (bool hasMadeProfit, gtUint256 pnl) {
+		gtUint256 gtCurrentPrice = MpcCore.setPublic256(currentPrice);
+		gtUint256 gtFilledAmount = MpcCore.setPublic256(filledAmount);
+		gtUint256 gtOpenedPrice = LockedValuesOps.safeOnboard(quote.openedPrice.ciphertext);
+		gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e18));
+		
+		// Decrypt openedPrice for comparison (since currentPrice is already public from signature)
+		uint256 openedPrice = MpcCore.decrypt(gtOpenedPrice);
+		
+		if (currentPrice > openedPrice) {
 			if (quote.positionType == PositionType.LONG) {
 				hasMadeProfit = true;
 			} else {
 				hasMadeProfit = false;
 			}
-			pnl = ((currentPrice - quote.openedPrice) * filledAmount) / 1e18;
+			pnl = gtCurrentPrice.sub(gtOpenedPrice).mul(gtFilledAmount).div(gtScaleFactor);
 		} else {
 			if (quote.positionType == PositionType.LONG) {
 				hasMadeProfit = false;
 			} else {
 				hasMadeProfit = true;
 			}
-			pnl = ((quote.openedPrice - currentPrice) * filledAmount) / 1e18;
+			pnl = gtOpenedPrice.sub(gtCurrentPrice).mul(gtFilledAmount).div(gtScaleFactor);
 		}
 	}
 
 	/**
 	 * @notice Gets the trading fee for a quote.
 	 * @param quoteId The ID of the quote for which to get the trading fee.
-	 * @return fee The trading fee for the quote.
+	 * @return fee The trading fee for the quote (encrypted).
 	 */
-	function getTradingFee(uint256 quoteId) internal view returns (uint256 fee) {
+	function getTradingFee(uint256 quoteId) internal returns (gtUint256 fee) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
+		gtUint256 gtOpenAmount = LibQuote.quoteOpenAmount(quote);
+		gtUint256 gtTradingFee = LockedValuesOps.safeOnboard(quote.tradingFee.ciphertext);
+		gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e36));
+		
 		if (quote.orderType == OrderType.LIMIT) {
-			fee = (LibQuote.quoteOpenAmount(quote) * quote.requestedOpenPrice * quote.tradingFee) / 1e36;
+			gtUint256 gtRequestedOpenPrice = LockedValuesOps.safeOnboard(quote.requestedOpenPrice.ciphertext);
+			fee = gtOpenAmount.mul(gtRequestedOpenPrice).mul(gtTradingFee).div(gtScaleFactor);
 		} else {
-			fee = (LibQuote.quoteOpenAmount(quote) * quote.marketPrice * quote.tradingFee) / 1e36;
+			gtUint256 gtMarketPrice = LockedValuesOps.safeOnboard(quote.marketPrice.ciphertext);
+			fee = gtOpenAmount.mul(gtMarketPrice).mul(gtTradingFee).div(gtScaleFactor);
 		}
 	}
 
 	/**
 	 * @notice Closes a quote.
 	 * @param quote The quote to close.
-	 * @param filledAmount The filled amount of the quote.
-	 * @param closedPrice The price at which the quote is closed.
+	 * @param filledAmount The filled amount of the quote (plaintext).
+	 * @param closedPrice The price at which the quote is closed (plaintext).
 	 */
 	function closeQuote(Quote storage quote, uint256 filledAmount, uint256 closedPrice) internal {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		SymbolStorage.Layout storage symbolLayout = SymbolStorage.layout();
 
-		require(
-			quote.lockedValues.cva == 0 || (quote.lockedValues.cva * filledAmount) / LibQuote.quoteOpenAmount(quote) > 0,
-			"LibQuote: Low filled amount"
-		);
-		require(
-			quote.lockedValues.partyAmm == 0 || (quote.lockedValues.partyAmm * filledAmount) / LibQuote.quoteOpenAmount(quote) > 0,
-			"LibQuote: Low filled amount"
-		);
-		require(
-			quote.lockedValues.partyBmm == 0 || (quote.lockedValues.partyBmm * filledAmount) / LibQuote.quoteOpenAmount(quote) > 0,
-			"LibQuote: Low filled amount"
-		);
-		require((quote.lockedValues.lf * filledAmount) / LibQuote.quoteOpenAmount(quote) > 0, "LibQuote: Low filled amount");
-		LockedValues memory lockedValues = LockedValues(
-			quote.lockedValues.cva - ((quote.lockedValues.cva * filledAmount) / (LibQuote.quoteOpenAmount(quote))),
-			quote.lockedValues.lf - ((quote.lockedValues.lf * filledAmount) / (LibQuote.quoteOpenAmount(quote))),
-			quote.lockedValues.partyAmm - ((quote.lockedValues.partyAmm * filledAmount) / (LibQuote.quoteOpenAmount(quote))),
-			quote.lockedValues.partyBmm - ((quote.lockedValues.partyBmm * filledAmount) / (LibQuote.quoteOpenAmount(quote)))
-		);
-		accountLayout.lockedBalances[quote.partyA].subQuote(quote).add(lockedValues);
-		accountLayout.partyBLockedBalances[quote.partyB][quote.partyA].subQuote(quote).add(lockedValues);
-		quote.lockedValues = lockedValues;
+		// Onboard encrypted values
+		gtUint256 gtFilledAmount = MpcCore.setPublic256(filledAmount);
+		gtUint256 gtOpenAmount = LibQuote.quoteOpenAmount(quote);
+		GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
+		
+		// Check that proportional amounts are not too low
+		gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
+		gtBool cvaIsZero = gtLockedValues.cva.eq(gtZero);
+		gtBool cvaProportionOk = gtLockedValues.cva.mul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
+		require(MpcCore.decrypt(cvaIsZero.or(cvaProportionOk)), "LibQuote: Low filled amount");
+		
+		gtBool partyAmmIsZero = gtLockedValues.partyAmm.eq(gtZero);
+		gtBool partyAmmProportionOk = gtLockedValues.partyAmm.mul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
+		require(MpcCore.decrypt(partyAmmIsZero.or(partyAmmProportionOk)), "LibQuote: Low filled amount");
+		
+		gtBool partyBmmIsZero = gtLockedValues.partyBmm.eq(gtZero);
+		gtBool partyBmmProportionOk = gtLockedValues.partyBmm.mul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
+		require(MpcCore.decrypt(partyBmmIsZero.or(partyBmmProportionOk)), "LibQuote: Low filled amount");
+		
+		gtBool lfProportionOk = gtLockedValues.lf.mul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
+		require(MpcCore.decrypt(lfProportionOk), "LibQuote: Low filled amount");
+		
+		// Calculate remaining locked values after partial close
+		GarbledLockedValues memory gtNewLockedValues = GarbledLockedValues({
+			cva: gtLockedValues.cva.sub(gtLockedValues.cva.mul(gtFilledAmount).div(gtOpenAmount)),
+			lf: gtLockedValues.lf.sub(gtLockedValues.lf.mul(gtFilledAmount).div(gtOpenAmount)),
+			partyAmm: gtLockedValues.partyAmm.sub(gtLockedValues.partyAmm.mul(gtFilledAmount).div(gtOpenAmount)),
+			partyBmm: gtLockedValues.partyBmm.sub(gtLockedValues.partyBmm.mul(gtFilledAmount).div(gtOpenAmount))
+		});
+		
+		// Update storage: subtract old quote values, add new values
+		GarbledLockedValues memory gtResultA = accountLayout.lockedBalances[quote.partyA].subQuoteGarbled(quote).add(gtNewLockedValues);
+		GarbledLockedValues memory gtResultB = accountLayout.partyBLockedBalances[quote.partyB][quote.partyA].subQuoteGarbled(quote).add(gtNewLockedValues);
+		
+		accountLayout.lockedBalances[quote.partyA] = gtResultA.offBoard(quote.partyA);
+		accountLayout.partyBLockedBalances[quote.partyB][quote.partyA] = gtResultB.offBoard(quote.partyA);
+		quote.lockedValues = gtNewLockedValues.offBoard(quote.partyA);
 
-		if (LibQuote.quoteOpenAmount(quote) == quote.quantityToClose) {
-			require(
-				quote.lockedValues.totalForPartyA() == 0 ||
-					quote.lockedValues.totalForPartyA() >= symbolLayout.symbols[quote.symbolId].minAcceptableQuoteValue,
-				"LibQuote: Remaining quote value is low"
-			);
+		// Check if this is the final close and remaining value is acceptable
+		gtUint256 gtQuantityToClose = LockedValuesOps.safeOnboard(quote.quantityToClose.ciphertext);
+		gtBool isFinalClose = gtOpenAmount.eq(gtQuantityToClose);
+		if (MpcCore.decrypt(isFinalClose)) {
+			GarbledLockedValues memory gtRemainingLocked = quote.lockedValues.onBoard();
+			gtUint256 gtTotalForPartyA = gtRemainingLocked.totalForPartyA();
+			gtUint256 gtMinValue = MpcCore.setPublic256(symbolLayout.symbols[quote.symbolId].minAcceptableQuoteValue);
+			gtBool isZero = gtTotalForPartyA.eq(gtZero);
+			gtBool isAboveMin = gtTotalForPartyA.ge(gtMinValue);
+			require(MpcCore.decrypt(isZero.or(isAboveMin)), "LibQuote: Remaining quote value is low");
 		}
 
-		(bool hasMadeProfit, uint256 pnl) = LibQuote.getValueOfQuoteForPartyA(closedPrice, filledAmount, quote);
+		// Calculate PNL
+		(bool hasMadeProfit, gtUint256 gtPnl) = LibQuote.getValueOfQuoteForPartyA(closedPrice, filledAmount, quote);
+
+		// Decrypt PNL for balance operations and events
+		uint256 pnl = MpcCore.decrypt(gtPnl);
 
 		if (hasMadeProfit) {
 			require(
@@ -226,23 +269,35 @@ library LibQuote {
 			emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, pnl, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
 		}
 
-		quote.avgClosedPrice = (quote.avgClosedPrice * quote.closedAmount + filledAmount * closedPrice) / (quote.closedAmount + filledAmount);
+		// Update avgClosedPrice: (avgClosedPrice * closedAmount + filledAmount * closedPrice) / (closedAmount + filledAmount)
+		gtUint256 gtAvgClosedPrice = LockedValuesOps.safeOnboard(quote.avgClosedPrice.ciphertext);
+		gtUint256 gtClosedAmount = LockedValuesOps.safeOnboard(quote.closedAmount.ciphertext);
+		gtUint256 gtClosedPrice = MpcCore.setPublic256(closedPrice);
+		gtUint256 gtNewAvgClosedPrice = gtAvgClosedPrice.mul(gtClosedAmount).add(gtFilledAmount.mul(gtClosedPrice)).div(gtClosedAmount.add(gtFilledAmount));
+		quote.avgClosedPrice = MpcCore.offBoardCombined(gtNewAvgClosedPrice, quote.partyA);
 
-		quote.closedAmount += filledAmount;
-		quote.quantityToClose -= filledAmount;
+		// Update closedAmount and quantityToClose
+		gtUint256 gtNewClosedAmount = gtClosedAmount.add(gtFilledAmount);
+		quote.closedAmount = MpcCore.offBoardCombined(gtNewClosedAmount, quote.partyA);
+		
+		gtUint256 gtNewQuantityToClose = gtQuantityToClose.sub(gtFilledAmount);
+		quote.quantityToClose = MpcCore.offBoardCombined(gtNewQuantityToClose, quote.partyA);
 
-		if (quote.closedAmount == quote.quantity) {
+		// Check if quote is fully closed
+		gtUint256 gtQuantity = LockedValuesOps.safeOnboard(quote.quantity.ciphertext);
+		gtBool isFullyClosed = gtNewClosedAmount.eq(gtQuantity);
+		if (MpcCore.decrypt(isFullyClosed)) {
 			quote.statusModifyTimestamp = block.timestamp;
 			quote.quoteStatus = QuoteStatus.CLOSED;
-			quote.requestedClosePrice = 0;
+			quote.requestedClosePrice = MpcCore.offBoardCombined(gtZero, quote.partyA);
 			removeFromOpenPositions(quote.id);
 			quoteLayout.partyAPositionsCount[quote.partyA] -= 1;
 			quoteLayout.partyBPositionsCount[quote.partyB][quote.partyA] -= 1;
-		} else if (quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING || quote.quantityToClose == 0) {
+		} else if (quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING || MpcCore.decrypt(gtNewQuantityToClose.eq(gtZero))) {
 			quote.quoteStatus = QuoteStatus.OPENED;
 			quote.statusModifyTimestamp = block.timestamp;
-			quote.requestedClosePrice = 0;
-			quote.quantityToClose = 0; // for CANCEL_CLOSE_PENDING status
+			quote.requestedClosePrice = MpcCore.offBoardCombined(gtZero, quote.partyA);
+			quote.quantityToClose = MpcCore.offBoardCombined(gtZero, quote.partyA);
 		}
 	}
 
@@ -272,7 +327,8 @@ library LibQuote {
 			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote);
 
 			// send trading Fee back to partyA
-			uint256 fee = LibQuote.getTradingFee(quote.id);
+			gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
+			uint256 fee = MpcCore.decrypt(gtFee);
 			accountLayout.allocatedBalances[quote.partyA] += fee;
 			emit SharedEvents.BalanceChangePartyA(quote.partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 
@@ -285,8 +341,9 @@ library LibQuote {
 			result = QuoteStatus.EXPIRED;
 		} else if (quote.quoteStatus == QuoteStatus.CLOSE_PENDING || quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING) {
 			quote.statusModifyTimestamp = block.timestamp;
-			quote.requestedClosePrice = 0;
-			quote.quantityToClose = 0;
+			gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
+			quote.requestedClosePrice = MpcCore.offBoardCombined(gtZero, quote.partyA);
+			quote.quantityToClose = MpcCore.offBoardCombined(gtZero, quote.partyA);
 			quote.quoteStatus = QuoteStatus.OPENED;
 			result = QuoteStatus.OPENED;
 		}

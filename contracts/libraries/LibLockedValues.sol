@@ -55,6 +55,62 @@ library LockedValuesOps {
 	}
 
 	/**
+	 * @notice Adds the locked values of a quote to a LockedValues struct (modifies storage in place).
+	 * @param self The LockedValues struct to which values will be added.
+	 * @param quote The Quote struct containing locked values to be added.
+	 */
+	function addQuote(LockedValues storage self, Quote storage quote) internal {
+		GarbledLockedValues memory gtSelf = onBoard(self);
+		GarbledLockedValues memory gtQuote = onBoard(quote.lockedValues);
+		GarbledLockedValues memory gtResult = add(gtSelf, gtQuote);
+		
+		self.cva = MpcCore.offBoardCombined(gtResult.cva, quote.partyA);
+		self.partyAmm = MpcCore.offBoardCombined(gtResult.partyAmm, quote.partyA);
+		self.partyBmm = MpcCore.offBoardCombined(gtResult.partyBmm, quote.partyA);
+		self.lf = MpcCore.offBoardCombined(gtResult.lf, quote.partyA);
+	}
+
+	/**
+	 * @notice Subtracts the locked values of a quote from a LockedValues struct (modifies storage in place).
+	 * @param self The LockedValues struct from which values will be subtracted.
+	 * @param quote The Quote struct containing locked values to be subtracted.
+	 */
+	function subQuote(LockedValues storage self, Quote storage quote) internal {
+		GarbledLockedValues memory gtSelf = onBoard(self);
+		GarbledLockedValues memory gtQuote = onBoard(quote.lockedValues);
+		GarbledLockedValues memory gtResult = sub(gtSelf, gtQuote);
+		
+		self.cva = MpcCore.offBoardCombined(gtResult.cva, quote.partyA);
+		self.partyAmm = MpcCore.offBoardCombined(gtResult.partyAmm, quote.partyA);
+		self.partyBmm = MpcCore.offBoardCombined(gtResult.partyBmm, quote.partyA);
+		self.lf = MpcCore.offBoardCombined(gtResult.lf, quote.partyA);
+	}
+
+	/**
+	 * @notice Adds the locked values of a quote and returns garbled result (for chaining operations).
+	 * @param self The LockedValues struct.
+	 * @param quote The Quote struct containing locked values to be added.
+	 * @return The result as GarbledLockedValues (encrypted).
+	 */
+	function addQuoteGarbled(LockedValues storage self, Quote storage quote) internal returns (GarbledLockedValues memory) {
+		GarbledLockedValues memory gtSelf = onBoard(self);
+		GarbledLockedValues memory gtQuote = onBoard(quote.lockedValues);
+		return add(gtSelf, gtQuote);
+	}
+
+	/**
+	 * @notice Subtracts the locked values of a quote and returns garbled result (for chaining operations).
+	 * @param self The LockedValues struct.
+	 * @param quote The Quote struct containing locked values to be subtracted.
+	 * @return The result as GarbledLockedValues (encrypted).
+	 */
+	function subQuoteGarbled(LockedValues storage self, Quote storage quote) internal returns (GarbledLockedValues memory) {
+		GarbledLockedValues memory gtSelf = onBoard(self);
+		GarbledLockedValues memory gtQuote = onBoard(quote.lockedValues);
+		return sub(gtSelf, gtQuote);
+	}
+
+	/**
 	 * @notice Adds the values of two GarbledLockedValues structs.
 	 * @param self The GarbledLockedValues struct to which values will be added.
 	 * @param a The GarbledLockedValues struct containing values to be added.

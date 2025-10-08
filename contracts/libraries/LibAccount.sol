@@ -17,160 +17,187 @@ library LibAccount {
 	/**
 	 * @notice Calculates the total locked balances of Party A.
 	 * @param partyA The address of Party A.
-	 * @return The total locked balances of Party A.
+	 * @return The total locked balances of Party A (encrypted).
 	 */
-	function partyATotalLockedBalances(address partyA) internal view returns (uint256) {
+	function partyATotalLockedBalances(address partyA) internal returns (gtUint256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		return accountLayout.pendingLockedBalances[partyA].totalForPartyA() + accountLayout.lockedBalances[partyA].totalForPartyA();
+
+		GarbledLockedValues memory garbledPendingLockedBalances = accountLayout.pendingLockedBalances[partyA].onBoard();
+		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
+
+		return garbledPendingLockedBalances.totalForPartyA().add(garbledLockedBalances.totalForPartyA());
 	}
 
 	/**
 	 * @notice Calculates the total locked balances of Party B for a specific Party A.
 	 * @param partyB The address of Party B.
 	 * @param partyA The address of Party A.
-	 * @return The total locked balances of Party B for the specified Party A.
+	 * @return The total locked balances of Party B for the specified Party A (encrypted).
 	 */
-	function partyBTotalLockedBalances(address partyB, address partyA) internal view returns (uint256) {
+	function partyBTotalLockedBalances(address partyB, address partyA) internal returns (gtUint256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		return
-			accountLayout.partyBPendingLockedBalances[partyB][partyA].totalForPartyB() +
-			accountLayout.partyBLockedBalances[partyB][partyA].totalForPartyB();
+		GarbledLockedValues memory garbledPendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA].onBoard();
+		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
+		return garbledPendingLockedBalances.totalForPartyB().add(garbledLockedBalances.totalForPartyB());
 	}
 
 	/**
 	 * @notice Calculates the available balance for a quote for Party A.
-	 * @param upnl The unrealized profit and loss.
+	 * @param upnl The unrealized profit and loss (unencrypted).
 	 * @param partyA The address of Party A.
-	 * @return The available balance for a quote for Party A.
+	 * @return The available balance for a quote for Party A (encrypted).
 	 */
-	function partyAAvailableForQuote(int256 upnl, address partyA) internal view returns (int256) {
+	function partyAAvailableForQuote(int256 upnl, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		int256 available;
+		gtInt256 allocatedBalance = MpcCore.toSigned(MpcCore.setPublic256(accountLayout.allocatedBalances[partyA]));
+		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
+		
+		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
+		GarbledLockedValues memory garbledPendingLockedBalances = accountLayout.pendingLockedBalances[partyA].onBoard();
+		
+		gtInt256 totalLocked = MpcCore.toSigned(garbledLockedBalances.totalForPartyA().add(garbledPendingLockedBalances.totalForPartyA()));
+		
 		if (upnl >= 0) {
-			available =
-				int256(accountLayout.allocatedBalances[partyA]) +
-				upnl -
-				int256((accountLayout.lockedBalances[partyA].totalForPartyA() + accountLayout.pendingLockedBalances[partyA].totalForPartyA()));
+			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
+			return allocatedBalance.add(gtUpnl).sub(totalLocked);
 		} else {
-			int256 mm = int256(accountLayout.lockedBalances[partyA].partyAmm);
-			int256 considering_mm = -upnl > mm ? -upnl : mm;
-			available =
-				int256(accountLayout.allocatedBalances[partyA]) -
-				int256(
-					(accountLayout.lockedBalances[partyA].cva +
-						accountLayout.lockedBalances[partyA].lf +
-						accountLayout.pendingLockedBalances[partyA].totalForPartyA())
-				) -
-				considering_mm;
+			// If upnl < 0: considering_mm = max(-upnl, partyAmm)
+			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
+			gtInt256 mm = MpcCore.toSigned(garbledLockedBalances.partyAmm);
+			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
+			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, negUpnl, mm);
+			
+			gtInt256 cvaLfPendingTotal = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf).add(garbledPendingLockedBalances.totalForPartyA()));
+			return allocatedBalance.sub(cvaLfPendingTotal).sub(considering_mm);
 		}
-		return available;
 	}
 
 	/**
 	 * @notice Calculates the available balance for Party A.
-	 * @param upnl The unrealized profit and loss.
+	 * @param upnl The unrealized profit and loss (unencrypted).
 	 * @param partyA The address of Party A.
-	 * @return The available balance for Party A.
+	 * @return The available balance for Party A (encrypted).
 	 */
-	function partyAAvailableBalance(int256 upnl, address partyA) internal view returns (int256) {
+	function partyAAvailableBalance(int256 upnl, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		int256 available;
+		gtInt256 allocatedBalance = MpcCore.toSigned(MpcCore.setPublic256(accountLayout.allocatedBalances[partyA]));
+		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
+		
+		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
+		gtInt256 totalLocked = MpcCore.toSigned(garbledLockedBalances.totalForPartyA());
+		
 		if (upnl >= 0) {
-			available = int256(accountLayout.allocatedBalances[partyA]) + upnl - int256(accountLayout.lockedBalances[partyA].totalForPartyA());
+			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
+			return allocatedBalance.add(gtUpnl).sub(totalLocked);
 		} else {
-			int256 mm = int256(accountLayout.lockedBalances[partyA].partyAmm);
-			int256 considering_mm = -upnl > mm ? -upnl : mm;
-			available =
-				int256(accountLayout.allocatedBalances[partyA]) -
-				int256(accountLayout.lockedBalances[partyA].cva + accountLayout.lockedBalances[partyA].lf) -
-				considering_mm;
+			// If upnl < 0: considering_mm = max(-upnl, partyAmm)
+			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
+			gtInt256 mm = MpcCore.toSigned(garbledLockedBalances.partyAmm);
+			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
+			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, negUpnl, mm);
+			
+			gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
+			return allocatedBalance.sub(cvaLf).sub(considering_mm);
 		}
-		return available;
 	}
 
 	/**
 	 * @notice Calculates the available balance for liquidation for Party A.
-	 * @param upnl The unrealized profit and loss.
+	 * @param upnl The unrealized profit and loss (unencrypted).
 	 * @param allocatedBalance The allocatedBalance of Party A.
 	 * @param partyA The address of Party A.
-	 * @return The available balance for liquidation for Party A.
+	 * @return The available balance for liquidation for Party A (encrypted).
 	 */
-	function partyAAvailableBalanceForLiquidation(int256 upnl, uint256 allocatedBalance, address partyA) internal view returns (int256) {
+	function partyAAvailableBalanceForLiquidation(int256 upnl, uint256 allocatedBalance, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		int256 freeBalance = int256(allocatedBalance) - int256(accountLayout.lockedBalances[partyA].cva + accountLayout.lockedBalances[partyA].lf);
-		return freeBalance + upnl;
+		gtInt256 allocatedBalanceEncrypted = MpcCore.toSigned(MpcCore.setPublic256(allocatedBalance));
+		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
+		
+		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
+		gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
+		
+		gtInt256 freeBalance = allocatedBalanceEncrypted.sub(cvaLf);
+		return freeBalance.add(gtUpnl);
 	}
 
 	/**
 	 * @notice Calculates the available balance for a quote for Party B.
-	 * @param upnl The unrealized profit and loss.
+	 * @param upnl The unrealized profit and loss (unencrypted).
 	 * @param partyB The address of Party B.
 	 * @param partyA The address of Party A.
-	 * @return The available balance for a quote for Party B.
+	 * @return The available balance for a quote for Party B (encrypted).
 	 */
-	function partyBAvailableForQuote(int256 upnl, address partyB, address partyA) internal view returns (int256) {
+	function partyBAvailableForQuote(int256 upnl, address partyB, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		int256 available;
+		gtInt256 allocatedBalance = MpcCore.toSigned(MpcCore.setPublic256(accountLayout.partyBAllocatedBalances[partyB][partyA]));
+		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
+		
+		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
+		GarbledLockedValues memory garbledPendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA].onBoard();
+		
+		gtInt256 totalLocked = MpcCore.toSigned(garbledLockedBalances.totalForPartyB().add(garbledPendingLockedBalances.totalForPartyB()));
+		
 		if (upnl >= 0) {
-			available =
-				int256(accountLayout.partyBAllocatedBalances[partyB][partyA]) +
-				upnl -
-				int256(
-					(accountLayout.partyBLockedBalances[partyB][partyA].totalForPartyB() +
-						accountLayout.partyBPendingLockedBalances[partyB][partyA].totalForPartyB())
-				);
+			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
+			return allocatedBalance.add(gtUpnl).sub(totalLocked);
 		} else {
-			int256 mm = int256(accountLayout.partyBLockedBalances[partyB][partyA].partyBmm);
-			int256 considering_mm = -upnl > mm ? -upnl : mm;
-			available =
-				int256(accountLayout.partyBAllocatedBalances[partyB][partyA]) -
-				int256(
-					(accountLayout.partyBLockedBalances[partyB][partyA].cva +
-						accountLayout.partyBLockedBalances[partyB][partyA].lf +
-						accountLayout.partyBPendingLockedBalances[partyB][partyA].totalForPartyB())
-				) -
-				considering_mm;
+			// If upnl < 0: considering_mm = max(-upnl, partyBmm)
+			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
+			gtInt256 mm = MpcCore.toSigned(garbledLockedBalances.partyBmm);
+			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
+			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, negUpnl, mm);
+			
+			gtInt256 cvaLfPendingTotal = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf).add(garbledPendingLockedBalances.totalForPartyB()));
+			return allocatedBalance.sub(cvaLfPendingTotal).sub(considering_mm);
 		}
-		return available;
 	}
 
 	/**
 	 * @notice Calculates the available balance for Party B.
-	 * @param upnl The unrealized profit and loss.
+	 * @param upnl The unrealized profit and loss (unencrypted).
 	 * @param partyB The address of Party B.
 	 * @param partyA The address of Party A.
-	 * @return The available balance for Party B.
+	 * @return The available balance for Party B (encrypted).
 	 */
-	function partyBAvailableBalance(int256 upnl, address partyB, address partyA) internal view returns (int256) {
+	function partyBAvailableBalance(int256 upnl, address partyB, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		int256 available;
+		gtInt256 allocatedBalance = MpcCore.toSigned(MpcCore.setPublic256(accountLayout.partyBAllocatedBalances[partyB][partyA]));
+		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
+		
+		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
+		gtInt256 totalLocked = MpcCore.toSigned(garbledLockedBalances.totalForPartyB());
+		
 		if (upnl >= 0) {
-			available =
-				int256(accountLayout.partyBAllocatedBalances[partyB][partyA]) +
-				upnl -
-				int256(accountLayout.partyBLockedBalances[partyB][partyA].totalForPartyB());
+			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
+			return allocatedBalance.add(gtUpnl).sub(totalLocked);
 		} else {
-			int256 mm = int256(accountLayout.partyBLockedBalances[partyB][partyA].partyBmm);
-			int256 considering_mm = -upnl > mm ? -upnl : mm;
-			available =
-				int256(accountLayout.partyBAllocatedBalances[partyB][partyA]) -
-				int256(accountLayout.partyBLockedBalances[partyB][partyA].cva + accountLayout.partyBLockedBalances[partyB][partyA].lf) -
-				considering_mm;
+			// If upnl < 0: considering_mm = max(-upnl, partyBmm)
+			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
+			gtInt256 mm = MpcCore.toSigned(garbledLockedBalances.partyBmm);
+			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
+			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, negUpnl, mm);
+			
+			gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
+			return allocatedBalance.sub(cvaLf).sub(considering_mm);
 		}
-		return available;
 	}
 
 	/**
 	 * @notice Calculates the available balance for liquidation for Party B.
-	 * @param upnl The unrealized profit and loss.
+	 * @param upnl The unrealized profit and loss (unencrypted).
 	 * @param partyB The address of Party B.
 	 * @param partyA The address of Party A.
-	 * @return The available balance for liquidation for Party B.
+	 * @return The available balance for liquidation for Party B (encrypted).
 	 */
-	function partyBAvailableBalanceForLiquidation(int256 upnl, address partyB, address partyA) internal view returns (int256) {
+	function partyBAvailableBalanceForLiquidation(int256 upnl, address partyB, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		int256 a = int256(accountLayout.partyBAllocatedBalances[partyB][partyA]) -
-			int256(accountLayout.partyBLockedBalances[partyB][partyA].cva + accountLayout.partyBLockedBalances[partyB][partyA].lf);
-		return a + upnl;
+		gtInt256 allocatedBalanceEncrypted = MpcCore.toSigned(MpcCore.setPublic256(accountLayout.partyBAllocatedBalances[partyB][partyA]));
+		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
+		
+		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
+		gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
+		
+		gtInt256 freeBalance = allocatedBalanceEncrypted.sub(cvaLf);
+		return freeBalance.add(gtUpnl);
 	}
 }
