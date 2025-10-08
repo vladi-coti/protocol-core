@@ -15,6 +15,16 @@ library LibAccount {
 	using LockedValuesOps for GarbledLockedValues;
 
 	/**
+	 * @notice Returns the encryption address for a user.
+	 * @param user The address of the user.
+	 * @return The encryption address for the user.
+	 */
+	function getUserEncryptionAddress(address user) internal returns (address) {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		return accountLayout.userEncryptionAddress[user];
+	}
+
+	/**
 	 * @notice Calculates the total locked balances of Party A.
 	 * @param partyA The address of Party A.
 	 * @return The total locked balances of Party A (encrypted).

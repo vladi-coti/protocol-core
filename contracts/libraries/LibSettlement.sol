@@ -11,6 +11,12 @@ import "./LibQuote.sol";
 import "./LibAccount.sol";
 
 library LibSettlement {
+	using MpcCore for gtUint256;
+	using MpcCore for gtInt256;
+	using MpcCore for gtBool;
+	using LockedValuesOps for LockedValues;
+	using LockedValuesOps for GarbledLockedValues;
+
 	function settleUpnl(
 		SettlementSig memory settleSig,
 		uint256[] memory updatedPrices,
@@ -21,10 +27,11 @@ library LibSettlement {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 
 		require(settleSig.quotesSettlementsData.length > 0 && settleSig.quotesSettlementsData.length == updatedPrices.length, "LibSettlement: Invalid length");
-		require(
-			LibAccount.partyAAvailableBalanceForLiquidation(settleSig.upnlPartyA, accountLayout.allocatedBalances[partyA], partyA) >= 0,
-			"LibSettlement: PartyA is insolvent"
-		);
+		
+		// Check PartyA solvency using encrypted balance calculation
+		gtInt256 gtPartyAAvailable = LibAccount.partyAAvailableBalanceForLiquidation(settleSig.upnlPartyA, accountLayout.allocatedBalances[partyA], partyA);
+		gtInt256 gtZeroInt = MpcCore.setPublic256(int256(0));
+		require(MpcCore.decrypt(gtPartyAAvailable.ge(gtZeroInt)), "LibSettlement: PartyA is insolvent");
 
 		require(
 			isForceClose || quoteLayout.partyBOpenPositions[msg.sender][partyA].length > 0,
@@ -53,36 +60,47 @@ library LibSettlement {
 			);
 			partyBs[data.partyBUpnlIndex] = quote.partyB;
 
-			if (quote.openedPrice > data.currentPrice) {
+			// Decrypt openedPrice for comparisons (prices from signatures are public)
+			gtUint256 gtOpenedPrice = LockedValuesOps.safeOnboard(quote.openedPrice.ciphertext);
+			uint256 openedPrice = MpcCore.decrypt(gtOpenedPrice);
+			
+			if (openedPrice > data.currentPrice) {
 				require(
-					updatedPrices[i] < quote.openedPrice && updatedPrices[i] >= data.currentPrice,
+					updatedPrices[i] < openedPrice && updatedPrices[i] >= data.currentPrice,
 					"LibSettlement: Updated price is out of range"
 				);
 			} else {
 				require(
-					updatedPrices[i] > quote.openedPrice && updatedPrices[i] <= data.currentPrice,
+					updatedPrices[i] > openedPrice && updatedPrices[i] <= data.currentPrice,
 					"LibSettlement: Updated price is out of range"
 				);
 			}
+			
+			// Calculate settlement amount with encrypted quoteOpenAmount
+			gtUint256 gtQuoteOpenAmount = LibQuote.quoteOpenAmount(quote);
+			int256 quoteOpenAmount = int256(MpcCore.decrypt(gtQuoteOpenAmount));
+			
 			if (quote.positionType == PositionType.LONG) {
 				settleAmounts[data.partyBUpnlIndex] +=
-					((int256(updatedPrices[i]) - int256(quote.openedPrice)) * int256(LibQuote.quoteOpenAmount(quote))) /
-					1e18;
+					((int256(updatedPrices[i]) - int256(openedPrice)) * quoteOpenAmount) / 1e18;
 			} else {
 				settleAmounts[data.partyBUpnlIndex] +=
-					((int256(quote.openedPrice) - int256(updatedPrices[i])) * int256(LibQuote.quoteOpenAmount(quote))) /
-					1e18;
+					((int256(openedPrice) - int256(updatedPrices[i])) * quoteOpenAmount) / 1e18;
 			}
-			quote.openedPrice = updatedPrices[i];
+			
+			// Update openedPrice with new encrypted value
+			gtUint256 gtUpdatedPrice = MpcCore.setPublic256(updatedPrices[i]);
+			quote.openedPrice = MpcCore.offBoardCombined(gtUpdatedPrice, quote.partyA);
 		}
 
 		int256 totalSettlementAmount;
 		for (uint8 i = 0; i < partyBs.length; i++) {
 			address partyB = partyBs[i];
-			require(
-				LibAccount.partyBAvailableBalanceForLiquidation(settleSig.upnlPartyBs[i], partyB, partyA) >= 0,
-				"LibSettlement: PartyB should be solvent"
-			);
+			
+			// Check PartyB solvency using encrypted balance calculation
+			gtInt256 gtPartyBAvailable = LibAccount.partyBAvailableBalanceForLiquidation(settleSig.upnlPartyBs[i], partyB, partyA);
+			require(MpcCore.decrypt(gtPartyBAvailable.ge(gtZeroInt)), "LibSettlement: PartyB should be solvent");
+			
 			require(!MAStorage.layout().partyBLiquidationStatus[partyB][partyA], "LibSettlement: PartyB is in liquidation process");
 
 			if (!isForceClose && msg.sender != partyB) {

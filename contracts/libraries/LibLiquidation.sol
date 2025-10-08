@@ -11,13 +11,17 @@ import "./LibAccount.sol";
 import "./LibQuote.sol";
 
 library LibLiquidation {
+	using MpcCore for gtUint256;
+	using MpcCore for gtInt256;
+	using MpcCore for gtBool;
 	using LockedValuesOps for LockedValues;
+	using LockedValuesOps for GarbledLockedValues;
 
 	/**
 	 * @notice Liquidates Party B.
 	 * @param partyB The address of Party B.
 	 * @param partyA The address of Party A.
-	 * @param upnlPartyB The unrealized profit and loss of Party B.
+	 * @param upnlPartyB The unrealized profit and loss of Party B (unencrypted).
 	 * @param timestamp The timestamp of the liquidation.
 	 */
 	function liquidatePartyB(address partyB, address partyA, int256 upnlPartyB, uint256 timestamp) internal {
@@ -25,18 +29,25 @@ library LibLiquidation {
 		MAStorage.Layout storage maLayout = MAStorage.layout();
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 
-		// Calculate available balance for liquidation
-		int256 availableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
+		// Calculate available balance for liquidation (returns encrypted)
+		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
+		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
 
-		// Ensure Party B is insolvent
-		require(availableBalance < 0, "LiquidationFacet: partyB is solvent");
+		// Ensure Party B is insolvent (decrypt for comparison)
+		require(MpcCore.decrypt(gtAvailableBalance.lt(gtZero)), "LiquidationFacet: partyB is solvent");
+		
+		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
 
 		uint256 liquidatorShare;
 		uint256 remainingLf;
 
 		// Determine liquidator share and remaining locked funds
-		if (uint256(-availableBalance) < accountLayout.partyBLockedBalances[partyB][partyA].lf) {
-			remainingLf = accountLayout.partyBLockedBalances[partyB][partyA].lf - uint256(-availableBalance);
+		// Decrypt lf for calculation
+		gtUint256 gtLf = LockedValuesOps.safeOnboard(accountLayout.partyBLockedBalances[partyB][partyA].lf.ciphertext);
+		uint256 lf = MpcCore.decrypt(gtLf);
+		
+		if (uint256(-availableBalance) < lf) {
+			remainingLf = lf - uint256(-availableBalance);
 			liquidatorShare = (remainingLf * maLayout.liquidatorShare) / 1e18;
 
 			maLayout.partyBPositionLiquidatorsShare[partyB][partyA] =
@@ -56,9 +67,13 @@ library LibLiquidation {
 			Quote storage quote = quoteLayout.quotes[pendingQuotes[index]];
 			if (quote.partyB == partyB && (quote.quoteStatus == QuoteStatus.LOCKED || quote.quoteStatus == QuoteStatus.CANCEL_PENDING)) {
 				accountLayout.pendingLockedBalances[partyA].subQuote(quote);
-				uint256 fee = LibQuote.getTradingFee(quote.id);
+				
+				// Get encrypted trading fee and decrypt for balance update
+				gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
+				uint256 fee = MpcCore.decrypt(gtFee);
 				accountLayout.allocatedBalances[partyA] += fee;
 				emit SharedEvents.BalanceChangePartyA(partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
+				
 				pendingQuotes[index] = pendingQuotes[pendingQuotes.length - 1];
 				pendingQuotes.pop();
 				quote.quoteStatus = QuoteStatus.LIQUIDATED_PENDING;
@@ -82,8 +97,12 @@ library LibLiquidation {
 			SharedEvents.BalanceChangeType.REALIZED_PNL_OUT
 		);
 		accountLayout.partyBAllocatedBalances[partyB][partyA] = 0;
-		accountLayout.partyBLockedBalances[partyB][partyA].makeZero();
-		accountLayout.partyBPendingLockedBalances[partyB][partyA].makeZero();
+		
+		// Set locked balances to zero (encrypted)
+		GarbledLockedValues memory gtZeroLocked = LockedValuesOps.makeZero();
+		accountLayout.partyBLockedBalances[partyB][partyA] = gtZeroLocked.offBoard(partyA);
+		accountLayout.partyBPendingLockedBalances[partyB][partyA] = gtZeroLocked.offBoard(partyA);
+		
 		accountLayout.partyANonces[partyA] += 1;
 
 		// Transfer liquidator share to the liquidator
