@@ -3,30 +3,29 @@ import { ethers } from "hardhat"
 import { ContractFactory, EventLog, Wallet } from "@coti-io/coti-ethers"
 import { initializeFixture } from "./Initialize.fixture"
 import { RunContext } from "./models/RunContext"
-import { PrivateUser, PrivateQuoteRequest } from "./models/PrivateUser"
+import { User } from "./models/User"
 import { Hedger } from "./models/Hedger"
 import { decimal } from "./utils/Common"
 import { getDummySingleUpnlAndPriceSig } from "./utils/SignatureUtils"
 import { loadFixtureCompatible } from "./utils/testHelpers"
 import { setupAccounts } from "./utils/accounts"
-import { PrivatePartyAFacet } from "../src/types/contracts/facets/PartyA/PrivatePartyAFacet"
+import { PartyAFacet } from "../src/types"
+import { limitQuoteRequestBuilder } from "./models/requestModels/QuoteRequest"
 
 export function shouldBehaveLikePrivateParamsTest(): void {
 	let context: RunContext
-	let privateUser: PrivateUser
-	let privateUser2: PrivateUser
+	let privateUser: User
+	let privateUser2: User
 	let hedger: Hedger
 	let userWallet: Wallet
 	let user2Wallet: Wallet
 
-	let createDefaultPrivateQuoteRequest: () => PrivateQuoteRequest
-
 	describe("Direct Call Tests", function () {
-		let privatePartyAFacet: PrivatePartyAFacet
+		let privatePartyAFacet: PartyAFacet
 		beforeEach(async function () {
 			// deploy the contract directly
-			const PrivatePartyAFacetFactory = await ethers.getContractFactory("PrivatePartyAFacet")
-			privatePartyAFacet = await PrivatePartyAFacetFactory.deploy({ gasLimit: 12000000 })
+			const partyAFacetFactory = await ethers.getContractFactory("PartyAFacet")
+			privatePartyAFacet = await partyAFacetFactory.deploy({ gasLimit: 12000000 })
 			await privatePartyAFacet.waitForDeployment()
 			console.log(`deployed privatePartyAFacet at ${await privatePartyAFacet.getAddress()}`)
 
@@ -36,13 +35,10 @@ export function shouldBehaveLikePrivateParamsTest(): void {
 			const wallet2 = accounts[2]
 
 			const partyBWhiteList = [wallet2.address]
-			createDefaultPrivateQuoteRequest = () => PrivateUser.createDefaultPrivateQuoteRequest(partyBWhiteList)
 		})
 
 		it("Should emit PrivateParamsTest event when called directly", async function () {
-			const request = createDefaultPrivateQuoteRequest()
-			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
-
+			const request = limitQuoteRequestBuilder().build()
 			const contractAddress = await privatePartyAFacet.getAddress()
 			const selector = privatePartyAFacet.interface.getFunction("privateParamsTest").selector
 
@@ -56,12 +52,12 @@ export function shouldBehaveLikePrivateParamsTest(): void {
 				affiliate: request.affiliate,
 			}
 
-			const encryptedPrice = await userWallet.encryptUint256(request.price, contractAddress, selector)
-			const encryptedQuantity = await userWallet.encryptUint256(request.quantity, contractAddress, selector)
-			const encryptedCva = await userWallet.encryptUint256(request.cva, contractAddress, selector)
-			const encryptedLf = await userWallet.encryptUint256(request.lf, contractAddress, selector)
-			const encryptedPartyAmm = await userWallet.encryptUint256(request.partyAmm, contractAddress, selector)
-			const encryptedPartyBmm = await userWallet.encryptUint256(request.partyBmm, contractAddress, selector)
+			const encryptedPrice = await userWallet.encryptUint256(BigInt(request.price), contractAddress, selector)
+			const encryptedQuantity = await userWallet.encryptUint256(BigInt(request.quantity), contractAddress, selector)
+			const encryptedCva = await userWallet.encryptUint256(BigInt(request.cva), contractAddress, selector)
+			const encryptedLf = await userWallet.encryptUint256(BigInt(request.lf), contractAddress, selector)
+			const encryptedPartyAmm = await userWallet.encryptUint256(BigInt(request.partyAmm), contractAddress, selector)
+			const encryptedPartyBmm = await userWallet.encryptUint256(BigInt(request.partyBmm), contractAddress, selector)
 
 			const encryptedParams = {
 				encryptedPrice: encryptedPrice,
@@ -97,14 +93,10 @@ export function shouldBehaveLikePrivateParamsTest(): void {
 			// deploy the contract using a transparent proxy
 			const { contract } = await deployProxy(ethers, userWallet)
 			proxy = contract
-
-			const partyBWhiteList = [accounts[2].address]
-			createDefaultPrivateQuoteRequest = () => PrivateUser.createDefaultPrivateQuoteRequest(partyBWhiteList)
 		})
 
 		it("Should work through proxy call", async function () {
-			const request = createDefaultPrivateQuoteRequest()
-			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
+			const request = limitQuoteRequestBuilder().build()
 
 			const contractAddress = await proxy.getAddress()
 			const selector = proxy.interface.getFunction("privateParamsTest").selector
@@ -119,12 +111,12 @@ export function shouldBehaveLikePrivateParamsTest(): void {
 				affiliate: request.affiliate,
 			}
 
-			const encryptedPrice = await userWallet.encryptUint256(request.price, contractAddress, selector)
-			const encryptedQuantity = await userWallet.encryptUint256(request.quantity, contractAddress, selector)
-			const encryptedCva = await userWallet.encryptUint256(request.cva, contractAddress, selector)
-			const encryptedLf = await userWallet.encryptUint256(request.lf, contractAddress, selector)
-			const encryptedPartyAmm = await userWallet.encryptUint256(request.partyAmm, contractAddress, selector)
-			const encryptedPartyBmm = await userWallet.encryptUint256(request.partyBmm, contractAddress, selector)
+			const encryptedPrice = await userWallet.encryptUint256(BigInt(request.price), contractAddress, selector)
+			const encryptedQuantity = await userWallet.encryptUint256(BigInt(request.quantity), contractAddress, selector)
+			const encryptedCva = await userWallet.encryptUint256(BigInt(request.cva), contractAddress, selector)
+			const encryptedLf = await userWallet.encryptUint256(BigInt(request.lf), contractAddress, selector)
+			const encryptedPartyAmm = await userWallet.encryptUint256(BigInt(request.partyAmm), contractAddress, selector)
+			const encryptedPartyBmm = await userWallet.encryptUint256(BigInt(request.partyBmm), contractAddress, selector)
 
 			const encryptedParams = {
 				encryptedPrice: encryptedPrice,
@@ -152,11 +144,11 @@ export function shouldBehaveLikePrivateParamsTest(): void {
 	})
 
 	describe("Direct Call Tests - Plaintext", function () {
-		let privatePartyAFacet: PrivatePartyAFacet
+		let privatePartyAFacet: PartyAFacet
 		beforeEach(async function () {
 			// deploy the contract directly
-			const PrivatePartyAFacetFactory = await ethers.getContractFactory("PrivatePartyAFacet")
-			privatePartyAFacet = await PrivatePartyAFacetFactory.deploy({ gasLimit: 12000000 })
+			const partyAFacetFactory = await ethers.getContractFactory("PartyAFacet")
+			privatePartyAFacet = await partyAFacetFactory.deploy({ gasLimit: 12000000 })
 			await privatePartyAFacet.waitForDeployment()
 			console.log(`deployed privatePartyAFacet at ${await privatePartyAFacet.getAddress()}`)
 
@@ -166,12 +158,10 @@ export function shouldBehaveLikePrivateParamsTest(): void {
 			const wallet2 = accounts[2]
 
 			const partyBWhiteList = [wallet2.address]
-			createDefaultPrivateQuoteRequest = () => PrivateUser.createDefaultPrivateQuoteRequest(partyBWhiteList)
 		})
 
 		it("Should emit PrivateParamsTest event when called directly", async function () {
-			const request = createDefaultPrivateQuoteRequest()
-			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
+			const request = limitQuoteRequestBuilder().build()
 
 			const basicParams = {
 				partyBsWhiteList: request.partyBWhiteList,
@@ -184,12 +174,12 @@ export function shouldBehaveLikePrivateParamsTest(): void {
 			}
 
 			const encryptedParams = {
-				encryptedPrice: request.price,
-				encryptedQuantity: request.quantity,
-				encryptedCva: request.cva,
-				encryptedLf: request.lf,
-				encryptedPartyAmm: request.partyAmm,
-				encryptedPartyBmm: request.partyBmm,
+				encryptedPrice: BigInt(request.price)	,
+				encryptedQuantity: BigInt(request.quantity),
+				encryptedCva: BigInt(request.cva),
+				encryptedLf: BigInt(request.lf),
+				encryptedPartyAmm: BigInt(request.partyAmm),
+				encryptedPartyBmm: BigInt(request.partyBmm),
 			}
 
 			const connectedContract = privatePartyAFacet.connect(userWallet)
@@ -219,12 +209,10 @@ export function shouldBehaveLikePrivateParamsTest(): void {
 			proxy = contract
 
 			const partyBWhiteList = [accounts[2].address]
-			createDefaultPrivateQuoteRequest = () => PrivateUser.createDefaultPrivateQuoteRequest(partyBWhiteList)
 		})
 
 		it("Should work through proxy call", async function () {
-			const request = createDefaultPrivateQuoteRequest()
-			request.upnlSig = await getDummySingleUpnlAndPriceSig(BigInt(request.price.toString()), 0n)
+			const request = limitQuoteRequestBuilder().build()
 
 			const basicParams = {
 				partyBsWhiteList: request.partyBWhiteList,
@@ -237,12 +225,12 @@ export function shouldBehaveLikePrivateParamsTest(): void {
 			}
 
 			const encryptedParams = {
-				encryptedPrice: request.price,
-				encryptedQuantity: request.quantity,
-				encryptedCva: request.cva,
-				encryptedLf: request.lf,
-				encryptedPartyAmm: request.partyAmm,
-				encryptedPartyBmm: request.partyBmm,
+				encryptedPrice: BigInt(request.price),
+				encryptedQuantity: BigInt(request.quantity),
+				encryptedCva: BigInt(request.cva),
+				encryptedLf: BigInt(request.lf),
+				encryptedPartyAmm: BigInt(request.partyAmm),
+				encryptedPartyBmm: BigInt(request.partyBmm),
 			}
 
 			// Call through the proxy

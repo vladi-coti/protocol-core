@@ -12,9 +12,7 @@ import {
 	PartyAFacet,
 	PartyBGroupActionsFacet,
 	PartyBPositionActionsFacet,
-	PartyBPositionActionsPrivateFacet,
 	PartyBQuoteActionsFacet,
-	PrivatePartyAFacet,
 	SettlementFacet,
 	ViewFacet,
 } from "../../src/types"
@@ -36,9 +34,6 @@ export class RunContext {
 	fundingRateFacet!: FundingRateFacet
 	settlementFacet!: SettlementFacet
 	forceActionsFacet!: ForceActionsFacet
-	// Private variables facets
-	privatePartyAFacet!: PrivatePartyAFacet
-	partyBPositionActionsPrivateFacet!: PartyBPositionActionsPrivateFacet
 	signers!: {
 		admin: SignerWithAddress
 		user: SignerWithAddress
@@ -101,10 +96,6 @@ export async function createRunContext(
 	context.fundingRateFacet = await ethers.getContractAt("FundingRateFacet", diamond)
 	context.settlementFacet = await ethers.getContractAt("SettlementFacet", diamond)
 	context.forceActionsFacet = await ethers.getContractAt("ForceActionsFacet", diamond)
-
-	// Initialize private facets
-	context.privatePartyAFacet = await ethers.getContractAt("PrivatePartyAFacet", diamond)
-	context.partyBPositionActionsPrivateFacet = await ethers.getContractAt("PartyBPositionActionsPrivateFacet", diamond)
 
 	context.manager = new TestManager(context, onlyInitialize)
 	if (!onlyInitialize) await context.manager.start()
