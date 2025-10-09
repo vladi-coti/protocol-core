@@ -89,7 +89,7 @@ export class User {
 		};
 
 		let tx = await this.context.partyAFacet.connect(this.signer).sendQuote(basicParams, encryptedParams, await request.upnlSig)
-
+		console.log("User::::SendQuote: " + tx.hash)
 		const receipt = await tx.wait()
 
 		if (receipt && receipt.logs) {

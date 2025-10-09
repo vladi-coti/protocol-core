@@ -1,11 +1,13 @@
 import {time} from "@nomicfoundation/hardhat-network-helpers"
 import {JsonSerializer} from "typescript-json-serializer"
+import {ctUint256} from "@coti-io/coti-ethers"
 
 import {OrderType, QuoteStatus} from "../models/Enums"
 import {RunContext} from "../models/RunContext"
 import {safeDiv} from "./SafeMath"
 import {network} from "hardhat"
 import {QuoteStructOutput, SymbolStructOutput} from "../../src/types/contracts/interfaces/ISymmio"
+import {User} from "../models/User"
 
 const defaultSerializer = new JsonSerializer()
 
@@ -23,19 +25,21 @@ export async function getBlockTimestamp(additional: bigint = 0n): Promise<bigint
 	if (network.name === "hardhat") {
 		return BigInt(await time.latest()) + 1n + additional
 	}
-	if (network.name === "coti-testnet") {
+	if (network.name === "coti-testnet" || network.name === "soda-testnet") {
 		return BigInt(Math.floor(Date.now() / 1000)) + additional * 10n
 	}
 	return 1722859307n
 }
 
-export async function getQuoteQuantity(context: RunContext, quoteId: bigint): Promise<bigint> {
-	return (await context.viewFacet.getQuote(quoteId)).quantity
+export async function getQuoteQuantity(context: RunContext, quoteId: bigint, user: User): Promise<bigint> {
+	const quote = await context.viewFacet.getQuote(quoteId);
+	// Properly decrypt the encrypted quantity using the user's wallet
+	return await user.decryptUint256(quote.quantity.userCiphertext);
 }
 
-export async function getQuoteMinLeftQuantityForClose(context: RunContext, quoteId: bigint): Promise<bigint> {
-	const openAmount = await getQuoteOpenAmount(context, quoteId)
-	const totalLocked = await getTotalLockedValuesForQuoteIds(context, [quoteId])
+export async function getQuoteMinLeftQuantityForClose(context: RunContext, quoteId: bigint, user: User): Promise<bigint> {
+	const openAmount = await getQuoteOpenAmount(context, quoteId, user)
+	const totalLocked = await getTotalLockedValuesForQuoteIds(context, [quoteId], user)
 
 	const q = await context.viewFacet.getQuote(quoteId)
 	const symbol: SymbolStructOutput = await context.viewFacet.getSymbol(q.symbolId)
@@ -43,9 +47,9 @@ export async function getQuoteMinLeftQuantityForClose(context: RunContext, quote
 	return safeDiv(symbol.minAcceptableQuoteValue * openAmount, totalLocked)
 }
 
-export async function getQuoteMinLeftQuantityForFill(context: RunContext, quoteId: bigint): Promise<bigint> {
-	const openAmount = await getQuoteOpenAmount(context, quoteId)
-	const totalLocked = await getTotalLockedValuesForQuoteIds(context, [quoteId])
+export async function getQuoteMinLeftQuantityForFill(context: RunContext, quoteId: bigint, user: User): Promise<bigint> {
+	const openAmount = await getQuoteOpenAmount(context, quoteId, user)
+	const totalLocked = await getTotalLockedValuesForQuoteIds(context, [quoteId], user)
 
 	const q = await context.viewFacet.getQuote(quoteId)
 	const symbol: SymbolStructOutput = await context.viewFacet.getSymbol(q.symbolId)
@@ -53,27 +57,44 @@ export async function getQuoteMinLeftQuantityForFill(context: RunContext, quoteI
 	return safeDiv(symbol.minAcceptableQuoteValue * openAmount, totalLocked)
 }
 
-export async function getQuoteOpenAmount(context: RunContext, quoteId: bigint): Promise<bigint> {
+export async function getQuoteOpenAmount(context: RunContext, quoteId: bigint, user: User): Promise<bigint> {
 	const q = await context.viewFacet.getQuote(quoteId)
-	return q.quantity - q.closedAmount
+	const quantity = await user.decryptUint256(q.quantity.userCiphertext);
+	const closedAmount = await user.decryptUint256(q.closedAmount.userCiphertext);
+	return quantity - closedAmount;
 }
 
-export async function getQuoteNotFilledAmount(context: RunContext, quoteId: bigint): Promise<bigint> {
+export async function getQuoteNotFilledAmount(context: RunContext, quoteId: bigint, user: User): Promise<bigint> {
 	const q = await context.viewFacet.getQuote(quoteId)
-	return q.quantityToClose - q.closedAmount
+	const quantityToClose = await user.decryptUint256(q.quantityToClose.userCiphertext);
+	const closedAmount = await user.decryptUint256(q.closedAmount.userCiphertext);
+	return quantityToClose - closedAmount;
 }
 
 export async function getTotalPartyALockedValuesForQuotes(
 	quotes: QuoteStructOutput[],
+	user: User,
 	includeMM: boolean = true,
 	returnAfterOpened: boolean = true,
 ): Promise<bigint> {
 	let out = 0n
 	for (const q of quotes) {
-		let addition = q.lockedValues.cva + q.lockedValues.lf
-		if (includeMM) addition += q.lockedValues.partyAmm
+		// Properly decrypt encrypted values using the user's wallet
+		const cva = await user.decryptUint256(q.lockedValues.cva.userCiphertext);
+		const lf = await user.decryptUint256(q.lockedValues.lf.userCiphertext);
+		let addition = cva + lf;
+		
+		if (includeMM) {
+			const partyAmm = await user.decryptUint256(q.lockedValues.partyAmm.userCiphertext);
+			addition += partyAmm;
+		}
+		
 		if (returnAfterOpened && q.orderType === BigInt(OrderType.LIMIT)) {
-			if (q.requestedOpenPrice < q.openedPrice) addition *= q.openedPrice / q.requestedOpenPrice
+			const requestedOpenPrice = await user.decryptUint256(q.requestedOpenPrice.userCiphertext);
+			const openedPrice = await user.decryptUint256(q.openedPrice.userCiphertext);
+			if (requestedOpenPrice < openedPrice) {
+				addition = addition * openedPrice / requestedOpenPrice;
+			}
 		}
 		out += addition
 	}
@@ -82,15 +103,28 @@ export async function getTotalPartyALockedValuesForQuotes(
 
 export async function getTotalPartyBLockedValuesForQuotes(
 	quotes: QuoteStructOutput[],
+	user: User,
 	includeMM: boolean = true,
 	returnAfterOpened: boolean = true,
 ): Promise<bigint> {
 	let out = 0n
 	for (const q of quotes) {
-		let addition = q.lockedValues.cva + q.lockedValues.lf
-		if (includeMM) addition += q.lockedValues.partyBmm
+		// Properly decrypt encrypted values using the user's wallet
+		const cva = await user.decryptUint256(q.lockedValues.cva.userCiphertext);
+		const lf = await user.decryptUint256(q.lockedValues.lf.userCiphertext);
+		let addition = cva + lf;
+		
+		if (includeMM) {
+			const partyBmm = await user.decryptUint256(q.lockedValues.partyBmm.userCiphertext);
+			addition += partyBmm;
+		}
+		
 		if (returnAfterOpened && q.orderType === BigInt(OrderType.LIMIT)) {
-			if (q.requestedOpenPrice < q.openedPrice) addition *= q.openedPrice / q.requestedOpenPrice
+			const requestedOpenPrice = await user.decryptUint256(q.requestedOpenPrice.userCiphertext);
+			const openedPrice = await user.decryptUint256(q.openedPrice.userCiphertext);
+			if (requestedOpenPrice < openedPrice) {
+				addition = addition * openedPrice / requestedOpenPrice;
+			}
 		}
 		out += addition
 	}
@@ -100,31 +134,46 @@ export async function getTotalPartyBLockedValuesForQuotes(
 export async function getTotalLockedValuesForQuoteIds(
 	context: RunContext,
 	quoteIds: bigint[],
+	user: User,
 	includeMM: boolean = true,
 	returnAfterOpened: boolean = true,
 ): Promise<bigint> {
 	let quotes: QuoteStructOutput[] = []
 	for (const quoteId of quoteIds) quotes.push(await context.viewFacet.getQuote(quoteId))
-	return getTotalPartyALockedValuesForQuotes(quotes, includeMM, returnAfterOpened)
+	return getTotalPartyALockedValuesForQuotes(quotes, user, includeMM, returnAfterOpened)
 }
 
-export async function getTradingFeeForQuotes(context: RunContext, quoteIds: bigint[]): Promise<bigint> {
+export async function getTradingFeeForQuotes(context: RunContext, quoteIds: bigint[], user: User): Promise<bigint> {
 	let out = 0n
 	for (const quoteId of quoteIds) {
 		let q = await context.viewFacet.getQuote(quoteId)
 		let tf = (await context.viewFacet.getSymbol(q.symbolId)).tradingFee
-		if (q.orderType === BigInt(OrderType.LIMIT)) out += unDecimal(q.quantity * q.requestedOpenPrice * tf, 36)
-		else out += unDecimal(q.quantity * q.marketPrice * tf, 36)
+		
+		const quantity = await user.decryptUint256(q.quantity.userCiphertext);
+		
+		if (q.orderType === BigInt(OrderType.LIMIT)) {
+			const requestedOpenPrice = await user.decryptUint256(q.requestedOpenPrice.userCiphertext);
+			out += unDecimal(quantity * requestedOpenPrice * tf, 36)
+		} else {
+			const marketPrice = await user.decryptUint256(q.marketPrice.userCiphertext);
+			out += unDecimal(quantity * marketPrice * tf, 36)
+		}
 	}
 	return out
 }
 
-export async function getTradingFeeForQuoteWithFilledAmount(context: RunContext, quoteId: bigint, filledAmounts: bigint): Promise<bigint> {
+export async function getTradingFeeForQuoteWithFilledAmount(context: RunContext, quoteId: bigint, filledAmounts: bigint, user: User): Promise<bigint> {
 	let out = 0n
 	let q = await context.viewFacet.getQuote(quoteId)
 	let tf = (await context.viewFacet.getSymbol(q.symbolId)).tradingFee
-	if (q.orderType === BigInt(OrderType.LIMIT)) out += unDecimal(filledAmounts * q.requestedOpenPrice * tf, 36)
-	else out += unDecimal(filledAmounts * q.marketPrice * tf, 36)
+	
+	if (q.orderType === BigInt(OrderType.LIMIT)) {
+		const requestedOpenPrice = await user.decryptUint256(q.requestedOpenPrice.userCiphertext);
+		out += unDecimal(filledAmounts * requestedOpenPrice * tf, 36)
+	} else {
+		const marketPrice = await user.decryptUint256(q.marketPrice.userCiphertext);
+		out += unDecimal(filledAmounts * marketPrice * tf, 36)
+	}
 	return out
 }
 

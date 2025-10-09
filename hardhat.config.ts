@@ -38,7 +38,7 @@ const config: HardhatUserConfig = {
 	defaultNetwork: "soda-testnet",
 	gasReporter: {
 		currency: "USD",
-		enabled: true,
+		enabled: false,
 		excludeContracts: [],
 		src: "./contracts",
 	},
@@ -49,9 +49,8 @@ const config: HardhatUserConfig = {
 			accounts: privateKeyList,
 			gasPrice: 1000000000,
 			gasMultiplier: 1.5, // Increased multiplier
-			blockGasLimit: 15000000,
+			blockGasLimit: 30000000,
 			timeout: 120000, // Increased timeout to 2 minutes
-			allowUnlimitedContractSize: true,
 			initialBaseFeePerGas: 1200000000, // 1.2 gwei
 		},
 		"coti-testnet": {
@@ -63,7 +62,6 @@ const config: HardhatUserConfig = {
 			gasMultiplier: 1.5, // Increased multiplier
 			blockGasLimit: 30000000,
 			timeout: 120000, // Increased timeout to 2 minutes
-			allowUnlimitedContractSize: true,
 			initialBaseFeePerGas: 1200000000, // 1.2 gwei
 			hardfork: "london",
 		},

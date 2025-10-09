@@ -99,16 +99,13 @@ library PartyAFacetImpl {
 
 		// Only decrypt the final validation result for require check
 		bool allValidationsPassedDecrypted = MpcCore.decrypt(allValidationsPassed);
-		require(MpcCore.decrypt(lfSufficient),"1");
-		require(MpcCore.decrypt(quoteSufficient),"2");
-		// require(MpcCore.decrypt(balanceSufficient),"3");
-		// require(allValidationsPassedDecrypted, "PartyAFacet: Validation failed");
+		require(allValidationsPassedDecrypted, "PartyAFacet: Validation failed");
 
-		// // Additional non-encrypted validations
+		// Additional non-encrypted validations
 		for (uint8 i = 0; i < partyBsWhiteList.length; i++) {
 			require(partyBsWhiteList[i] != msg.sender, "PartyAFacet: Sender isn't allowed in partyBWhiteList");
 		}
-		require(maLayout.affiliateStatus[affiliate] || affiliate == address(0), "PartyAFacet: Invalid affiliate");
+		// require(maLayout.affiliateStatus[affiliate] || affiliate == address(0), "PartyAFacet: Invalid affiliate");
 
 		LibMuonPartyA.verifyPartyAUpnlAndPrice(upnlSig, msg.sender, symbolId);
 

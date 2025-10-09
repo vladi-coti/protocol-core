@@ -5,7 +5,7 @@ import { initializeFixture } from "./Initialize.fixture"
 import { RunContext } from "./models/RunContext"
 import { User } from "./models/User"
 import { Hedger } from "./models/Hedger"
-import { decimal } from "./utils/Common"
+import { decimal, getQuoteQuantity } from "./utils/Common"
 import { getDummySingleUpnlAndPriceSig } from "./utils/SignatureUtils"
 import { loadFixtureCompatible } from "./utils/testHelpers"
 import { setupAccounts } from "./utils/accounts"
@@ -22,9 +22,7 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 		context = await loadFixtureCompatible(initializeFixture)
 
 		// Setup private wallets using Coti accounts
-		const accounts = await setupAccounts()
-		userWallet = accounts[1]
-		user2Wallet = accounts[2]
+		const [_, userWallet, user2Wallet] = await setupAccounts()
 
 		privateUser = new User(context, userWallet)
 		privateUser2 = new User(context, user2Wallet)
@@ -49,6 +47,10 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 			const quoteId = await privateUser.sendQuote()
 			expect(quoteId).to.be.a("string")
 			expect(BigInt(quoteId)).to.be.greaterThan(0)
+			console.log("SendPrivateQuote.behavior.ts::::quoteId: " + quoteId)
+
+			const quantity = await getQuoteQuantity(context, quoteId, privateUser)
+			console.log("SendPrivateQuote.behavior.ts::::quantity: " + quantity)
 		})
 
 		it("Should create quote with placeholder values in public storage", async function () {
