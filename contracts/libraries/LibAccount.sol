@@ -21,7 +21,7 @@ library LibAccount {
 	 */
 	function getUserEncryptionAddress(address user) internal view returns (address) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		return accountLayout.userEncryptionAddress[user];
+		 return accountLayout.userEncryptionAddress[user] == address(0) ? user : accountLayout.userEncryptionAddress[user];
 	}
 
 	/**
