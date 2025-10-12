@@ -57,5 +57,5 @@ const marketDefaultQuoteRequest: QuoteRequest = {
 	upnlSig: getDummySingleUpnlAndPriceSig(decimal(1n)),
 }
 
-export const limitQuoteRequestBuilder = () => Builder(limitDefaultQuoteRequest)
+export const limitQuoteRequestBuilder = (overrideAffiliate?: string) => Builder({...limitDefaultQuoteRequest, affiliate: overrideAffiliate || limitDefaultQuoteRequest.affiliate})
 export const marketQuoteRequestBuilder = () => Builder(marketDefaultQuoteRequest)
