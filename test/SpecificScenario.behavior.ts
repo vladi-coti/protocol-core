@@ -1,4 +1,4 @@
-import {loadFixture} from "@nomicfoundation/hardhat-network-helpers"
+import {loadFixtureCompatible} from "./utils/testHelpers"
 import {Builder} from "builder-pattern"
 import {ethers} from "hardhat"
 
@@ -14,7 +14,7 @@ import {getDummySingleUpnlAndPriceSig} from "./utils/SignatureUtils"
 
 export function shouldBehaveLikeSpecificScenario(): void {
 	beforeEach(async function () {
-		this.context = await loadFixture(initializeFixture)
+		this.context = await loadFixtureCompatible(initializeFixture)
 	})
 
 	it("Closing position with allocated less than quote value and with positive upnl", async function () {

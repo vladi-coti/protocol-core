@@ -1,4 +1,4 @@
-import {loadFixture, time} from "@nomicfoundation/hardhat-network-helpers"
+import {loadFixtureCompatible, timeCompatible} from "./utils/testHelpers"
 import {expect} from "chai"
 
 import {initializeFixture} from "./Initialize.fixture"
@@ -17,7 +17,7 @@ export function shouldBehaveLikeLockQuote(): void {
 	let context: RunContext, user: User, hedger: Hedger, hedger2: Hedger
 
 	beforeEach(async function () {
-		context = await loadFixture(initializeFixture)
+		context = await loadFixtureCompatible(initializeFixture)
 		this.user_allocated = decimal(700n)
 		this.hedger_allocated = decimal(4000n)
 
@@ -84,7 +84,7 @@ export function shouldBehaveLikeLockQuote(): void {
 	})
 
 	it("Should fail on expired quote", async function () {
-		await time.increase(1000)
+		await timeCompatible.increase(1000)
 		await expect(hedger.lockQuote(1)).to.be.revertedWith("PartyBFacet: Quote is expired")
 	})
 
@@ -117,7 +117,7 @@ export function shouldBehaveLikeLockQuote(): void {
 		})
 
 		it("Should expire quote during unlock", async function () {
-			await time.increase(1000)
+			await timeCompatible.increase(1000)
 			await hedger.unlockQuote(1)
 			let q: QuoteStruct = await context.viewFacet.getQuote(1)
 			expect(q.quoteStatus).to.be.equal(QuoteStatus.EXPIRED)

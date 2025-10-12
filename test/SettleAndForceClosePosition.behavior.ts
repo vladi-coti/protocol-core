@@ -1,4 +1,4 @@
-import {loadFixture, time} from "@nomicfoundation/hardhat-network-helpers"
+import {loadFixtureCompatible, timeCompatible} from "./utils/testHelpers"
 
 import {initializeFixture} from "./Initialize.fixture"
 import {PositionType, QuoteStatus} from "./models/Enums"
@@ -20,7 +20,7 @@ export function shouldBehaveLikeSettleAndForceClosePosition(): void {
 	let quote1LongOpened: QuoteStructOutput, quote2ShortOpened: QuoteStructOutput
 
 	beforeEach(async function () {
-		context = await loadFixture(initializeFixture)
+		context = await loadFixtureCompatible(initializeFixture)
 		this.user_allocated = decimal(500n)
 		this.hedger_allocated = decimal(300n)
 
@@ -79,7 +79,7 @@ export function shouldBehaveLikeSettleAndForceClosePosition(): void {
 		const secondCooldown = cooldowns[1]
 		const startTime = firstCooldown + now
 		const endTime = firstCooldown + now + period
-		await time.increase(firstCooldown + period + secondCooldown + 1n)
+		await timeCompatible.increase(firstCooldown + period + secondCooldown + 1n)
 		return [startTime, endTime]
 	}
 

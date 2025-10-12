@@ -1,4 +1,4 @@
-import {loadFixture, time} from "@nomicfoundation/hardhat-network-helpers"
+import {loadFixtureCompatible, timeCompatible} from "./utils/testHelpers"
 import {expect} from "chai"
 
 import {initializeFixture} from "./Initialize.fixture"
@@ -32,7 +32,7 @@ export function shouldBehaveLikeClosePosition(): void {
 		quote4LongOpened: QuoteStructOutput
 
 	beforeEach(async function () {
-		context = await loadFixture(initializeFixture)
+		context = await loadFixtureCompatible(initializeFixture)
 		this.user_allocated = decimal(500n)
 		this.hedger_allocated = decimal(4000n)
 
@@ -202,7 +202,7 @@ export function shouldBehaveLikeClosePosition(): void {
 				.closePrice(decimal(1n, 17))
 				.build(),
 		)
-		await time.increase(1000)
+		await timeCompatible.increase(1000)
 		await context.partyAFacet.expireQuote([1])
 		let q = await context.viewFacet.getQuote(1)
 		expect(q.quoteStatus).to.be.equal(QuoteStatus.OPENED)
@@ -390,7 +390,7 @@ export function shouldBehaveLikeClosePosition(): void {
 		})
 
 		it("Should fail due to expired request", async function () {
-			await time.increase(1000)
+			await timeCompatible.increase(1000)
 			let closePrice = decimal(11n, 17)
 			await expect(
 				hedger.fillCloseRequest(
@@ -511,7 +511,7 @@ export function shouldBehaveLikeClosePosition(): void {
 		})
 
 		it("Should expire request", async function () {
-			await time.increase(1000)
+			await timeCompatible.increase(1000)
 			await user.requestToCancelCloseRequest(1)
 			expect((await context.viewFacet.getQuote(1)).quoteStatus).to.be.equal(QuoteStatus.OPENED)
 		})
@@ -557,7 +557,7 @@ export function shouldBehaveLikeClosePosition(): void {
 			it("Should force cancel close request", async function () {
 				await expect(user.forceCancelCloseRequest(2)).to.be.revertedWith("PartyAFacet: Invalid state")
 				await expect(user.forceCancelCloseRequest(1)).to.be.revertedWith("PartyAFacet: Cooldown not reached")
-				await time.increase(300)
+				await timeCompatible.increase(300)
 				await user.forceCancelCloseRequest(1)
 				expect((await context.viewFacet.getQuote(1)).quoteStatus).to.be.eq(QuoteStatus.OPENED)
 			})

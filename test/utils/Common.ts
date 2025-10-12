@@ -1,6 +1,6 @@
 import {time} from "@nomicfoundation/hardhat-network-helpers"
 import {JsonSerializer} from "typescript-json-serializer"
-import {ctUint256} from "@coti-io/coti-ethers"
+import {ctUint256, Wallet} from "@coti-io/coti-ethers"
 
 import {OrderType, QuoteStatus} from "../models/Enums"
 import {RunContext} from "../models/RunContext"
@@ -31,13 +31,13 @@ export async function getBlockTimestamp(additional: bigint = 0n): Promise<bigint
 	return 1722859307n
 }
 
-export async function getQuoteQuantity(context: RunContext, quoteId: bigint, user: User): Promise<bigint> {
+export async function getQuoteQuantity(context: RunContext, quoteId: bigint, user: Wallet = context.signers.user): Promise<bigint> {
 	const quote = await context.viewFacet.getQuote(quoteId);
 	// Properly decrypt the encrypted quantity using the user's wallet
 	return await user.decryptUint256(quote.quantity.userCiphertext);
 }
 
-export async function getQuoteMinLeftQuantityForClose(context: RunContext, quoteId: bigint, user: User): Promise<bigint> {
+export async function getQuoteMinLeftQuantityForClose(context: RunContext, quoteId: bigint, user: Wallet = context.signers.user): Promise<bigint> {
 	const openAmount = await getQuoteOpenAmount(context, quoteId, user)
 	const totalLocked = await getTotalLockedValuesForQuoteIds(context, [quoteId], user)
 
@@ -47,7 +47,7 @@ export async function getQuoteMinLeftQuantityForClose(context: RunContext, quote
 	return safeDiv(symbol.minAcceptableQuoteValue * openAmount, totalLocked)
 }
 
-export async function getQuoteMinLeftQuantityForFill(context: RunContext, quoteId: bigint, user: User): Promise<bigint> {
+export async function getQuoteMinLeftQuantityForFill(context: RunContext, quoteId: bigint, user: Wallet = context.signers.user): Promise<bigint> {
 	const openAmount = await getQuoteOpenAmount(context, quoteId, user)
 	const totalLocked = await getTotalLockedValuesForQuoteIds(context, [quoteId], user)
 
@@ -57,14 +57,14 @@ export async function getQuoteMinLeftQuantityForFill(context: RunContext, quoteI
 	return safeDiv(symbol.minAcceptableQuoteValue * openAmount, totalLocked)
 }
 
-export async function getQuoteOpenAmount(context: RunContext, quoteId: bigint, user: User): Promise<bigint> {
+export async function getQuoteOpenAmount(context: RunContext, quoteId: bigint, user: Wallet = context.signers.user): Promise<bigint> {
 	const q = await context.viewFacet.getQuote(quoteId)
 	const quantity = await user.decryptUint256(q.quantity.userCiphertext);
 	const closedAmount = await user.decryptUint256(q.closedAmount.userCiphertext);
 	return quantity - closedAmount;
 }
 
-export async function getQuoteNotFilledAmount(context: RunContext, quoteId: bigint, user: User): Promise<bigint> {
+export async function getQuoteNotFilledAmount(context: RunContext, quoteId: bigint, user: Wallet = context.signers.user): Promise<bigint> {
 	const q = await context.viewFacet.getQuote(quoteId)
 	const quantityToClose = await user.decryptUint256(q.quantityToClose.userCiphertext);
 	const closedAmount = await user.decryptUint256(q.closedAmount.userCiphertext);
@@ -73,7 +73,7 @@ export async function getQuoteNotFilledAmount(context: RunContext, quoteId: bigi
 
 export async function getTotalPartyALockedValuesForQuotes(
 	quotes: QuoteStructOutput[],
-	user: User,
+	user: Wallet,
 	includeMM: boolean = true,
 	returnAfterOpened: boolean = true,
 ): Promise<bigint> {
@@ -134,7 +134,7 @@ export async function getTotalPartyBLockedValuesForQuotes(
 export async function getTotalLockedValuesForQuoteIds(
 	context: RunContext,
 	quoteIds: bigint[],
-	user: User,
+	user: Wallet,
 	includeMM: boolean = true,
 	returnAfterOpened: boolean = true,
 ): Promise<bigint> {
@@ -143,7 +143,7 @@ export async function getTotalLockedValuesForQuoteIds(
 	return getTotalPartyALockedValuesForQuotes(quotes, user, includeMM, returnAfterOpened)
 }
 
-export async function getTradingFeeForQuotes(context: RunContext, quoteIds: bigint[], user: User): Promise<bigint> {
+export async function getTradingFeeForQuotes(context: RunContext, quoteIds: bigint[], user: Wallet = context.signers.user): Promise<bigint> {
 	let out = 0n
 	for (const quoteId of quoteIds) {
 		let q = await context.viewFacet.getQuote(quoteId)
@@ -162,7 +162,7 @@ export async function getTradingFeeForQuotes(context: RunContext, quoteIds: bigi
 	return out
 }
 
-export async function getTradingFeeForQuoteWithFilledAmount(context: RunContext, quoteId: bigint, filledAmounts: bigint, user: User): Promise<bigint> {
+export async function getTradingFeeForQuoteWithFilledAmount(context: RunContext, quoteId: bigint, filledAmounts: bigint, user: Wallet = context.signers.user): Promise<bigint> {
 	let out = 0n
 	let q = await context.viewFacet.getQuote(quoteId)
 	let tf = (await context.viewFacet.getSymbol(q.symbolId)).tradingFee

@@ -1,10 +1,10 @@
-import {loadFixture} from "@nomicfoundation/hardhat-network-helpers"
+import {loadFixtureCompatible} from "./utils/testHelpers"
 import {RunContext} from "./models/RunContext"
 import {initializeFixture} from "./Initialize.fixture"
 import {expect} from "chai"
 import {keccak256} from "js-sha3"
-import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers"
 import {ethers} from "hardhat"
+import {Wallet} from "@coti-io/coti-ethers";
 
 const DISPUTE_ROLE = `0x${keccak256("DISPUTE_ROLE")}`
 const PARTY_B_MANAGER_ROLE = `0x${keccak256("PARTY_B_MANAGER_ROLE")}`
@@ -17,14 +17,14 @@ const UNPAUSER_ROLE = `0x${keccak256("UNPAUSER_ROLE")}`
 
 export function shouldBehaveLikeControlFacet(): void {
 	let context: RunContext
-	let owner: SignerWithAddress
-	let user2: SignerWithAddress
-	let hedger: SignerWithAddress
-	let hedger2: SignerWithAddress
-	let hedger3: SignerWithAddress
+	let owner: Wallet
+	let user2: Wallet
+	let hedger: Wallet
+	let hedger2: Wallet
+	let hedger3: Wallet
 
 	beforeEach(async function () {
-		context = await loadFixture(initializeFixture)
+		context = await loadFixtureCompatible(initializeFixture)
 		owner = context.signers.user
 		user2 = context.signers.user2
 		hedger = context.signers.hedger

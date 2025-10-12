@@ -17,7 +17,8 @@ import {
 	ViewFacet,
 } from "../../src/types"
 import { TestManager } from "./TestManager"
-import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers"
+import { Wallet } from "@coti-io/coti-ethers";
+import { setupAccounts } from "../utils/accounts";
 
 export class RunContext {
 	accountFacet!: AccountFacet
@@ -35,17 +36,17 @@ export class RunContext {
 	settlementFacet!: SettlementFacet
 	forceActionsFacet!: ForceActionsFacet
 	signers!: {
-		admin: SignerWithAddress
-		user: SignerWithAddress
-		user2: SignerWithAddress
-		liquidator: SignerWithAddress
-		hedger: SignerWithAddress
-		hedger2: SignerWithAddress
-		bridge: SignerWithAddress
-		bridge2: SignerWithAddress
-		feeCollector: SignerWithAddress
-		feeCollector2: SignerWithAddress
-		others: SignerWithAddress[]
+		admin: Wallet
+		user: Wallet
+		user2: Wallet
+		liquidator: Wallet
+		hedger: Wallet
+		hedger2: Wallet
+		bridge: Wallet
+		bridge2: Wallet
+		feeCollector: Wallet
+		feeCollector2: Wallet
+		others: Wallet[]
 	}
 	diamond!: string
 	multiAccount!: string
@@ -63,7 +64,7 @@ export async function createRunContext(
 ): Promise<RunContext> {
 	let context = new RunContext()
 
-	const signers: SignerWithAddress[] = await ethers.getSigners()
+	const signers = await setupAccounts()
 	context.signers = {
 		admin: signers[0],
 		user: signers[1],

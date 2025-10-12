@@ -1,4 +1,4 @@
-import {loadFixture, time} from "@nomicfoundation/hardhat-network-helpers"
+import {loadFixtureCompatible, timeCompatible} from "./utils/testHelpers"
 import {expect} from "chai"
 
 import {initializeFixture} from "./Initialize.fixture"
@@ -28,7 +28,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 		quote4LongOpened: QuoteStructOutput
 
 	beforeEach(async function () {
-		context = await loadFixture(initializeFixture)
+		context = await loadFixtureCompatible(initializeFixture)
 		this.user_allocated = decimal(500n)
 		this.hedger_allocated = decimal(4000n)
 
@@ -103,7 +103,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 		const secondCooldown = cooldowns[1]
 		const startTime = firstCooldown + now
 		const endTime = firstCooldown + now + period
-		await time.increase(firstCooldown + period + secondCooldown + 1n)
+		await timeCompatible.increase(firstCooldown + period + secondCooldown + 1n)
 		return [startTime, endTime]
 	}
 

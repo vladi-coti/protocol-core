@@ -1,31 +1,20 @@
 import { expect } from "chai"
-import { ethers } from "hardhat"
-import { Wallet } from "@coti-io/coti-ethers"
 import { initializeFixture } from "./Initialize.fixture"
 import { RunContext } from "./models/RunContext"
 import { User } from "./models/User"
-import { Hedger } from "./models/Hedger"
 import { decimal, getQuoteQuantity } from "./utils/Common"
-import { getDummySingleUpnlAndPriceSig } from "./utils/SignatureUtils"
 import { loadFixtureCompatible } from "./utils/testHelpers"
-import { setupAccounts } from "./utils/accounts"
 
 export function shouldBehaveLikeSendPrivateQuote(): void {
 	let context: RunContext
 	let privateUser: User
 	let privateUser2: User
-	let hedger: Hedger
-	let userWallet: Wallet
-	let user2Wallet: Wallet
 
 	beforeEach(async function () {
 		context = await loadFixtureCompatible(initializeFixture)
 
-		// Setup private wallets using Coti accounts
-		const [_, userWallet, user2Wallet] = await setupAccounts()
-
-		privateUser = new User(context, userWallet)
-		privateUser2 = new User(context, user2Wallet)
+		privateUser = new User(context, context.signers.user)
+		privateUser2 = new User(context, context.signers.user2)
 
 		// Setup balances
 		await privateUser.setup()
@@ -33,11 +22,6 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 
 		await privateUser2.setup()
 		await privateUser2.setBalances(decimal(2000n), decimal(1000n), decimal(500n))
-
-		// Setup hedger
-		hedger = new Hedger(context, context.signers.hedger)
-		await hedger.setup()
-		await hedger.setBalances(decimal(4000n), decimal(4000n))
 
 		const partyBWhiteList = [await privateUser2.getAddress()]
 	})

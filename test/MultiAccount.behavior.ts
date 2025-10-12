@@ -1,4 +1,4 @@
-import {loadFixture, time} from "@nomicfoundation/hardhat-network-helpers"
+import {loadFixtureCompatible, timeCompatible} from "./utils/testHelpers"
 import {expect} from "chai"
 import {AbiCoder, BigNumberish} from "ethers"
 import {ethers, upgrades} from "hardhat"
@@ -61,7 +61,7 @@ export function shouldBehaveLikeMultiAccount() {
 	let symmioPartyB: any
 
 	beforeEach(async () => {
-		context = await loadFixture(initializeFixture)
+		context = await loadFixtureCompatible(initializeFixture)
 		symmioAddress = context.diamond
 
 		user = new User(context, context.signers.user)
@@ -205,7 +205,7 @@ export function shouldBehaveLikeMultiAccount() {
 				await expect(multiAccount.connect(context.signers.user).revokeAccesses(partyAAccount, user2Address, [selector]))
 					.to.be.revertedWith("MultiAccount: Cooldown not reached")
 
-				await time.increase(301)
+				await timeCompatible.increase(301)
 				await multiAccount.connect(context.signers.user).revokeAccesses(partyAAccount, user2Address, [selector])
 				expect(await multiAccount.delegatedAccesses(partyAAccount, user2Address, selector)).to.be.equal(false)
 			})

@@ -1,4 +1,4 @@
-import {loadFixture} from "@nomicfoundation/hardhat-network-helpers"
+import {loadFixtureCompatible} from "./utils/testHelpers"
 import {expect} from "chai"
 
 import {initializeFixture} from "./Initialize.fixture"
@@ -19,7 +19,7 @@ export function shouldBehaveLikeEmergencyClosePosition(): void {
 		quote4LongOpened: QuoteStructOutput
 
 	beforeEach(async function () {
-		context = await loadFixture(initializeFixture)
+		context = await loadFixtureCompatible(initializeFixture)
 		this.user_allocated = decimal(500n)
 		this.hedger_allocated = decimal(4000n)
 

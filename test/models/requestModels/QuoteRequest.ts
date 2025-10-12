@@ -1,5 +1,5 @@
 import {Builder} from "builder-pattern"
-import {BigNumberish} from "ethers"
+import {BigNumberish, ZeroAddress} from "ethers"
 
 import {SingleUpnlAndPriceSigStruct} from "../../../src/types/contracts/facets/PartyA/PartyAFacet"
 import {decimal, getBlockTimestamp} from "../../utils/Common"
@@ -36,7 +36,7 @@ const limitDefaultQuoteRequest: QuoteRequest = {
 	lf: decimal(3n),
 	maxFundingRate: decimal(2n, 16),
 	deadline: getBlockTimestamp(500n),
-	affiliate: "0xc6e7DF5E7b4f2A278906862b61205850344D4e7d", //FIXME find a better way
+	affiliate: ZeroAddress, //FIXME find a better way
 	upnlSig: getDummySingleUpnlAndPriceSig(decimal(1n)),
 }
 
@@ -53,9 +53,9 @@ const marketDefaultQuoteRequest: QuoteRequest = {
 	lf: decimal(3n),
 	maxFundingRate: decimal(2n, 16),
 	deadline: getBlockTimestamp(500n),
-	affiliate: "0xc6e7DF5E7b4f2A278906862b61205850344D4e7d", //FIXME find a better way
+	affiliate: ZeroAddress, //FIXME find a better way
 	upnlSig: getDummySingleUpnlAndPriceSig(decimal(1n)),
 }
 
-export const limitQuoteRequestBuilder = (overrideAffiliate?: string) => Builder({...limitDefaultQuoteRequest, affiliate: overrideAffiliate || limitDefaultQuoteRequest.affiliate})
+export const limitQuoteRequestBuilder = () => Builder(limitDefaultQuoteRequest)
 export const marketQuoteRequestBuilder = () => Builder(marketDefaultQuoteRequest)

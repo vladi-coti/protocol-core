@@ -50,7 +50,7 @@ export class User {
 		await setBalance(this.signer.address, amount)
 	}
 
-	public async sendQuote(request: QuoteRequest = limitQuoteRequestBuilder(this.context.multiAccount).build()): Promise<bigint> {
+	public async sendQuote(request: QuoteRequest = limitQuoteRequestBuilder().affiliate(this.context.multiAccount).build()): Promise<bigint> {
 		logger.detailedDebug(
 			serializeToJson({
 				request: request,
@@ -301,7 +301,7 @@ export class User {
 	public async liquidateAndSetSymbolPrices(
 		symbolIds: bigint[],
 		prices: bigint[],
-		liquidator: SignerWithAddress = this.context.signers.liquidator,
+		liquidator: Wallet = this.context.signers.liquidator,
 	): Promise<LiquidationSigStruct> {
 		const upnl = await this.getUpnl(getPriceFetcher(symbolIds, prices))
 		const totalUnrealizedLoss = await this.getTotalUnrealisedLoss(getPriceFetcher(symbolIds, prices))
@@ -312,11 +312,11 @@ export class User {
 		return sign
 	}
 
-	public async liquidatePendingPositions(liquidator: SignerWithAddress = this.context.signers.liquidator) {
+	public async liquidatePendingPositions(liquidator: Wallet = this.context.signers.liquidator) {
 		await this.context.liquidationFacet.connect(liquidator).liquidatePendingPositionsPartyA(this.getAddress())
 	}
 
-	public async liquidatePositions(positions: BigNumberish[] = [], liquidator: SignerWithAddress = this.context.signers.liquidator) {
+	public async liquidatePositions(positions: BigNumberish[] = [], liquidator: Wallet = this.context.signers.liquidator) {
 		if (positions.length == 0) positions = (await this.getOpenPositions()).map(value => value.id)
 		await this.context.liquidationFacet.connect(liquidator).liquidatePositionsPartyA(this.getAddress(), positions)
 	}
@@ -334,8 +334,8 @@ export class User {
 	}
 
 	public async settleLiquidation(
-		partyB: SignerWithAddress = this.context.signers.hedger,
-		liquidator: SignerWithAddress = this.context.signers.liquidator,
+		partyB: Wallet = this.context.signers.hedger,
+		liquidator: Wallet = this.context.signers.liquidator,
 	): Promise<void> {
 		await this.context.liquidationFacet.connect(liquidator).settlePartyALiquidation(await this.getAddress(), [await partyB.getAddress()])
 	}

@@ -1,4 +1,3 @@
-import {loadFixture, time} from "@nomicfoundation/hardhat-network-helpers"
 import {expect} from "chai"
 
 import {initializeFixture} from "./Initialize.fixture"
@@ -9,12 +8,13 @@ import {limitQuoteRequestBuilder, marketQuoteRequestBuilder} from "./models/requ
 import {SendQuoteValidator} from "./models/validators/SendQuoteValidator"
 import {decimal, getBlockTimestamp, pausePartyA} from "./utils/Common"
 import {getDummySingleUpnlAndPriceSig} from "./utils/SignatureUtils"
+import {loadFixtureCompatible, timeCompatible} from "./utils/testHelpers";
 
 export function shouldBehaveLikeSendQuote(): void {
 	let user: User, context: RunContext
 
 	beforeEach(async function () {
-		context = await loadFixture(initializeFixture)
+		context = await loadFixtureCompatible(initializeFixture)
 		this.user_allocated = decimal(1200n)
 		user = new User(context, context.signers.user)
 		await user.setup()
@@ -93,7 +93,7 @@ export function shouldBehaveLikeSendQuote(): void {
 	it("Should expire", async function () {
 		let qId = await user.sendQuote(limitQuoteRequestBuilder().deadline(getBlockTimestamp(100n)).build())
 		await expect(context.partyAFacet.expireQuote([qId])).to.be.revertedWith("LibQuote: Quote isn't expired")
-		await time.increase(1000)
+		await timeCompatible.increase(1000)
 		await context.partyAFacet.expireQuote([1])
 		expect((await context.viewFacet.getQuote(1)).quoteStatus).to.be.equal(QuoteStatus.EXPIRED)
 	})

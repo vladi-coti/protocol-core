@@ -1,4 +1,4 @@
-import {loadFixture, time} from "@nomicfoundation/hardhat-network-helpers"
+import {loadFixtureCompatible, timeCompatible} from "./utils/testHelpers"
 import {expect} from "chai"
 
 import {initializeFixture} from "./Initialize.fixture"
@@ -17,7 +17,7 @@ export function shouldBehaveLikeCancelQuote(): void {
 	let context: RunContext, user: User, hedger: Hedger, hedger2: Hedger
 
 	beforeEach(async function () {
-		context = await loadFixture(initializeFixture)
+		context = await loadFixtureCompatible(initializeFixture)
 		this.user_allocated = decimal(500n)
 		this.hedger_allocated = decimal(4000n)
 
@@ -85,7 +85,7 @@ export function shouldBehaveLikeCancelQuote(): void {
 			user: user,
 			quoteId: BigInt(1),
 		})
-		await time.increase(1000)
+		await timeCompatible.increase(1000)
 		await user.requestToCancelQuote(1)
 		await validator.after(context, {
 			user: user,
@@ -192,7 +192,7 @@ export function shouldBehaveLikeCancelQuote(): void {
 				await expect(user.forceCancelQuote(1)).to.be.revertedWith("PartyAFacet: Invalid state")
 				await user.requestToCancelQuote(1)
 				await expect(user.forceCancelQuote(1)).to.be.revertedWith("PartyAFacet: Cooldown not reached")
-				await time.increase(300)
+				await timeCompatible.increase(300)
 				await user.forceCancelQuote(1)
 				expect((await context.viewFacet.getQuote(1)).quoteStatus).to.be.eq(QuoteStatus.CANCELED)
 			})

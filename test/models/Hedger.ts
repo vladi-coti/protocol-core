@@ -12,12 +12,12 @@ import {FillCloseRequest, limitFillCloseRequestBuilder} from "./requestModels/Fi
 import {limitOpenRequestBuilder, OpenRequest} from "./requestModels/OpenRequest"
 import {runTx} from "../utils/TxUtils"
 import {PairUpnlSigStructOutput} from "../../src/types/contracts/facets/FundingRate/FundingRateFacet"
-import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers"
+import { Wallet } from "@coti-io/coti-ethers";
 import {QuoteStructOutput, SingleUpnlSigStructOutput} from "../../src/types/contracts/interfaces/ISymmio"
 import {SettlementSigStructOutput} from "../../src/types/contracts/facets/Settlement/SettlementFacet"
 
 export class Hedger {
-	constructor(private context: RunContext, private signer: SignerWithAddress) {
+	constructor(private context: RunContext, private signer: Wallet) {
 	}
 
 	public async setup() {

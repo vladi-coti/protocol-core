@@ -1,4 +1,4 @@
-import {loadFixture, time} from "@nomicfoundation/hardhat-network-helpers"
+import {loadFixtureCompatible, timeCompatible} from "./utils/testHelpers"
 import {RunContext} from "./models/RunContext"
 import {User} from "./models/User"
 import {initializeFixture} from "./Initialize.fixture"
@@ -7,14 +7,14 @@ import {TransferToBridgeValidator} from "./models/validators/TransferToBridgeVal
 import {decimal} from "./utils/Common"
 import {WithdrawLockedTransactionValidator} from "./models/validators/WithdrawLockedTransactionValidator"
 import {BridgeTransactionStatus} from "./models/Enums"
-import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers"
+import { Wallet } from "@coti-io/coti-ethers";
 
 export function shouldBehaveLikeBridgeFacet(): void {
 	let context: RunContext, user: User
-	let bridge: SignerWithAddress, bridge2: SignerWithAddress
+	let bridge: Wallet, bridge2: Wallet
 
 	beforeEach(async function () {
-		context = await loadFixture(initializeFixture)
+		context = await loadFixtureCompatible(initializeFixture)
 		bridge = context.signers.bridge // whitelisted
 		bridge2 = context.signers.bridge2 // not whitelist
 		user = new User(context, context.signers.user)
@@ -72,7 +72,7 @@ export function shouldBehaveLikeBridgeFacet(): void {
 				.to.be.revertedWith("BridgeFacet: Invalid transactionId")
 			await context.bridgeFacet.connect(context.signers.admin).suspendBridgeTransaction(1)
 			expect((await context.viewFacet.getBridgeTransaction(1)).status).to.be.eq(BridgeTransactionStatus.SUSPENDED)
-			await time.increase(43250) //12h
+			await timeCompatible.increase(43250) //12h
 			await context.bridgeFacet.connect(context.signers.bridge2).withdrawReceivedBridgeValue(2)
 			await expect(context.bridgeFacet.connect(context.signers.admin).suspendBridgeTransaction(2))
 				.to.be.revertedWith("BridgeFacet: Invalid status")
@@ -104,7 +104,7 @@ export function shouldBehaveLikeBridgeFacet(): void {
 		})
 
 		it("Should fail when sender is not the transaction's bridge", async function () {
-			await time.increase(43250) //12h
+			await timeCompatible.increase(43250) //12h
 			await expect(context.bridgeFacet.connect(context.signers.bridge2).withdrawReceivedBridgeValue(1)).to.be.revertedWith(
 				"BridgeFacet: Sender is not the transaction's bridge",
 			)
@@ -117,7 +117,7 @@ export function shouldBehaveLikeBridgeFacet(): void {
 		})
 
 		it("Should fail when bridgeTransaction status in not valid", async function () {
-			await time.increase(43250) //12h
+			await timeCompatible.increase(43250) //12h
 			await context.bridgeFacet.connect(context.signers.bridge).withdrawReceivedBridgeValue(1)
 			await expect(context.bridgeFacet.connect(context.signers.bridge).withdrawReceivedBridgeValue(1)).to.be.revertedWith(
 				"BridgeFacet: Already withdrawn",
@@ -125,7 +125,7 @@ export function shouldBehaveLikeBridgeFacet(): void {
 		})
 
 		it("Should single withdraw successfully", async function () {
-			await time.increase(43250) //12h
+			await timeCompatible.increase(43250) //12h
 			const validator = new WithdrawLockedTransactionValidator()
 			const beforeOut = await validator.before(context, {
 				transactionId: BigInt(3),
@@ -142,7 +142,7 @@ export function shouldBehaveLikeBridgeFacet(): void {
 
 		it("Should withdraw Received Bridge Values successfully", async function () {
 			await context.controlFacet.addBridge(await bridge.getAddress())
-			await time.increase(43250) //12h
+			await timeCompatible.increase(43250) //12h
 			await context.bridgeFacet.connect(context.signers.bridge).withdrawReceivedBridgeValues([1, 3])
 
 			expect((await context.viewFacet.getBridgeTransaction(1)).status).to.be.equal(BridgeTransactionStatus.WITHDRAWN)

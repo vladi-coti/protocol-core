@@ -1,4 +1,4 @@
-import {loadFixture} from "@nomicfoundation/hardhat-network-helpers"
+import {loadFixtureCompatible} from "./utils/testHelpers"
 
 import {initializeFixture} from "./Initialize.fixture"
 import {PositionType} from "./models/Enums"
@@ -17,7 +17,7 @@ export function shouldBehaveLikeSettlement(): void {
 		longClosed: bigint, longHedger1User2: bigint
 
 	beforeEach(async function () {
-		context = await loadFixture(initializeFixture)
+		context = await loadFixtureCompatible(initializeFixture)
 		this.user_allocated = decimal(700n)
 		this.hedger_allocated = decimal(4000n)
 

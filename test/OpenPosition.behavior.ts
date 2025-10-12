@@ -1,4 +1,4 @@
-import {loadFixture, time} from "@nomicfoundation/hardhat-network-helpers"
+import {loadFixtureCompatible, timeCompatible} from "./utils/testHelpers"
 import {expect} from "chai"
 import {initializeFixture} from "./Initialize.fixture"
 import {PositionType, QuoteStatus} from "./models/Enums"
@@ -14,7 +14,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 	let context: RunContext, user: User, hedger: Hedger, hedger2: Hedger
 
 	beforeEach(async function () {
-		context = await loadFixture(initializeFixture)
+		context = await loadFixtureCompatible(initializeFixture)
 		this.user_allocated = decimal(500n)
 		this.hedger_allocated = decimal(4000n)
 
@@ -162,7 +162,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 	})
 
 	it("Should fail to open expired quote", async function () {
-		await time.increase(1000)
+		await timeCompatible.increase(1000)
 		await expect(
 			hedger.openPosition(
 				1,
