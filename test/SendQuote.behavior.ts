@@ -90,10 +90,10 @@ export function shouldBehaveLikeSendQuote(): void {
 		).to.be.revertedWith("PartyAFacet: insufficient available balance")
 	})
 
-	it("Should expire", async function () {
-		let qId = await user.sendQuote(limitQuoteRequestBuilder().deadline(getBlockTimestamp(100n)).build())
+	it("Quote should expire", async function () {
+		let qId = await user.sendQuote(limitQuoteRequestBuilder().deadline(getBlockTimestamp(5n)).build())
 		await expect(context.partyAFacet.expireQuote([qId])).to.be.revertedWith("LibQuote: Quote isn't expired")
-		await timeCompatible.increase(1000)
+		await timeCompatible.increase(10)
 		await context.partyAFacet.expireQuote([1])
 		expect((await context.viewFacet.getQuote(1)).quoteStatus).to.be.equal(QuoteStatus.EXPIRED)
 	})

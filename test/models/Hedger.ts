@@ -56,7 +56,9 @@ export class Hedger {
 	public async lockQuote(id: BigNumberish, upnl: bigint = 0n, allocateCoefficient: bigint | null = decimal(12n, 17)) {
 		if (allocateCoefficient != null) {
 			const quote = await this.context.viewFacet.getQuote(id)
-			const notional = unDecimal(BigInt(quote.quantity) * quote.requestedOpenPrice)
+			const quantity = await this.signer.decryptUint256(quote.quantity.userCiphertext)
+			const requestedOpenPrice = await this.signer.decryptUint256(quote.requestedOpenPrice.userCiphertext)
+			const notional = unDecimal(quantity * requestedOpenPrice)
 			await runTx(
 				this.context.accountFacet.connect(this.signer).allocateForPartyB(unDecimal(notional * BigInt(allocateCoefficient)), quote.partyA)
 			)
@@ -74,7 +76,9 @@ export class Hedger {
 	public async lockAndOpenQuote(id: BigNumberish, allocateCoefficient: bigint | null = decimal(12n, 17), openRequest: OpenRequest = limitOpenRequestBuilder().build()) {
 		if (allocateCoefficient != null) {
 			const quote = await this.context.viewFacet.getQuote(id)
-			const notional = unDecimal(BigInt(quote.quantity) * quote.requestedOpenPrice)
+			const quantity = await this.signer.decryptUint256(quote.quantity.userCiphertext)
+			const requestedOpenPrice = await this.signer.decryptUint256(quote.requestedOpenPrice.userCiphertext)
+			const notional = unDecimal(quantity * requestedOpenPrice)
 			await runTx(
 				this.context.accountFacet.connect(this.signer).allocateForPartyB(unDecimal(notional * BigInt(allocateCoefficient)), quote.partyA)
 			)
@@ -121,21 +125,36 @@ export class Hedger {
 	}
 
 	public async getBalanceInfo(partyA: string): Promise<BalanceInfo> {
-		const b = await this.context.viewFacet.balanceInfoOfPartyB(await this.getAddress(), partyA)
+		const result = await this.context.viewFacet.balanceInfoOfPartyB(await this.getAddress(), partyA)
+		const allocatedBalances = result[0]
+		const lockedBalances = result[1]
+		const pendingLockedBalances = result[2]
+		
+		// Decrypt the encrypted locked values
+		const lockedCva = await this.signer.decryptUint256(lockedBalances.cva)
+		const lockedLf = await this.signer.decryptUint256(lockedBalances.lf)
+		const lockedMmPartyA = await this.signer.decryptUint256(lockedBalances.partyAmm)
+		const lockedMmPartyB = await this.signer.decryptUint256(lockedBalances.partyBmm)
+		
+		const pendingLockedCva = await this.signer.decryptUint256(pendingLockedBalances.cva)
+		const pendingLockedLf = await this.signer.decryptUint256(pendingLockedBalances.lf)
+		const pendingLockedMmPartyA = await this.signer.decryptUint256(pendingLockedBalances.partyAmm)
+		const pendingLockedMmPartyB = await this.signer.decryptUint256(pendingLockedBalances.partyBmm)
+		
 		return {
-			allocatedBalances: b[0],
-			lockedCva: b[1],
-			lockedLf: b[2],
-			lockedMmPartyA: b[3],
-			lockedMmPartyB: b[4],
-			totalLockedPartyA: b[1] + b[2] + b[3],
-			totalLockedPartyB: b[1] + b[2] + b[4],
-			pendingLockedCva: b[5],
-			pendingLockedLf: b[6],
-			pendingLockedMmPartyA: b[7],
-			pendingLockedMmPartyB: b[8],
-			totalPendingLockedPartyA: b[5] + b[6] + b[7],
-			totalPendingLockedPartyB: b[5] + b[6] + b[8],
+			allocatedBalances,
+			lockedCva,
+			lockedLf,
+			lockedMmPartyA,
+			lockedMmPartyB,
+			totalLockedPartyA: lockedCva + lockedLf + lockedMmPartyA,
+			totalLockedPartyB: lockedCva + lockedLf + lockedMmPartyB,
+			pendingLockedCva,
+			pendingLockedLf,
+			pendingLockedMmPartyA,
+			pendingLockedMmPartyB,
+			totalPendingLockedPartyA: pendingLockedCva + pendingLockedLf + pendingLockedMmPartyA,
+			totalPendingLockedPartyB: pendingLockedCva + pendingLockedLf + pendingLockedMmPartyB,
 		}
 	}
 
@@ -244,9 +263,14 @@ export class Hedger {
 
 		let upnl = 0n
 		for (const pos of openPositions) {
-			const priceDiff = pos.openedPrice - await getPrice()
-			const amount = pos.quantity - pos.closedAmount
-			upnl += unDecimal(BigInt(amount) * priceDiff) * (pos.positionType === BigInt(PositionType.LONG) ? -1n : 1n)
+			// Decrypt encrypted quote fields
+			const openedPrice = await this.signer.decryptUint256(pos.openedPrice.userCiphertext)
+			const quantity = await this.signer.decryptUint256(pos.quantity.userCiphertext)
+			const closedAmount = await this.signer.decryptUint256(pos.closedAmount.userCiphertext)
+			
+			const priceDiff = openedPrice - await getPrice()
+			const amount = quantity - closedAmount
+			upnl += unDecimal(amount * priceDiff) * (pos.positionType === BigInt(PositionType.LONG) ? -1n : 1n)
 		}
 		return upnl
 	}

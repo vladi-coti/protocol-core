@@ -212,7 +212,7 @@ export function shouldBehaveLikeMultiAccount() {
 
 			it("should send quote with delegate access", async () => {
 				let quoteRequest1 = limitQuoteRequestBuilder().build()
-				let sendQuote1 = context.partyAFacet.interface.encodeFunctionData("sendQuoteWithAffiliate", await getListFormatOfQuoteRequest(quoteRequest1))
+				let sendQuote1 = context.partyAFacet.interface.encodeFunctionData("sendQuote", await getListFormatOfQuoteRequest(quoteRequest1))
 				await multiAccount.connect(context.signers.user).delegateAccess(partyAAccount, user2Address, selector)
 				await multiAccount.connect(context.signers.user2)._call(partyAAccount, [sendQuote1])
 				expect((await context.viewFacet.getQuote(1)).quoteStatus).to.be.equal(QuoteStatus.PENDING)
@@ -293,7 +293,7 @@ export function shouldBehaveLikeMultiAccount() {
 
 		it("Should be able to send Quotes", async () => {
 			let quoteRequest1 = limitQuoteRequestBuilder().build()
-			let sendQuote1 = context.partyAFacet.interface.encodeFunctionData("sendQuoteWithAffiliate", await getListFormatOfQuoteRequest(quoteRequest1))
+			let sendQuote1 = context.partyAFacet.interface.encodeFunctionData("sendQuote", await getListFormatOfQuoteRequest(quoteRequest1))
 			await multiAccount.connect(context.signers.user)._call(partyAAccount, [sendQuote1])
 			expect((await context.viewFacet.getQuote(1)).quoteStatus).to.be.equal(QuoteStatus.PENDING)
 		})
@@ -301,9 +301,9 @@ export function shouldBehaveLikeMultiAccount() {
 		describe("Locking quotes", function () {
 			beforeEach(async () => {
 				let quoteRequest1 = marketQuoteRequestBuilder().build()
-				let sendQuote1 = context.partyAFacet.interface.encodeFunctionData("sendQuoteWithAffiliate", await getListFormatOfQuoteRequest(quoteRequest1))
+				let sendQuote1 = context.partyAFacet.interface.encodeFunctionData("sendQuote", await getListFormatOfQuoteRequest(quoteRequest1))
 				let quoteRequest2 = marketQuoteRequestBuilder().positionType(PositionType.SHORT).build()
-				let sendQuote2 = context.partyAFacet.interface.encodeFunctionData("sendQuoteWithAffiliate", await getListFormatOfQuoteRequest(quoteRequest2))
+				let sendQuote2 = context.partyAFacet.interface.encodeFunctionData("sendQuote", await getListFormatOfQuoteRequest(quoteRequest2))
 
 				await context.collateral.connect(context.signers.admin).mint(await symmioPartyB.getAddress(), decimal(1000000n))
 
@@ -335,9 +335,10 @@ export function shouldBehaveLikeMultiAccount() {
 
 				it("Should be able to Open Quote", async () => {
 					let openPosition2 = marketOpenRequestBuilder().build()
+					let openPositionParams = await getListFormatOfOpenRequest(openPosition2)
 					let openPositionCallData2 = context.partyBPositionActionsFacet.interface.encodeFunctionData("openPosition", [
 						1,
-						...(await getListFormatOfOpenRequest(openPosition2)),
+						...openPositionParams,
 					])
 					await symmioPartyB.connect(context.signers.admin)._call([openPositionCallData2])
 
@@ -348,17 +349,19 @@ export function shouldBehaveLikeMultiAccount() {
 					beforeEach(async () => {
 						//! open Position
 						let openPosition2 = marketOpenRequestBuilder().build()
+						let openPositionParams = await getListFormatOfOpenRequest(openPosition2)
 						let openPositionCallData2 = context.partyBPositionActionsFacet.interface.encodeFunctionData("openPosition", [
 							1,
-							...(await getListFormatOfOpenRequest(openPosition2)),
+							...openPositionParams,
 						])
 						await symmioPartyB.connect(context.signers.admin)._call([openPositionCallData2])
 					})
 					it("request to close position", async () => {
 						let closeRequest1 = marketCloseRequestBuilder().build()
+						let closeRequestParams = await getListFormatOfCloseRequest(closeRequest1)
 						let closeRequestCallData1 = context.partyAFacet.interface.encodeFunctionData("requestToClosePosition", [
 							1,
-							...(await getListFormatOfCloseRequest(closeRequest1)),
+							...closeRequestParams,
 						])
 						await multiAccount.connect(context.signers.user)._call(partyAAccount, [closeRequestCallData1])
 
@@ -367,18 +370,20 @@ export function shouldBehaveLikeMultiAccount() {
 					describe("Request to fill close", function () {
 						beforeEach(async () => {
 							let closeRequest = marketCloseRequestBuilder().build()
+							let closeRequestParams = await getListFormatOfCloseRequest(closeRequest)
 							let closeRequestCallData = context.partyAFacet.interface.encodeFunctionData("requestToClosePosition", [
 								1,
-								...(await getListFormatOfCloseRequest(closeRequest)),
+								...closeRequestParams,
 							])
 							await multiAccount.connect(context.signers.user)._call(partyAAccount, [closeRequestCallData])
 						})
 
 						it("Should fill close quote", async () => {
 							let fillCloseRequest = marketFillCloseRequestBuilder().build()
+							let fillCloseRequestParams = await getListFormatOfFillCloseRequest(fillCloseRequest)
 							let fillCloseRequestCallData = context.partyBPositionActionsFacet.interface.encodeFunctionData("fillCloseRequest", [
 								1,
-								...(await getListFormatOfFillCloseRequest(fillCloseRequest)),
+								...fillCloseRequestParams,
 							])
 							await symmioPartyB.connect(context.signers.admin)._call([fillCloseRequestCallData])
 

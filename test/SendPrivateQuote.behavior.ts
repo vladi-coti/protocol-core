@@ -33,7 +33,7 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 			expect(BigInt(quoteId)).to.be.greaterThan(0)
 			console.log("SendPrivateQuote.behavior.ts::::quoteId: " + quoteId)
 
-			const quantity = await getQuoteQuantity(context, quoteId, privateUser)
+			const quantity = await getQuoteQuantity(context, quoteId, privateUser.getPrivateWallet())
 			console.log("SendPrivateQuote.behavior.ts::::quantity: " + quantity)
 		})
 

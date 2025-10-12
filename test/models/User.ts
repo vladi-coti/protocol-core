@@ -14,7 +14,6 @@ import {getDummyLiquidationSig} from "../utils/SignatureUtils"
 import {LiquidationSigStruct} from "../../src/types/contracts/facets/liquidation/LiquidationFacet"
 import {PrivateQuoteParamsStruct, QuoteBasicParamsStruct, QuoteStructOutput, SettlementSigStruct} from "../../src/types/contracts/interfaces/ISymmio"
 import {HighLowPriceSigStruct} from "../../src/types/contracts/facets/ForceActions/ForceActionsFacet"
-import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers"
 
 export class User {
 	constructor(protected context: RunContext, protected signer: Wallet) {

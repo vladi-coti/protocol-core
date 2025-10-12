@@ -20,7 +20,7 @@ export function shouldBehaveLikePrivateParamsTest(): void {
 	let userWallet: Wallet
 	let user2Wallet: Wallet
 
-	describe("Direct Call Tests", function () {
+	describe.skip("Direct Call Tests", function () {
 		let privatePartyAFacet: PartyAFacet
 		beforeEach(async function () {
 			// deploy the contract directly

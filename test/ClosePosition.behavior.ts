@@ -352,7 +352,7 @@ export function shouldBehaveLikeClosePosition(): void {
 			let price = decimal(11n, 17)
 			let closePrice = decimal(1n)
 			let userAvailable = this.user_allocated
-				- (await getTotalLockedValuesForQuoteIds(context, [2n, 4n], false))
+				- (await getTotalLockedValuesForQuoteIds(context, [2n, 4n], context.signers.user, false))
 				- (await getTradingFeeForQuotes(context, [1n, 2n, 3n, 4n]))
 				- (unDecimal(quantity * (price - closePrice)))
 
@@ -372,7 +372,7 @@ export function shouldBehaveLikeClosePosition(): void {
 			price = decimal(1n, 17)
 			closePrice = decimal(1n)
 			userAvailable = this.user_allocated
-				- (await getTotalLockedValuesForQuoteIds(context, [1n, 4n], false))
+				- (await getTotalLockedValuesForQuoteIds(context, [1n, 4n], context.signers.user, false))
 				- (await getTradingFeeForQuotes(context, [1n, 2n, 3n, 4n]))
 				- (unDecimal(quantity * (closePrice - price)))
 
