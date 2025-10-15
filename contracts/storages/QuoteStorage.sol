@@ -99,6 +99,12 @@ struct EncryptedQuoteValues {
 	ctUint256 tradingFee;
 }
 
+// Struct to hold encrypted position values for OpenPosition events
+struct EncryptedPositionValues {
+	ctUint256 filledAmount;
+	ctUint256 openedPrice;
+}
+
 struct PrivateQuoteParams {
 	itUint256 encryptedPrice;
 	itUint256 encryptedQuantity;
@@ -106,6 +112,12 @@ struct PrivateQuoteParams {
 	itUint256 encryptedLf;
 	itUint256 encryptedPartyAmm;
 	itUint256 encryptedPartyBmm;
+}
+
+// Struct to hold encrypted open position parameters
+struct PrivateOpenPositionParams {
+	itUint256 encryptedFilledAmount;
+	itUint256 encryptedOpenedPrice;
 }
 
 struct QuoteBasicParams {

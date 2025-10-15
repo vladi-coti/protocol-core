@@ -7,7 +7,7 @@ pragma solidity >=0.8.18;
 import "./IPartyBPositionActionsEvents.sol";
 
 interface IPartyBPositionActionsFacet is IPartyBPositionActionsEvents {
-	function openPosition(uint256 quoteId, uint256 filledAmount, uint256 openedPrice, PairUpnlAndPriceSig memory upnlSig) external;
+	function openPosition(uint256 quoteId, PrivateOpenPositionParams calldata encryptedParams, PairUpnlAndPriceSig memory upnlSig) external;
 
 	function fillCloseRequest(uint256 quoteId, uint256 filledAmount, uint256 closedPrice, PairUpnlAndPriceSig memory upnlSig) external;
 

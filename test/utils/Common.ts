@@ -223,3 +223,61 @@ export function getPriceFetcher(symbolIds: bigint[], prices: bigint[]): (symbolI
 		throw new Error("Invalid price requested")
 	}
 }
+
+/**
+ * Helper function to decrypt encrypted position values from OpenPositionForPartyA/PartyB events
+ * @param context The run context
+ * @param encryptedValues The encrypted position values from the event
+ * @param userAddress The address of the user whose encryption key to use
+ * @returns Decrypted filledAmount and openedPrice
+ */
+export async function decryptPositionValues(
+	context: RunContext,
+	encryptedValues: { filledAmount: any; openedPrice: any },
+	userAddress: string
+): Promise<{ filledAmount: bigint; openedPrice: bigint }> {
+	// Get the user to decrypt the values
+	const user = context.manager.getUser(userAddress)
+	const filledAmount = await user.decryptUint256(encryptedValues.filledAmount)
+	const openedPrice = await user.decryptUint256(encryptedValues.openedPrice)
+	
+	return { filledAmount, openedPrice }
+}
+
+/**
+ * Helper function to extract and decrypt position data from OpenPositionForPartyA event
+ * @param context The run context
+ * @param eventData The event data from OpenPositionForPartyA
+ * @returns Decrypted position data
+ */
+export async function getDecryptedPositionDataFromPartyAEvent(
+	context: RunContext,
+	eventData: any
+): Promise<{ filledAmount: bigint; openedPrice: bigint; quoteId: bigint; partyA: string; partyB: string }> {
+	const decryptedValues = await decryptPositionValues(context, eventData.values, eventData.partyA)
+	return {
+		...decryptedValues,
+		quoteId: eventData.quoteId,
+		partyA: eventData.partyA,
+		partyB: eventData.partyB
+	}
+}
+
+/**
+ * Helper function to extract and decrypt position data from OpenPositionForPartyB event
+ * @param context The run context
+ * @param eventData The event data from OpenPositionForPartyB
+ * @returns Decrypted position data
+ */
+export async function getDecryptedPositionDataFromPartyBEvent(
+	context: RunContext,
+	eventData: any
+): Promise<{ filledAmount: bigint; openedPrice: bigint; quoteId: bigint; partyA: string; partyB: string }> {
+	const decryptedValues = await decryptPositionValues(context, eventData.values, eventData.partyB)
+	return {
+		...decryptedValues,
+		quoteId: eventData.quoteId,
+		partyA: eventData.partyA,
+		partyB: eventData.partyB
+	}
+}

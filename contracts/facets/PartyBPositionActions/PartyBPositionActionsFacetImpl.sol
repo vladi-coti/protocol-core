@@ -17,8 +17,8 @@ library PartyBPositionActionsFacetImpl {
 
 	function openPosition(
 		uint256 quoteId,
-		uint256 filledAmount,
-		uint256 openedPrice,
+		gtUint256 gtFilledAmount,
+		gtUint256 gtOpenedPrice,
 		PairUpnlAndPriceSig memory upnlSig
 	) internal returns (uint256 currentId) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
@@ -34,17 +34,12 @@ library PartyBPositionActionsFacetImpl {
 		accountLayout.partyANonces[quote.partyA] += 1;
 		accountLayout.partyBNonces[quote.partyB][quote.partyA] += 1;
 
-		currentId = LibPartyBPositionsActions.openPosition(quoteId, filledAmount, openedPrice);
-		uint256[] memory quoteIds = new uint256[](1);
-		uint256[] memory filledAmounts = new uint256[](1);
-		uint256[] memory marketPrices = new uint256[](1);
-		quoteIds[0] = quoteId;
-		filledAmounts[0] = filledAmount;
-		marketPrices[0] = upnlSig.price;
+		currentId = LibPartyBPositionsActions.openPosition(quoteId, gtFilledAmount, gtOpenedPrice);
 		LibSolvency.isSolventAfterOpenPosition(
-			quoteIds,
-			filledAmounts,
-			marketPrices,
+			quoteId,
+			gtFilledAmount,
+			gtOpenedPrice,
+			upnlSig.price,
 			upnlSig.upnlPartyB,
 			upnlSig.upnlPartyA,
 			quote.partyB,

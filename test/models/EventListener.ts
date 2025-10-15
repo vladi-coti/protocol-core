@@ -138,6 +138,21 @@ export class EventListener {
 			this.eventTrackQueues.get(Event.OPEN_POSITION)!.next(value)
 			this.queues.get(QuoteStatus.OPENED)!.next(value.quoteId)
 		})
+		// Listen for new encrypted OpenPosition events
+		context.partyBFacet.on(context.partyBFacet.filters.OpenPositionForPartyA, async (...args) => {
+			let value = (args[args.length - 1]! as any).args
+			logger.detailedEventDebug("OpenPositionForPartyA event received")
+			logger.detailedEventDebug(value)
+			// Note: This event contains encrypted data, so we can't directly use the values
+			// The old OpenPosition event is still emitted for backward compatibility
+		})
+		context.partyBFacet.on(context.partyBFacet.filters.OpenPositionForPartyB, async (...args) => {
+			let value = (args[args.length - 1]! as any).args
+			logger.detailedEventDebug("OpenPositionForPartyB event received")
+			logger.detailedEventDebug(value)
+			// Note: This event contains encrypted data, so we can't directly use the values
+			// The old OpenPosition event is still emitted for backward compatibility
+		})
 		context.partyBFacet.on(context.partyBFacet.filters.AcceptCancelCloseRequest, async (...args) => {
 			let value: AcceptCancelCloseRequestEvent.OutputObject = (args[args.length - 1]! as any).args //FIXME: Will probably not work
 			logger.detailedEventDebug("AcceptCancelCloseRequest event received")

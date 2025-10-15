@@ -19,26 +19,46 @@ contract PartyBPositionActionsFacet is Accessibility, Pausable, IPartyBPositionA
 	 * 			Conversely, the position might be so small that it also falls beneath the minimum value.
 	 * 			Also, the remaining open portion of the position cannot fall below the minimum acceptable quote value for that particular symbol.
 	 * @param quoteId The ID of the quote for which the position is opened.
-	 * @param filledAmount PartyB has the option to open the position with either the full amount requested by the user or a specific fraction of it
-	 * @param openedPrice The opened price for the position.
+	 * @param encryptedParams Struct containing encrypted filledAmount and openedPrice parameters
 	 * @param upnlSig The Muon signature containing PairUpnlAndPriceSig data.
 	 */
 	function openPosition(
 		uint256 quoteId,
-		uint256 filledAmount,
-		uint256 openedPrice,
+		PrivateOpenPositionParams calldata encryptedParams,
 		PairUpnlAndPriceSig memory upnlSig
 	) external whenNotPartyBActionsPaused onlyPartyBOfQuote(quoteId) notLiquidated(quoteId) {
-		uint256 newId = PartyBPositionActionsFacetImpl.openPosition(quoteId, filledAmount, openedPrice, upnlSig);
+		// Validate and convert encrypted parameters to garbled values
+		gtUint256 gtFilledAmount = MpcCore.validateCiphertext(encryptedParams.encryptedFilledAmount);
+		gtUint256 gtOpenedPrice = MpcCore.validateCiphertext(encryptedParams.encryptedOpenedPrice);
+		
+		uint256 newId = PartyBPositionActionsFacetImpl.openPosition(quoteId, gtFilledAmount, gtOpenedPrice, upnlSig);
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
-		emit OpenPosition(quoteId, quote.partyA, quote.partyB, filledAmount, openedPrice);
+		
+		// Emit encrypted position events for both parties
+		{
+			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
+			EncryptedPositionValues memory partyAValues = EncryptedPositionValues({
+				filledAmount: MpcCore.offBoardToUser(gtFilledAmount, partyAEncryptionAddress),
+				openedPrice: MpcCore.offBoardToUser(gtOpenedPrice, partyAEncryptionAddress)
+			});
+			emit OpenPositionForPartyA(quoteId, quote.partyA, quote.partyB, partyAValues);
+		}
+		{
+			address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
+			EncryptedPositionValues memory partyBValues = EncryptedPositionValues({
+				filledAmount: MpcCore.offBoardToUser(gtFilledAmount, partyBEncryptionAddress),
+				openedPrice: MpcCore.offBoardToUser(gtOpenedPrice, partyBEncryptionAddress)
+			});
+			emit OpenPositionForPartyB(quoteId, quote.partyA, quote.partyB, partyBValues);
+		}
+		
 		if (newId != 0) {
 			Quote storage newQuote = QuoteStorage.layout().quotes[newId];
 			if (newQuote.quoteStatus == QuoteStatus.PENDING) {
 				gtUint256 gtPrice = MpcCore.onBoard(newQuote.requestedOpenPrice.ciphertext);
 				gtUint256 gtQuantity = MpcCore.onBoard(newQuote.quantity.ciphertext);
 				{
-					address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
+					address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(newQuote.partyA);
 					EncryptedQuoteValues memory partyAValues = EncryptedQuoteValues({
 						price: MpcCore.offBoardToUser(gtPrice, partyAEncryptionAddress),
 						marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyAEncryptionAddress),
@@ -51,7 +71,7 @@ contract PartyBPositionActionsFacet is Accessibility, Pausable, IPartyBPositionA
 					});
 					emit SendQuoteForPartyA(
 						msg.sender,
-						quoteId,
+						newId,
 						newQuote.partyBsWhiteList,
 						newQuote.symbolId,
 						newQuote.positionType,
@@ -75,7 +95,7 @@ contract PartyBPositionActionsFacet is Accessibility, Pausable, IPartyBPositionA
 						});
 						emit SendQuoteForPartyB(
 							msg.sender,
-							quoteId,
+							newId,
 							partyBEncryptionAddress,
 							newQuote.symbolId,
 							newQuote.positionType,
