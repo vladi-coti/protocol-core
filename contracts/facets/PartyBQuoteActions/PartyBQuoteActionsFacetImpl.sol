@@ -66,7 +66,13 @@ library PartyBQuoteActionsFacetImpl {
 		// send trading Fee back to partyA
 		gtUint256 gtFee = LibQuote.getTradingFee(quoteId);
 		uint256 fee = MpcCore.decrypt(gtFee);
-		accountLayout.allocatedBalances[quote.partyA] += fee;
+		
+		// Update allocated balance with encrypted operations
+		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
+		gtUint256 gtFeeAmount = MpcCore.setPublic256(fee);
+		gtUint256 gtNewBalance = gtCurrentBalance.add(gtFeeAmount);
+		accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, quote.partyA);
+		
 		emit SharedEvents.BalanceChangePartyA(quote.partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 
 		LibQuote.removeFromPendingQuotes(quote);

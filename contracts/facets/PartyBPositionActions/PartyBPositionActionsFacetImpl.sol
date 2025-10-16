@@ -109,7 +109,7 @@ library PartyBPositionActionsFacetImpl {
 		quote.requestedClosePrice = gtPrice.offBoardCombined(quote.partyA);
 		
 		// Check solvency with encrypted balance calculations
-		gtInt256 gtPartyAAvailable = LibAccount.partyAAvailableBalanceForLiquidation(upnlSig.upnlPartyA, accountLayout.allocatedBalances[quote.partyA], quote.partyA);
+		gtInt256 gtPartyAAvailable = LibAccount.partyAAvailableBalanceForLiquidation(upnlSig.upnlPartyA, quote.partyA);
 		gtInt256 gtPartyBAvailable = LibAccount.partyBAvailableBalanceForLiquidation(upnlSig.upnlPartyB, quote.partyB, quote.partyA);
 		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
 		

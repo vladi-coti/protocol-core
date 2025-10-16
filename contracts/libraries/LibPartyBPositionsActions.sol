@@ -20,7 +20,10 @@ library LibPartyBPositionsActions {
 	 * @param openedPrice The price at which to open
 	 */
 	function openPositionWithPrivacy(uint256 quoteId, uint256 filledAmount, uint256 openedPrice) internal returns (uint256 currentId) {
-		return openPosition(quoteId, filledAmount, openedPrice);
+		// Convert uint256 to gtUint256 for encrypted operations
+		gtUint256 gtFilledAmount = MpcCore.setPublic256(filledAmount);
+		gtUint256 gtOpenedPrice = MpcCore.setPublic256(openedPrice);
+		return openPosition(quoteId, gtFilledAmount, gtOpenedPrice);
 	}
 
 	function fillCloseRequest(uint256 quoteId, uint256 filledAmount, uint256 closedPrice) internal {
@@ -194,7 +197,13 @@ library LibPartyBPositionsActions {
 				// send trading Fee back to partyA
 				gtUint256 gtFee = LibQuote.getTradingFee(newQuote.id);
 				uint256 fee = MpcCore.decrypt(gtFee);
-				accountLayout.allocatedBalances[newQuote.partyA] += fee;
+				
+				// Update allocated balance with encrypted operations
+				gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[newQuote.partyA].ciphertext);
+				gtUint256 gtFeeAmount = MpcCore.setPublic256(fee);
+				gtUint256 gtNewBalance = gtCurrentBalance.add(gtFeeAmount);
+				accountLayout.allocatedBalances[newQuote.partyA] = MpcCore.offBoardCombined(gtNewBalance, newQuote.partyA);
+				
 				emit SharedEvents.BalanceChangePartyA(newQuote.partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 
 				// part of quote has been filled and part of it has been canceled

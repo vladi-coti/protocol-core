@@ -68,10 +68,15 @@ library LibLiquidation {
 			if (quote.partyB == partyB && (quote.quoteStatus == QuoteStatus.LOCKED || quote.quoteStatus == QuoteStatus.CANCEL_PENDING)) {
 				accountLayout.pendingLockedBalances[partyA].subQuote(quote);
 				
-				// Get encrypted trading fee and decrypt for balance update
+				// Get encrypted trading fee and update balance with encrypted operations
 				gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
 				uint256 fee = MpcCore.decrypt(gtFee);
-				accountLayout.allocatedBalances[partyA] += fee;
+				
+				// Update PartyA balance with encrypted operations
+				gtUint256 gtPartyABalanceFee = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
+				gtUint256 gtNewBalance = gtPartyABalanceFee.add(gtFee);
+				accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, partyA);
+				
 				emit SharedEvents.BalanceChangePartyA(partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 				
 				pendingQuotes[index] = pendingQuotes[pendingQuotes.length - 1];
@@ -83,20 +88,33 @@ library LibLiquidation {
 			}
 		}
 
-		// Update allocated balances for Party A
-		uint256 value = accountLayout.partyBAllocatedBalances[partyB][partyA] - remainingLf;
-		accountLayout.allocatedBalances[partyA] += value;
+		// Update allocated balances for Party A using encrypted operations
+		gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
+		gtUint256 gtRemainingLf = MpcCore.setPublic256(remainingLf);
+		gtUint256 gtValue = gtPartyBBalance.sub(gtRemainingLf);
+		uint256 value = MpcCore.decrypt(gtValue);
+		
+		// Update PartyA balance
+		gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
+		gtUint256 gtNewPartyABalance = gtPartyABalance.add(gtValue);
+		accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, partyA);
+		
 		emit SharedEvents.BalanceChangePartyA(partyA, value, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
 
 		// Clear pending quotes and reset balances for Party B
 		delete quoteLayout.partyBPendingQuotes[partyB][partyA];
+		
+		// Decrypt balance for event emission
+		uint256 partyBBalance = MpcCore.decrypt(gtPartyBBalance);
 		emit SharedEvents.BalanceChangePartyB(
 			partyB,
 			partyA,
-			accountLayout.partyBAllocatedBalances[partyB][partyA],
+			partyBBalance,
 			SharedEvents.BalanceChangeType.REALIZED_PNL_OUT
 		);
-		accountLayout.partyBAllocatedBalances[partyB][partyA] = 0;
+		
+		// Reset PartyB balance to zero
+		accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(MpcCore.setPublic256(uint256(0)), partyA);
 		
 		// Set locked balances to zero (encrypted)
 		GarbledLockedValues memory gtZeroLocked = LockedValuesOps.makeZero();
@@ -107,7 +125,12 @@ library LibLiquidation {
 
 		// Transfer liquidator share to the liquidator
 		if (liquidatorShare > 0) {
-			accountLayout.allocatedBalances[msg.sender] += liquidatorShare;
+			// Update liquidator balance with encrypted operations
+			gtUint256 gtLiquidatorBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
+			gtUint256 gtLiquidatorShare = MpcCore.setPublic256(liquidatorShare);
+			gtUint256 gtNewLiquidatorBalance = gtLiquidatorBalance.add(gtLiquidatorShare);
+			accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewLiquidatorBalance, msg.sender);
+			
 			emit SharedEvents.BalanceChangePartyA(msg.sender, liquidatorShare, SharedEvents.BalanceChangeType.LF_IN);
 		}
 	}

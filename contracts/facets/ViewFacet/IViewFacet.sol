@@ -20,6 +20,13 @@ interface IViewFacet {
 		uint256 bitmap;
 	}
 
+	struct PlainSettlementState {
+		ctInt256 actualAmount;
+		ctInt256 expectedAmount;
+		ctUint256 cva;
+		bool pending;
+	}
+
 	// Account
 	function balanceOf(address user) external view returns (uint256);
 
@@ -28,24 +35,24 @@ interface IViewFacet {
 	)
 		external
 		view
-		returns (bool, uint256, UserLockedValues memory, UserLockedValues memory, uint256, uint256, uint256, uint256);
+		returns (bool, ctUint256 memory, UserLockedValues memory, UserLockedValues memory, uint256, uint256, uint256, uint256);
 
 	function balanceInfoOfPartyA(
 		address partyA
-	) external view returns (uint256, UserLockedValues memory, UserLockedValues memory);
+	) external view returns (ctUint256 memory, UserLockedValues memory, UserLockedValues memory);
 
 	function balanceInfoOfPartyB(
 		address partyB,
 		address partyA
-	) external view returns (uint256, UserLockedValues memory, UserLockedValues memory);
+	) external view returns (ctUint256 memory, UserLockedValues memory, UserLockedValues memory);
 
-	function allocatedBalanceOfPartyA(address partyA) external view returns (uint256);
+	function allocatedBalanceOfPartyA(address partyA) external view returns (ctUint256 memory);
 
-	function allocatedBalanceOfPartyB(address partyB, address partyA) external view returns (uint256);
+	function allocatedBalanceOfPartyB(address partyB, address partyA) external view returns (ctUint256 memory);
 
 	function balanceOfReserveVault(address partyB) external view returns (uint256);
 
-	function allocatedBalanceOfPartyBs(address partyA, address[] memory partyBs) external view returns (uint256[] memory);
+	function allocatedBalanceOfPartyBs(address partyA, address[] memory partyBs) external view returns (ctUint256[] memory);
 
 	function withdrawCooldownOf(address user) external view returns (uint256);
 
@@ -61,7 +68,7 @@ interface IViewFacet {
 
 	function getInvalidBridgedAmountsPool() external view returns (address);
 
-	function getSettlementStates(address partyA, address[] memory partyBs) external view returns (SettlementState[] memory);
+	function getSettlementStates(address partyA, address[] memory partyBs) external view returns (PlainSettlementState[] memory);
 
 	///////////////////////////////////////////
 

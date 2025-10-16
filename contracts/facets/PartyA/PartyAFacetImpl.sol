@@ -158,7 +158,13 @@ library PartyAFacetImpl {
 
 		// Only decrypt trading fee when we need to deduct it from allocated balances
 		uint256 fee = MpcCore.decrypt(gtTradingFee);
-		accountLayout.allocatedBalances[msg.sender] -= fee;
+		
+		// Update allocated balance with encrypted operations
+		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
+		gtUint256 gtFeeAmount = MpcCore.setPublic256(fee);
+		gtUint256 gtNewBalance = gtCurrentBalance.sub(gtFeeAmount);
+		accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewBalance, msg.sender);
+		
 		emit SharedEvents.BalanceChangePartyA(msg.sender, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_OUT);
 	}
 
@@ -176,7 +182,12 @@ library PartyAFacetImpl {
 			// Get encrypted trading fee and decrypt for balance update
 			gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
 			uint256 fee = MpcCore.decrypt(gtFee);
-			accountLayout.allocatedBalances[quote.partyA] += fee;
+			
+			// Update allocated balance with encrypted operations
+			gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
+			gtUint256 gtFeeAmount = MpcCore.setPublic256(fee);
+			gtUint256 gtNewBalance = gtCurrentBalance.add(gtFeeAmount);
+			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, quote.partyA);
 			emit SharedEvents.BalanceChangePartyA(quote.partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 			
 			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote);

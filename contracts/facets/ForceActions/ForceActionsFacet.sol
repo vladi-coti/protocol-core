@@ -19,8 +19,10 @@ contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceAct
 	 * @param quoteId The ID of the quote to be canceled.
 	 */
 	function forceCancelQuote(uint256 quoteId) external notLiquidated(quoteId) whenNotPartyAActionsPaused {
-		ForceActionsFacetImpl.forceCancelQuote(quoteId);
-		emit ForceCancelQuote(quoteId, QuoteStatus.CANCELED);
+		// FIXME: commented out because it's pushes the contract size over the limit
+
+		// ForceActionsFacetImpl.forceCancelQuote(quoteId);
+		// emit ForceCancelQuote(quoteId, QuoteStatus.CANCELED);
 	}
 
 	/**
@@ -28,9 +30,11 @@ contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceAct
 	 * @param quoteId The ID of the quote for which the close request should be canceled.
 	 */
 	function forceCancelCloseRequest(uint256 quoteId) external notLiquidated(quoteId) whenNotPartyAActionsPaused {
-		ForceActionsFacetImpl.forceCancelCloseRequest(quoteId);
-		emit ForceCancelCloseRequest(quoteId, QuoteStatus.OPENED, QuoteStorage.layout().closeIds[quoteId]);
-		emit ForceCancelCloseRequest(quoteId, QuoteStatus.OPENED); // For backward compatibility, will be removed in future
+		// FIXME: commented out because it's pushes the contract size over the limit
+		
+		// ForceActionsFacetImpl.forceCancelCloseRequest(quoteId);
+		// emit ForceCancelCloseRequest(quoteId, QuoteStatus.OPENED, QuoteStorage.layout().closeIds[quoteId]);
+		// emit ForceCancelCloseRequest(quoteId, QuoteStatus.OPENED); // For backward compatibility, will be removed in future
 	}
 
 	/**
@@ -92,11 +96,15 @@ contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceAct
 		if (isPartyBLiquidated) {
 			emit LiquidatePartyB(msg.sender, quote.partyB, quote.partyA, partyBAllocatedBalance, upnlPartyB);
 		} else {
+			// Decrypt the allocated balance for the event
+			gtUint256 gtAllocatedBalance = LockedValuesOps.safeOnboard(AccountStorage.layout().allocatedBalances[msg.sender].ciphertext);
+			uint256 allocatedBalance = MpcCore.decrypt(gtAllocatedBalance);
+			
 			emit SettleUpnl(
 				settleSig.quotesSettlementsData,
 				updatedPrices,
 				msg.sender,
-				AccountStorage.layout().allocatedBalances[msg.sender],
+				allocatedBalance,
 				newPartyBsAllocatedBalances
 			);
 			emit ForceClosePosition(quoteId, quote.partyA, quote.partyB, filledAmount, closePrice, quote.quoteStatus, quoteLayout.closeIds[quoteId]);

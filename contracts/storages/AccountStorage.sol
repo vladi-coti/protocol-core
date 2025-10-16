@@ -14,9 +14,9 @@ enum LiquidationType {
 }
 
 struct SettlementState {
-	int256 actualAmount;
-	int256 expectedAmount;
-	uint256 cva;
+	utInt256 actualAmount;
+	utInt256 expectedAmount;
+	utUint256 cva;
 	bool pending;
 }
 
@@ -45,11 +45,11 @@ library AccountStorage {
 	struct Layout {
 		// Users deposited amounts
 		mapping(address => uint256) balances;
-		mapping(address => uint256) allocatedBalances;
+		mapping(address => utUint256) allocatedBalances;
 		// position value will become pending locked before openPosition and will be locked after that
 		mapping(address => LockedValues) pendingLockedBalances;
 		mapping(address => LockedValues) lockedBalances;
-		mapping(address => mapping(address => uint256)) partyBAllocatedBalances;
+		mapping(address => mapping(address => utUint256)) partyBAllocatedBalances;
 		mapping(address => mapping(address => LockedValues)) partyBPendingLockedBalances;
 		mapping(address => mapping(address => LockedValues)) partyBLockedBalances;
 		mapping(address => uint256) withdrawCooldown; // is better to call lastDeallocateTime

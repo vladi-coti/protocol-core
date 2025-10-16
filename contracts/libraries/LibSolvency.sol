@@ -41,7 +41,6 @@ library LibSolvency {
 		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
 		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
 			upnlPartyA,
-			AccountStorage.layout().allocatedBalances[partyA],
 			partyA
 		);
 		
@@ -61,13 +60,13 @@ library LibSolvency {
 			// Calculate balance adjustments using MPC mux (conditional selection)
 			gtInt256 gtPartyAAdjustment = MpcCore.mux(
 				gtOpenedPriceGteMarket,
-				gtDiff.toSigned().neg(), // openedPrice >= marketPrice: PartyA loses, PartyB gains
+				MpcCore.setPublic256(uint256(0)).toSigned().sub(gtDiff.toSigned()), // openedPrice >= marketPrice: PartyA loses, PartyB gains
 				gtDiff.toSigned()        // openedPrice < marketPrice: PartyA gains, PartyB loses
 			);
 			gtInt256 gtPartyBAdjustment = MpcCore.mux(
 				gtOpenedPriceGteMarket,
 				gtDiff.toSigned(),       // openedPrice >= marketPrice: PartyB gains, PartyA loses
-				gtDiff.toSigned().neg()  // openedPrice < marketPrice: PartyB loses, PartyA gains
+				MpcCore.setPublic256(uint256(0)).toSigned().sub(gtDiff.toSigned())  // openedPrice < marketPrice: PartyB loses, PartyA gains
 			);
 			
 			gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(gtPartyAAdjustment);
@@ -83,11 +82,11 @@ library LibSolvency {
 			gtInt256 gtPartyAAdjustment = MpcCore.mux(
 				gtOpenedPriceGteMarket,
 				gtDiff.toSigned(),       // openedPrice >= marketPrice: PartyA gains, PartyB loses
-				gtDiff.toSigned().neg()  // openedPrice < marketPrice: PartyA loses, PartyB gains
+				MpcCore.setPublic256(uint256(0)).toSigned().sub(gtDiff.toSigned())  // openedPrice < marketPrice: PartyA loses, PartyB gains
 			);
 			gtInt256 gtPartyBAdjustment = MpcCore.mux(
 				gtOpenedPriceGteMarket,
-				gtDiff.toSigned().neg(), // openedPrice >= marketPrice: PartyB loses, PartyA gains
+				MpcCore.setPublic256(uint256(0)).toSigned().sub(gtDiff.toSigned()), // openedPrice >= marketPrice: PartyB loses, PartyA gains
 				gtDiff.toSigned()        // openedPrice < marketPrice: PartyB gains, PartyA loses
 			);
 			
@@ -129,7 +128,6 @@ library LibSolvency {
 		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
 		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
 			upnlPartyA,
-			AccountStorage.layout().allocatedBalances[partyA],
 			partyA
 		);
 		
@@ -167,11 +165,11 @@ library LibSolvency {
 				gtInt256 gtPartyAAdjustment = MpcCore.mux(
 					gtClosedPriceGteMarket,
 					gtDiff.toSigned(),       // closedPrice >= marketPrice: PartyA gains, PartyB loses
-					gtDiff.toSigned().neg()  // closedPrice < marketPrice: PartyA loses, PartyB gains
+					MpcCore.setPublic256(uint256(0)).toSigned().sub(gtDiff.toSigned())  // closedPrice < marketPrice: PartyA loses, PartyB gains
 				);
 				gtInt256 gtPartyBAdjustment = MpcCore.mux(
 					gtClosedPriceGteMarket,
-					gtDiff.toSigned().neg(), // closedPrice >= marketPrice: PartyB loses, PartyA gains
+					MpcCore.setPublic256(uint256(0)).toSigned().sub(gtDiff.toSigned()), // closedPrice >= marketPrice: PartyB loses, PartyA gains
 					gtDiff.toSigned()        // closedPrice < marketPrice: PartyB gains, PartyA loses
 				);
 				
@@ -188,11 +186,11 @@ library LibSolvency {
 				gtInt256 gtPartyAAdjustment = MpcCore.mux(
 					gtClosedPriceLteMarket,
 					gtDiff.toSigned(),       // closedPrice <= marketPrice: PartyA gains, PartyB loses
-					gtDiff.toSigned().neg()  // closedPrice > marketPrice: PartyA loses, PartyB gains
+					MpcCore.setPublic256(uint256(0)).toSigned().sub(gtDiff.toSigned())  // closedPrice > marketPrice: PartyA loses, PartyB gains
 				);
 				gtInt256 gtPartyBAdjustment = MpcCore.mux(
 					gtClosedPriceLteMarket,
-					gtDiff.toSigned().neg(), // closedPrice <= marketPrice: PartyB loses, PartyA gains
+					MpcCore.setPublic256(uint256(0)).toSigned().sub(gtDiff.toSigned()), // closedPrice <= marketPrice: PartyB loses, PartyA gains
 					gtDiff.toSigned()        // closedPrice > marketPrice: PartyB gains, PartyA loses
 				);
 				

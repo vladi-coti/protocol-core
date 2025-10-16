@@ -30,7 +30,10 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
 		PartyBQuoteActionsFacetImpl.lockQuote(quoteId, upnlSig);
 		emit LockQuote(quote.partyB, quoteId);
-		uint256 newId = PartyBPositionActionsFacetImpl.openPosition(quoteId, filledAmount, openedPrice, pairUpnlSig);
+		// Convert uint256 to gtUint256 for encrypted operations
+		gtUint256 gtFilledAmount = MpcCore.setPublic256(filledAmount);
+		gtUint256 gtOpenedPrice = MpcCore.setPublic256(openedPrice);
+		uint256 newId = PartyBPositionActionsFacetImpl.openPosition(quoteId, gtFilledAmount, gtOpenedPrice, pairUpnlSig);
 		emit OpenPosition(quoteId, quote.partyA, quote.partyB, filledAmount, openedPrice);
 		if (newId != 0) {
 			Quote storage newQuote = QuoteStorage.layout().quotes[newId];

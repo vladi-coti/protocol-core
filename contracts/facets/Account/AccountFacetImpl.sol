@@ -15,6 +15,10 @@ import "../../libraries/LibAccount.sol";
 
 library AccountFacetImpl {
 	using SafeERC20 for IERC20;
+	using MpcCore for gtUint256;
+	using MpcCore for gtInt256;
+	using MpcCore for gtBool;
+	using LockedValuesOps for LockedValues;
 
 	function deposit(address user, uint256 amount) internal {
 		GlobalAppStorage.Layout storage appLayout = GlobalAppStorage.layout();
@@ -37,13 +41,22 @@ library AccountFacetImpl {
 
 	function allocate(uint256 amount) internal {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		require(
-			accountLayout.allocatedBalances[msg.sender] + amount <= GlobalAppStorage.layout().balanceLimitPerUser,
-			"AccountFacet: Allocated balance limit reached"
-		);
+		
+		// Check limit using encrypted comparison
+		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
+		gtUint256 gtAmount = MpcCore.setPublic256(amount);
+		gtUint256 gtLimit = MpcCore.setPublic256(GlobalAppStorage.layout().balanceLimitPerUser);
+		
+		// Check limit using encrypted comparison
+		gtUint256 gtNewBalance = gtCurrentBalance.add(gtAmount);
+		gtBool gtWithinLimit = gtNewBalance.le(gtLimit);
+		require(MpcCore.decrypt(gtWithinLimit), "AccountFacet: Allocated balance limit reached");
+		
 		require(accountLayout.balances[msg.sender] >= amount, "AccountFacet: Insufficient balance");
 		accountLayout.balances[msg.sender] -= amount;
-		accountLayout.allocatedBalances[msg.sender] += amount;
+		
+		// Store encrypted new balance
+		accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewBalance, msg.sender);
 	}
 
 	function deallocate(uint256 amount, SingleUpnlSig memory upnlSig) internal {
@@ -52,14 +65,22 @@ library AccountFacetImpl {
 			block.timestamp >= accountLayout.withdrawCooldown[msg.sender] + MAStorage.layout().deallocateDebounceTime,
 			"AccountFacet: Too many deallocate in a short window"
 		);
-		require(accountLayout.allocatedBalances[msg.sender] >= amount, "AccountFacet: Insufficient allocated Balance");
+		
+		// Check sufficient allocated balance using encrypted comparison
+		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
+		gtUint256 gtAmount = MpcCore.setPublic256(amount);
+		gtBool gtSufficientBalance = gtCurrentBalance.ge(gtAmount);
+		require(MpcCore.decrypt(gtSufficientBalance), "AccountFacet: Insufficient allocated Balance");
+		
 		LibMuonAccount.verifyPartyAUpnl(upnlSig, msg.sender);
 		gtInt256 gtAvailableBalance = LibAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
 		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
 		require(availableBalance >= 0, "AccountFacet: Available balance is lower than zero");
 		require(uint256(availableBalance) >= amount, "AccountFacet: partyA will be liquidatable");
 
-		accountLayout.allocatedBalances[msg.sender] -= amount;
+		// Update encrypted balance
+		gtUint256 gtNewBalance = gtCurrentBalance.sub(gtAmount);
+		accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewBalance, msg.sender);
 		accountLayout.balances[msg.sender] += amount;
 		accountLayout.withdrawCooldown[msg.sender] = block.timestamp;
 	}
@@ -71,29 +92,45 @@ library AccountFacetImpl {
 		require(!maLayout.partyBLiquidationStatus[msg.sender][recipient], "PartyBFacet: PartyB isn't solvent");
 		require(!MAStorage.layout().liquidationStatus[origin], "PartyBFacet: Origin isn't solvent");
 		require(!MAStorage.layout().liquidationStatus[recipient], "PartyBFacet: Recipient isn't solvent");
-		// deallocate from origin
-		require(accountLayout.partyBAllocatedBalances[msg.sender][origin] >= amount, "PartyBFacet: Insufficient locked balance");
+		
 		LibMuonAccount.verifyPartyBUpnl(upnlSig, msg.sender, origin);
 		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, origin);
 		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
 		require(availableBalance >= 0, "PartyBFacet: Available balance is lower than zero");
 		require(uint256(availableBalance) >= amount, "PartyBFacet: Will be liquidatable");
 
-		accountLayout.partyBAllocatedBalances[msg.sender][origin] -= amount;
-		// allocate for recipient
-		accountLayout.partyBAllocatedBalances[msg.sender][recipient] += amount;
+		// Check sufficient balance using encrypted comparison
+		gtUint256 gtOriginBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[msg.sender][origin].ciphertext);
+		gtUint256 gtAmount = MpcCore.setPublic256(amount);
+		gtBool gtSufficientBalance = gtOriginBalance.ge(gtAmount);
+		require(MpcCore.decrypt(gtSufficientBalance), "PartyBFacet: Insufficient locked balance");
+
+		// Update encrypted balances
+		gtUint256 gtNewOriginBalance = gtOriginBalance.sub(gtAmount);
+		gtUint256 gtRecipientBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[msg.sender][recipient].ciphertext);
+		gtUint256 gtNewRecipientBalance = gtRecipientBalance.add(gtAmount);
+		
+		accountLayout.partyBAllocatedBalances[msg.sender][origin] = MpcCore.offBoardCombined(gtNewOriginBalance, msg.sender);
+		accountLayout.partyBAllocatedBalances[msg.sender][recipient] = MpcCore.offBoardCombined(gtNewRecipientBalance, msg.sender);
 	}
 
 	function internalTransfer(address user, uint256 amount) internal {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 
-		require(
-			accountLayout.allocatedBalances[user] + amount <= GlobalAppStorage.layout().balanceLimitPerUser,
-			"AccountFacet: Allocated balance limit reached"
-		);
+		// Check limit using encrypted comparison
+		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[user].ciphertext);
+		gtUint256 gtAmount = MpcCore.setPublic256(amount);
+		gtUint256 gtLimit = MpcCore.setPublic256(GlobalAppStorage.layout().balanceLimitPerUser);
+		
+		gtUint256 gtNewBalance = gtCurrentBalance.add(gtAmount);
+		gtBool gtWithinLimit = gtNewBalance.le(gtLimit);
+		require(MpcCore.decrypt(gtWithinLimit), "AccountFacet: Allocated balance limit reached");
+		
 		require(accountLayout.balances[msg.sender] >= amount, "AccountFacet: Insufficient balance");
 		accountLayout.balances[msg.sender] -= amount;
-		accountLayout.allocatedBalances[user] += amount;
+		
+		// Store encrypted new balance
+		accountLayout.allocatedBalances[user] = MpcCore.offBoardCombined(gtNewBalance, user);
 	}
 
 	function allocateForPartyB(uint256 amount, address partyA) internal {
@@ -102,19 +139,32 @@ library AccountFacetImpl {
 		require(accountLayout.balances[msg.sender] >= amount, "AccountFacet: Insufficient balance");
 		require(!MAStorage.layout().partyBLiquidationStatus[msg.sender][partyA], "AccountFacet: PartyB isn't solvent");
 		accountLayout.balances[msg.sender] -= amount;
-		accountLayout.partyBAllocatedBalances[msg.sender][partyA] += amount;
+		
+		// Update encrypted partyB allocated balance
+		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[msg.sender][partyA].ciphertext);
+		gtUint256 gtAmount = MpcCore.setPublic256(amount);
+		gtUint256 gtNewBalance = gtCurrentBalance.add(gtAmount);
+		accountLayout.partyBAllocatedBalances[msg.sender][partyA] = MpcCore.offBoardCombined(gtNewBalance, msg.sender);
 	}
 
 	function deallocateForPartyB(uint256 amount, address partyA, SingleUpnlSig memory upnlSig) internal {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		require(accountLayout.partyBAllocatedBalances[msg.sender][partyA] >= amount, "AccountFacet: Insufficient allocated balance");
+		
+		// Check sufficient allocated balance using encrypted comparison
+		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[msg.sender][partyA].ciphertext);
+		gtUint256 gtAmount = MpcCore.setPublic256(amount);
+		gtBool gtSufficientBalance = gtCurrentBalance.ge(gtAmount);
+		require(MpcCore.decrypt(gtSufficientBalance), "AccountFacet: Insufficient allocated balance");
+		
 		LibMuonAccount.verifyPartyBUpnl(upnlSig, msg.sender, partyA);
 		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, partyA);
 		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
 		require(availableBalance >= 0, "AccountFacet: Available balance is lower than zero");
 		require(uint256(availableBalance) >= amount, "AccountFacet: Will be liquidatable");
 
-		accountLayout.partyBAllocatedBalances[msg.sender][partyA] -= amount;
+		// Update encrypted balance
+		gtUint256 gtNewBalance = gtCurrentBalance.sub(gtAmount);
+		accountLayout.partyBAllocatedBalances[msg.sender][partyA] = MpcCore.offBoardCombined(gtNewBalance, msg.sender);
 		accountLayout.balances[msg.sender] += amount;
 		accountLayout.withdrawCooldown[msg.sender] = block.timestamp;
 	}

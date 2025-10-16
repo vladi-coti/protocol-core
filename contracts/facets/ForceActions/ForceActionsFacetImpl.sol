@@ -33,7 +33,13 @@ library ForceActionsFacetImpl {
 		// send trading Fee back to partyA
 		gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
 		uint256 fee = MpcCore.decrypt(gtFee);
-		accountLayout.allocatedBalances[quote.partyA] += fee;
+		
+		// Update allocated balance with encrypted operations
+		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
+		gtUint256 gtFeeAmount = MpcCore.setPublic256(fee);
+		gtUint256 gtNewBalance = gtCurrentBalance.add(gtFeeAmount);
+		accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, quote.partyA);
+		
 		emit SharedEvents.BalanceChangePartyA(quote.partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 
 		LibQuote.removeFromPendingQuotes(quote);
@@ -134,7 +140,13 @@ library ForceActionsFacetImpl {
 		} else if (partyBAvailableBalance + int256(reserveAmount) >= 0) {
 			uint256 available = uint256(-partyBAvailableBalance);
 			accountLayout.reserveVault[quote.partyB] -= available;
-			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] += available;
+			
+			// Update PartyB allocated balance with encrypted operations
+			gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
+			gtUint256 gtAvailableAmount = MpcCore.setPublic256(available);
+			gtUint256 gtNewBalance = gtCurrentBalance.add(gtAvailableAmount);
+			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, quote.partyA);
+			
 			emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, available, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
 			if (updatedPrices.length > 0) {
 				LibSettlement.settleUpnl(settlementSig, updatedPrices, msg.sender, true);
@@ -142,7 +154,13 @@ library ForceActionsFacetImpl {
 			LibQuote.closeQuote(quote, quantityToClose, closePrice);
 		} else {
 			accountLayout.reserveVault[quote.partyB] = 0;
-			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] += reserveAmount;
+			
+			// Update PartyB allocated balance with encrypted operations
+			gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
+			gtUint256 gtReserveAmount = MpcCore.setPublic256(reserveAmount);
+			gtUint256 gtNewBalance = gtCurrentBalance.add(gtReserveAmount);
+			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, quote.partyA);
+			
 			emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, reserveAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
 			int256 diff = (int256(quantityToClose) * (int256(closePrice) - int256(sig.currentPrice))) / 1e18;
 			if (quote.positionType == PositionType.LONG) {
@@ -152,6 +170,8 @@ library ForceActionsFacetImpl {
 			upnlPartyB = sig.upnlPartyB + diff;
 			LibLiquidation.liquidatePartyB(quote.partyB, quote.partyA, upnlPartyB, block.timestamp);
 		}
-		partyBAllocatedBalance = AccountStorage.layout().partyBAllocatedBalances[quote.partyB][quote.partyA];
+		// Decrypt the PartyB allocated balance for return
+		gtUint256 gtPartyBAllocatedBalance = LockedValuesOps.safeOnboard(AccountStorage.layout().partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
+		partyBAllocatedBalance = MpcCore.decrypt(gtPartyBAllocatedBalance);
 	}
 }

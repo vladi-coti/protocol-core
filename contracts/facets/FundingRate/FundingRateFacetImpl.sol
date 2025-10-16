@@ -26,7 +26,6 @@ library FundingRateFacetImpl {
 		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlSig.upnlPartyB, msg.sender, partyA);
 		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
 			upnlSig.upnlPartyA,
-			AccountStorage.layout().allocatedBalances[partyA],
 			partyA
 		);
 		int256 partyBAvailableBalance = MpcCore.decrypt(gtPartyBAvailableBalance);

@@ -31,7 +31,6 @@ library DeferredLiquidationFacetImpl {
 
 		gtInt256 gtLiquidationAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
 			liquidationSig.upnl,
-			liquidationSig.liquidationAllocatedBalance,
 			partyA
 		);
 		int256 liquidationAvailableBalance = MpcCore.decrypt(gtLiquidationAvailableBalance);
@@ -39,12 +38,16 @@ library DeferredLiquidationFacetImpl {
 
 		gtInt256 gtAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
 			liquidationSig.upnl,
-			accountLayout.allocatedBalances[partyA],
 			partyA
 		);
 		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
 		if (availableBalance > 0) {
-			accountLayout.allocatedBalances[partyA] -= uint256(availableBalance);
+			// Update allocated balance with encrypted operations
+			gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
+			gtUint256 gtAvailableBalanceAmount = MpcCore.setPublic256(uint256(availableBalance));
+			gtUint256 gtNewBalance = gtCurrentBalance.sub(gtAvailableBalanceAmount);
+			accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, partyA);
+			
 			accountLayout.partyAReimbursement[partyA] += uint256(availableBalance);
 		}
 
@@ -81,7 +84,6 @@ library DeferredLiquidationFacetImpl {
 
 		gtInt256 gtAvailableBalance2 = LibAccount.partyAAvailableBalanceForLiquidation(
 			liquidationSig.upnl,
-			accountLayout.allocatedBalances[partyA],
 			partyA
 		);
 		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance2);

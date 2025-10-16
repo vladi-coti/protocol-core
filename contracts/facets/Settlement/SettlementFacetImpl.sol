@@ -12,7 +12,7 @@ library SettlementFacetImpl {
 		SettlementSig memory settleSig,
 		uint256[] memory updatedPrices,
 		address partyA
-	) internal returns (uint256[] memory newPartyBsAllocatedBalances) {
+	) internal returns (utUint256[] memory newPartyBsAllocatedBalances) {
 		LibMuonSettlement.verifySettlement(settleSig, partyA);
 		return LibSettlement.settleUpnl(settleSig, updatedPrices, partyA, false);
 	}

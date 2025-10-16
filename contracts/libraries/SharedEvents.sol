@@ -4,6 +4,8 @@
 // For more information, see https://docs.symm.io/legal-disclaimer/license
 pragma solidity >=0.8.18;
 
+import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
+
 library SharedEvents {
     enum BalanceChangeType {
         ALLOCATE,
@@ -23,4 +25,9 @@ library SharedEvents {
     event BalanceChangePartyA(address indexed partyA, uint256 amount, BalanceChangeType _type);
 
     event BalanceChangePartyB(address indexed partyB, address indexed partyA, uint256 amount, BalanceChangeType _type);
+
+    // Encrypted versions for privacy
+    event BalanceChangePartyAEncrypted(address indexed partyA, ctUint256 amount, BalanceChangeType _type);
+
+    event BalanceChangePartyBEncrypted(address indexed partyB, address indexed partyA, ctUint256 amount, BalanceChangeType _type);
 }

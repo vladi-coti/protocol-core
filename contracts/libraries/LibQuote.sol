@@ -5,6 +5,7 @@
 pragma solidity >=0.8.18;
 
 import "./LibLockedValues.sol";
+import "./LibAccount.sol";
 import "../libraries/SharedEvents.sol";
 import "../storages/QuoteStorage.sol";
 import "../storages/AccountStorage.sol";
@@ -250,22 +251,58 @@ library LibQuote {
 		uint256 pnl = MpcCore.decrypt(gtPnl);
 
 		if (hasMadeProfit) {
-			require(
-				accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] >= pnl,
-				"LibQuote: PartyA should first exit its positions that are incurring losses"
-			);
-			accountLayout.allocatedBalances[quote.partyA] += pnl;
+			// Check PartyB has sufficient balance using encrypted comparison
+			gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
+			gtBool gtSufficientBalance = gtPartyBBalance.ge(gtPnl);
+			require(MpcCore.decrypt(gtSufficientBalance), "LibQuote: PartyA should first exit its positions that are incurring losses");
+			
+			// Update PartyA balance
+			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
+			gtUint256 gtNewPartyABalance = gtPartyABalance.add(gtPnl);
+			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, quote.partyA);
+			
+			// Update PartyB balance
+			gtUint256 gtNewPartyBBalance = gtPartyBBalance.sub(gtPnl);
+			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewPartyBBalance, quote.partyA);
+			
+			// Emit encrypted events for both parties
+			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
+			ctUint256 memory partyAAmount = MpcCore.offBoardToUser(gtPnl, partyAEncryptionAddress);
+			emit SharedEvents.BalanceChangePartyAEncrypted(quote.partyA, partyAAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
+			
+			address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
+			ctUint256 memory partyBAmount = MpcCore.offBoardToUser(gtPnl, partyBEncryptionAddress);
+			emit SharedEvents.BalanceChangePartyBEncrypted(quote.partyB, quote.partyA, partyBAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
+			
+			// Keep plaintext events for backward compatibility
 			emit SharedEvents.BalanceChangePartyA(quote.partyA, pnl, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
-			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] -= pnl;
 			emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, pnl, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
 		} else {
-			require(
-				accountLayout.allocatedBalances[quote.partyA] >= pnl,
-				"LibQuote: PartyA should first exit its positions that are currently in profit."
-			);
-			accountLayout.allocatedBalances[quote.partyA] -= pnl;
+			// Check PartyA has sufficient balance using encrypted comparison
+			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
+			gtBool gtSufficientBalance = gtPartyABalance.ge(gtPnl);
+			require(MpcCore.decrypt(gtSufficientBalance), "LibQuote: PartyA should first exit its positions that are currently in profit.");
+			
+			// Update PartyA balance
+			gtUint256 gtNewPartyABalance = gtPartyABalance.sub(gtPnl);
+			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, quote.partyA);
+			
+			// Update PartyB balance
+			gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
+			gtUint256 gtNewPartyBBalance = gtPartyBBalance.add(gtPnl);
+			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewPartyBBalance, quote.partyA);
+			
+			// Emit encrypted events for both parties
+			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
+			ctUint256 memory partyAAmount = MpcCore.offBoardToUser(gtPnl, partyAEncryptionAddress);
+			emit SharedEvents.BalanceChangePartyAEncrypted(quote.partyA, partyAAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
+			
+			address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
+			ctUint256 memory partyBAmount = MpcCore.offBoardToUser(gtPnl, partyBEncryptionAddress);
+			emit SharedEvents.BalanceChangePartyBEncrypted(quote.partyB, quote.partyA, partyBAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
+			
+			// Keep plaintext events for backward compatibility
 			emit SharedEvents.BalanceChangePartyA(quote.partyA, pnl, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
-			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] += pnl;
 			emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, pnl, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
 		}
 
@@ -329,7 +366,18 @@ library LibQuote {
 			// send trading Fee back to partyA
 			gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
 			uint256 fee = MpcCore.decrypt(gtFee);
-			accountLayout.allocatedBalances[quote.partyA] += fee;
+			
+			// Update PartyA balance with encrypted operations
+			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
+			gtUint256 gtNewPartyABalance = gtPartyABalance.add(gtFee);
+			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, quote.partyA);
+			
+			// Emit encrypted event for PartyA
+			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
+			ctUint256 memory partyAAmount = MpcCore.offBoardToUser(gtFee, partyAEncryptionAddress);
+			emit SharedEvents.BalanceChangePartyAEncrypted(quote.partyA, partyAAmount, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
+			
+			// Keep plaintext event for backward compatibility
 			emit SharedEvents.BalanceChangePartyA(quote.partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 
 			removeFromPartyAPendingQuotes(quote);

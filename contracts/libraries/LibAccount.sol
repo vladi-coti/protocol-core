@@ -59,7 +59,7 @@ library LibAccount {
 	 */
 	function partyAAvailableForQuote(int256 upnl, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		gtInt256 allocatedBalance = MpcCore.toSigned(MpcCore.setPublic256(accountLayout.allocatedBalances[partyA]));
+		gtInt256 allocatedBalance = MpcCore.toSigned(LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext));
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
 		
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
@@ -90,7 +90,7 @@ library LibAccount {
 	 */
 	function partyAAvailableBalance(int256 upnl, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		gtInt256 allocatedBalance = MpcCore.toSigned(MpcCore.setPublic256(accountLayout.allocatedBalances[partyA]));
+		gtInt256 allocatedBalance = MpcCore.toSigned(LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext));
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
 		
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
@@ -114,13 +114,12 @@ library LibAccount {
 	/**
 	 * @notice Calculates the available balance for liquidation for Party A.
 	 * @param upnl The unrealized profit and loss (unencrypted).
-	 * @param allocatedBalance The allocatedBalance of Party A.
 	 * @param partyA The address of Party A.
 	 * @return The available balance for liquidation for Party A (encrypted).
 	 */
-	function partyAAvailableBalanceForLiquidation(int256 upnl, uint256 allocatedBalance, address partyA) internal returns (gtInt256) {
+	function partyAAvailableBalanceForLiquidation(int256 upnl, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		gtInt256 allocatedBalanceEncrypted = MpcCore.toSigned(MpcCore.setPublic256(allocatedBalance));
+		gtInt256 allocatedBalanceEncrypted = MpcCore.toSigned(LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext));
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
 		
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
@@ -139,7 +138,7 @@ library LibAccount {
 	 */
 	function partyBAvailableForQuote(int256 upnl, address partyB, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		gtInt256 allocatedBalance = MpcCore.toSigned(MpcCore.setPublic256(accountLayout.partyBAllocatedBalances[partyB][partyA]));
+		gtInt256 allocatedBalance = MpcCore.toSigned(LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext));
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
 		
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
@@ -171,7 +170,7 @@ library LibAccount {
 	 */
 	function partyBAvailableBalance(int256 upnl, address partyB, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		gtInt256 allocatedBalance = MpcCore.toSigned(MpcCore.setPublic256(accountLayout.partyBAllocatedBalances[partyB][partyA]));
+		gtInt256 allocatedBalance = MpcCore.toSigned(LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext));
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
 		
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
@@ -201,7 +200,7 @@ library LibAccount {
 	 */
 	function partyBAvailableBalanceForLiquidation(int256 upnl, address partyB, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		gtInt256 allocatedBalanceEncrypted = MpcCore.toSigned(MpcCore.setPublic256(accountLayout.partyBAllocatedBalances[partyB][partyA]));
+		gtInt256 allocatedBalanceEncrypted = MpcCore.toSigned(LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext));
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
 		
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();

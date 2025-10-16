@@ -48,7 +48,7 @@ contract ViewFacet is IViewFacet {
 	)
 		external
 		view
-		returns (bool, uint256, UserLockedValues memory, UserLockedValues memory, uint256, uint256, uint256, uint256)
+		returns (bool, ctUint256 memory, UserLockedValues memory, UserLockedValues memory, uint256, uint256, uint256, uint256)
 	{
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		MAStorage.Layout storage maLayout = MAStorage.layout();
@@ -58,9 +58,12 @@ contract ViewFacet is IViewFacet {
 		UserLockedValues memory lockedBalances = accountLayout.lockedBalances[partyA].getUserLockedValues();
 		UserLockedValues memory pendingLockedBalances = accountLayout.pendingLockedBalances[partyA].getUserLockedValues();
 		
+		// Return user ciphertext directly from utUint256
+		ctUint256 memory userEncryptedAllocatedBalance = accountLayout.allocatedBalances[partyA].userCiphertext;
+		
 		return (
 			maLayout.liquidationStatus[partyA],
-			accountLayout.allocatedBalances[partyA],
+			userEncryptedAllocatedBalance,
 			lockedBalances,
 			pendingLockedBalances,
 			quoteLayout.partyAPositionsCount[partyA],
@@ -79,18 +82,22 @@ contract ViewFacet is IViewFacet {
 	 */
 	function balanceInfoOfPartyA(
 		address partyA
-	) external view returns (uint256, UserLockedValues memory, UserLockedValues memory) {
+	) external view returns (ctUint256 memory, UserLockedValues memory, UserLockedValues memory) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		
 		// Offboard locked values to the user
 		UserLockedValues memory lockedBalances = accountLayout.lockedBalances[partyA].getUserLockedValues();
 		UserLockedValues memory pendingLockedBalances = accountLayout.pendingLockedBalances[partyA].getUserLockedValues();
 		
+		// Return user ciphertext directly from utUint256
+		ctUint256 memory userEncryptedAllocatedBalance = accountLayout.allocatedBalances[partyA].userCiphertext;
+		
 		return (
-			accountLayout.allocatedBalances[partyA],
+			userEncryptedAllocatedBalance,
 			lockedBalances,
 			pendingLockedBalances
-		);}
+		);
+	}
 
 	/**
 	 * @notice Returns balance information of Party B for a specific Party A (encrypted for the user).
@@ -103,26 +110,30 @@ contract ViewFacet is IViewFacet {
 	function balanceInfoOfPartyB(
 		address partyB,
 		address partyA
-	) external view returns (uint256, UserLockedValues memory, UserLockedValues memory) {
+	) external view returns (ctUint256 memory, UserLockedValues memory, UserLockedValues memory) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		
 		// Offboard locked values to the user (partyB)
 		UserLockedValues memory lockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].getUserLockedValues();
 		UserLockedValues memory pendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA].getUserLockedValues();
 		
+		// Return user ciphertext directly from utUint256
+		ctUint256 memory userEncryptedAllocatedBalance = accountLayout.partyBAllocatedBalances[partyB][partyA].userCiphertext;
+		
 		return (
-			accountLayout.partyBAllocatedBalances[partyB][partyA],
+			userEncryptedAllocatedBalance,
 			lockedBalances,
 			pendingLockedBalances
-		);}
+		);
+	}
 
 	/**
 	 * @notice Returns the allocated balance of Party A.
 	 * @param partyA The address of Party A.
 	 * @return The allocated balance of Party A.
 	 */
-	function allocatedBalanceOfPartyA(address partyA) external view returns (uint256) {
-		return AccountStorage.layout().allocatedBalances[partyA];
+	function allocatedBalanceOfPartyA(address partyA) external view returns (ctUint256 memory) {
+		return AccountStorage.layout().allocatedBalances[partyA].userCiphertext;
 	}
 
 	/**
@@ -131,8 +142,8 @@ contract ViewFacet is IViewFacet {
 	 * @param partyA The address of Party A.
 	 * @return The allocated balance of Party B for Party A.
 	 */
-	function allocatedBalanceOfPartyB(address partyB, address partyA) external view returns (uint256) {
-		return AccountStorage.layout().partyBAllocatedBalances[partyB][partyA];
+	function allocatedBalanceOfPartyB(address partyB, address partyA) external view returns (ctUint256 memory) {
+		return AccountStorage.layout().partyBAllocatedBalances[partyB][partyA].userCiphertext;
 	}
 
 	/**
@@ -150,10 +161,10 @@ contract ViewFacet is IViewFacet {
 	 * @param partyBs The addresses of Party Bs.
 	 * @return allocatedBalances The allocated balances of Party Bs for Party A.
 	 */
-	function allocatedBalanceOfPartyBs(address partyA, address[] memory partyBs) external view returns (uint256[] memory) {
-		uint256[] memory allocatedBalances = new uint256[](partyBs.length);
+	function allocatedBalanceOfPartyBs(address partyA, address[] memory partyBs) external view returns (ctUint256[] memory) {
+		ctUint256[] memory allocatedBalances = new ctUint256[](partyBs.length);
 		for (uint256 i = 0; i < partyBs.length; i++) {
-			allocatedBalances[i] = AccountStorage.layout().partyBAllocatedBalances[partyBs[i]][partyA];
+			allocatedBalances[i] = AccountStorage.layout().partyBAllocatedBalances[partyBs[i]][partyA].userCiphertext;
 		}
 		return allocatedBalances;
 	}
@@ -226,10 +237,18 @@ contract ViewFacet is IViewFacet {
 	 * @param partyBs The addresses of Party Bs.
 	 * @return states The settlement states of Party Bs for Party A.
 	 */
-	function getSettlementStates(address partyA, address[] memory partyBs) external view returns (SettlementState[] memory) {
-		SettlementState[] memory states = new SettlementState[](partyBs.length);
+	function getSettlementStates(address partyA, address[] memory partyBs) external view returns (PlainSettlementState[] memory) {
+		PlainSettlementState[] memory states = new PlainSettlementState[](partyBs.length);
 		for (uint256 i = 0; i < partyBs.length; i++) {
-			states[i] = AccountStorage.layout().settlementStates[partyA][partyBs[i]];
+			AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+			SettlementState storage settlementState = accountLayout.settlementStates[partyA][partyBs[i]];
+			
+			states[i] = PlainSettlementState({
+				actualAmount: settlementState.actualAmount.userCiphertext,
+				expectedAmount: settlementState.expectedAmount.userCiphertext,
+				cva: settlementState.cva.userCiphertext,
+				pending: settlementState.pending
+			});
 		}
 		return states;
 	}

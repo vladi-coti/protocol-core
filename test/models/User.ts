@@ -144,7 +144,7 @@ export class User {
 
 	public async getBalanceInfo(): Promise<BalanceInfo> {
 		const result = await this.context.viewFacet.balanceInfoOfPartyA(await this.getAddress())
-		const allocatedBalances = result[0]
+		const allocatedBalances = await this.decryptUint256(result[0])
 		const lockedBalances = result[1]
 		const pendingLockedBalances = result[2]
 		

@@ -22,10 +22,14 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		LiquidationSig memory liquidationSig
 	) external whenNotLiquidationPaused notLiquidatedPartyA(partyA) onlyRole(LibAccessibility.LIQUIDATOR_ROLE) {
 		LiquidationFacetImpl.liquidatePartyA(partyA, liquidationSig);
+		// Decrypt the allocated balance for the event
+		gtUint256 gtAllocatedBalance = LockedValuesOps.safeOnboard(AccountStorage.layout().allocatedBalances[partyA].ciphertext);
+		uint256 allocatedBalance = MpcCore.decrypt(gtAllocatedBalance);
+		
 		emit LiquidatePartyA(
 			msg.sender,
 			partyA,
-			AccountStorage.layout().allocatedBalances[partyA],
+			allocatedBalance,
 			liquidationSig.upnl,
 			liquidationSig.totalUnrealizedLoss,
 			liquidationSig.liquidationId
@@ -33,7 +37,7 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		emit LiquidatePartyA(
 			msg.sender,
 			partyA,
-			AccountStorage.layout().allocatedBalances[partyA],
+			allocatedBalance,
 			liquidationSig.upnl,
 			liquidationSig.totalUnrealizedLoss
 		); // For backward compatibility, will be removed in future
@@ -64,10 +68,14 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		DeferredLiquidationSig memory liquidationSig
 	) external whenNotLiquidationPaused notLiquidatedPartyA(partyA) onlyRole(LibAccessibility.LIQUIDATOR_ROLE) {
 		DeferredLiquidationFacetImpl.deferredLiquidatePartyA(partyA, liquidationSig);
+		// Decrypt the allocated balance for the event
+		gtUint256 gtAllocatedBalance = LockedValuesOps.safeOnboard(AccountStorage.layout().allocatedBalances[partyA].ciphertext);
+		uint256 allocatedBalance = MpcCore.decrypt(gtAllocatedBalance);
+		
 		emit DeferredLiquidatePartyA(
 			msg.sender,
 			partyA,
-			AccountStorage.layout().allocatedBalances[partyA],
+			allocatedBalance,
 			liquidationSig.upnl,
 			liquidationSig.totalUnrealizedLoss,
 			liquidationSig.liquidationId,
@@ -129,13 +137,15 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 	 * @param partyBs An array of addresses representing Party Bs involved in the settlement.
 	 */
 	function settlePartyALiquidation(address partyA, address[] memory partyBs) external whenNotLiquidationPaused {
-		(int256[] memory settleAmounts, bytes memory liquidationId) = LiquidationFacetImpl.settlePartyALiquidation(partyA, partyBs);
-		emit SettlePartyALiquidation(partyA, partyBs, settleAmounts, liquidationId);
-		emit SettlePartyALiquidation(partyA, partyBs, settleAmounts); // For backward compatibility, will be removed in future
-		if (MAStorage.layout().liquidationStatus[partyA] == false) {
-			emit FullyLiquidatedPartyA(partyA, liquidationId);
-			emit FullyLiquidatedPartyA(partyA); // For backward compatibility, will be removed in future
-		}
+		// FIXME: commented out because it's pushes the contract size over the limit
+		
+		// (int256[] memory settleAmounts, bytes memory liquidationId) = LiquidationFacetImpl.settlePartyALiquidation(partyA, partyBs);
+		// emit SettlePartyALiquidation(partyA, partyBs, settleAmounts, liquidationId);
+		// emit SettlePartyALiquidation(partyA, partyBs, settleAmounts); // For backward compatibility, will be removed in future
+		// if (MAStorage.layout().liquidationStatus[partyA] == false) {
+		// 	emit FullyLiquidatedPartyA(partyA, liquidationId);
+		// 	emit FullyLiquidatedPartyA(partyA); // For backward compatibility, will be removed in future
+		// }
 	}
 
 	/**
@@ -151,9 +161,11 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		int256[] memory amounts,
 		bool disputed
 	) external onlyRole(LibAccessibility.DISPUTE_ROLE) {
-		bytes memory liquidationId = LiquidationFacetImpl.resolveLiquidationDispute(partyA, partyBs, amounts, disputed);
-		emit ResolveLiquidationDispute(partyA, partyBs, amounts, disputed, liquidationId);
-		emit ResolveLiquidationDispute(partyA, partyBs, amounts, disputed); // For backward compatibility, will be removed in future
+		// FIXME: commented out because it's pushes the contract size over the limit
+
+		// bytes memory liquidationId = LiquidationFacetImpl.resolveLiquidationDispute(partyA, partyBs, amounts, disputed);
+		// emit ResolveLiquidationDispute(partyA, partyBs, amounts, disputed, liquidationId);
+		// emit ResolveLiquidationDispute(partyA, partyBs, amounts, disputed); // For backward compatibility, will be removed in future
 	}
 
 	/**
@@ -167,7 +179,11 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		address partyA,
 		SingleUpnlSig memory upnlSig
 	) external whenNotLiquidationPaused notLiquidatedPartyB(partyB, partyA) notLiquidatedPartyA(partyA) onlyRole(LibAccessibility.LIQUIDATOR_ROLE) {
-		emit LiquidatePartyB(msg.sender, partyB, partyA, AccountStorage.layout().partyBAllocatedBalances[partyB][partyA], upnlSig.upnl);
+		// Decrypt the PartyB allocated balance for the event
+		gtUint256 gtPartyBAllocatedBalance = LockedValuesOps.safeOnboard(AccountStorage.layout().partyBAllocatedBalances[partyB][partyA].ciphertext);
+		uint256 partyBAllocatedBalance = MpcCore.decrypt(gtPartyBAllocatedBalance);
+		
+		emit LiquidatePartyB(msg.sender, partyB, partyA, partyBAllocatedBalance, upnlSig.upnl);
 		LiquidationFacetImpl.liquidatePartyB(partyB, partyA, upnlSig);
 	}
 
