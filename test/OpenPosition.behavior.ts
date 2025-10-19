@@ -9,12 +9,15 @@ import {limitOpenRequestBuilder, marketOpenRequestBuilder} from "./models/reques
 import {limitQuoteRequestBuilder, marketQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
 import {OpenPositionValidator} from "./models/validators/OpenPositionValidator"
 import {decimal, getQuoteQuantity, pausePartyB} from "./utils/Common"
+import {QuoteData} from "./models/types";
 
 export function shouldBehaveLikeOpenPosition(): void {
 	let context: RunContext, user: User, hedger: Hedger, hedger2: Hedger
+	let quoteDataArray: {[key: string]: QuoteData} = {}
 
 	beforeEach(async function () {
 		context = await loadFixtureCompatible(initializeFixture)
+		console.log('context.signers.hedger.address: ', context.signers.hedger.address)
 		this.user_allocated = decimal(500n)
 		this.hedger_allocated = decimal(4000n)
 
@@ -30,36 +33,36 @@ export function shouldBehaveLikeOpenPosition(): void {
 		await hedger2.setup()
 		await hedger2.setBalances(this.hedger_allocated, this.hedger_allocated)
 
-		await user.sendQuote()
-		await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
-		await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
-		await user.sendQuote(marketQuoteRequestBuilder().build())
+		quoteDataArray[1] = await user.sendQuote()
+		quoteDataArray[2] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger2.address]).affiliate(context.multiAccount).positionType(PositionType.SHORT).build())
+		quoteDataArray[3] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger2.address]).affiliate(context.multiAccount).positionType(PositionType.SHORT).build())
+		quoteDataArray[4] = await user.sendQuote(marketQuoteRequestBuilder().partyBWhiteList([context.signers.hedger2.address]).affiliate(context.multiAccount).build())
 
-		await hedger.lockQuote(1)
-		await hedger2.lockQuote(2)
+		await hedger.lockQuote(quoteDataArray[1])
+		await hedger2.lockQuote(quoteDataArray[2])
 	})
 
 	it("Should fail on not being the correct partyB", async function () {
-		await expect(hedger.openPosition(2)).to.be.revertedWith("Accessibility: Should be partyB of quote")
+		await expect(hedger.openPosition(quoteDataArray[2])).to.be.revertedWith("Accessibility: Should be partyB of quote")
 	})
 
 	it("Should fail on paused partyB", async function () {
 		await pausePartyB(context)
-		await expect(hedger.openPosition(1)).to.be.revertedWith("Pausable: PartyB actions paused")
+		await expect(hedger.openPosition(quoteDataArray[1])).to.be.revertedWith("Pausable: PartyB actions paused")
 	})
 
 	it("Should fail on liquidated quote", async function () {
-		await hedger2.openPosition(2)
-		await hedger2.lockQuote(3)
+		await hedger2.openPosition(quoteDataArray[2])
+		await hedger2.lockQuote(quoteDataArray[3])
 		await user.liquidateAndSetSymbolPrices([1n], [decimal(2000n)])
-		await expect(hedger2.openPosition(3)).to.be.revertedWith("Accessibility: PartyA isn't solvent")
+		await expect(hedger2.openPosition(quoteDataArray[3])).to.be.revertedWith("Accessibility: PartyA isn't solvent")
 	})
 
 	it("Should fail on invalid fill amount", async function () {
 		// more than quantity
 		await expect(
 			hedger.openPosition(
-				1,
+				quoteDataArray[1],
 				limitOpenRequestBuilder()
 					.filledAmount((await getQuoteQuantity(context, 1n)) + decimal(1n))
 					.openPrice(decimal(1n))
@@ -68,13 +71,13 @@ export function shouldBehaveLikeOpenPosition(): void {
 		).to.be.revertedWith("PartyBFacet: Invalid filledAmount")
 
 		// zero
-		await expect(hedger.openPosition(1, limitOpenRequestBuilder().filledAmount("0").build())).to.be.revertedWith("PartyBFacet: Invalid filledAmount")
+		await expect(hedger.openPosition(quoteDataArray[1], limitOpenRequestBuilder().filledAmount("0").build())).to.be.revertedWith("PartyBFacet: Invalid filledAmount")
 
 		// market should get fully filled
-		await hedger.lockQuote(4)
+		await hedger.lockQuote(quoteDataArray[4])
 		await expect(
 			hedger.openPosition(
-				4,
+				quoteDataArray[4],
 				limitOpenRequestBuilder()
 					.filledAmount((await getQuoteQuantity(context, 4n)) - decimal(1n))
 					.openPrice(decimal(1n))
@@ -85,11 +88,11 @@ export function shouldBehaveLikeOpenPosition(): void {
 
 	it("Should fail on invalid open price", async function () {
 		const quantity = await getQuoteQuantity(context, 1n)
-		await expect(hedger.openPosition(1, limitOpenRequestBuilder().filledAmount(quantity).openPrice(decimal(2n)).build())).to.be.revertedWith(
+		await expect(hedger.openPosition(quoteDataArray[1], limitOpenRequestBuilder().filledAmount(quantity).openPrice(decimal(2n)).build())).to.be.revertedWith(
 			"PartyBFacet: Opened price isn't valid",
 		)
 
-		await expect(hedger2.openPosition(2, limitOpenRequestBuilder().filledAmount(quantity).openPrice(decimal(5n, 17)).build())).to.be.revertedWith(
+		await expect(hedger2.openPosition(quoteDataArray[2], limitOpenRequestBuilder().filledAmount(quantity).openPrice(decimal(5n, 17)).build())).to.be.revertedWith(
 			"PartyBFacet: Opened price isn't valid",
 		)
 	})
@@ -97,7 +100,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 	it("Should fail if PartyB will be liquidatable", async function () {
 		await expect(
 			hedger.openPosition(
-				1,
+				quoteDataArray[1],
 				limitOpenRequestBuilder()
 					.filledAmount(await getQuoteQuantity(context, 1n))
 					.openPrice(decimal(1n))
@@ -108,7 +111,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 
 		await expect(
 			hedger2.openPosition(
-				2,
+				quoteDataArray[2],
 				limitOpenRequestBuilder()
 					.filledAmount(await getQuoteQuantity(context, 2n))
 					.openPrice(decimal(1n))
@@ -122,7 +125,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 	it("Should fail if PartyA will become liquidatable", async function () {
 		await expect(
 			hedger.openPosition(
-				1,
+				quoteDataArray[1],
 				limitOpenRequestBuilder()
 					.filledAmount(await getQuoteQuantity(context, 1n))
 					.openPrice(decimal(1n))
@@ -133,7 +136,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 		).to.be.revertedWith("LibSolvency: Available balance is lower than zero")
 		await expect(
 			hedger2.openPosition(
-				2,
+				quoteDataArray[2],
 				limitOpenRequestBuilder()
 					.filledAmount(await getQuoteQuantity(context, 2n))
 					.openPrice(decimal(1n))
@@ -147,7 +150,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 	it("Should fail partially opened position of quote value is low", async function () {
 		await expect(
 			hedger.openPosition(
-				1,
+				quoteDataArray[1],
 				limitOpenRequestBuilder()
 					.filledAmount((await getQuoteQuantity(context, 1n)) - decimal(1n))
 					.openPrice(decimal(1n))
@@ -157,7 +160,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 		).to.be.revertedWith("PartyBFacet: Quote value is low")
 
 		await expect(
-			hedger.openPosition(1, limitOpenRequestBuilder().filledAmount(decimal(1n)).openPrice(decimal(1n)).price(decimal(1n, 17)).build()),
+			hedger.openPosition(quoteDataArray[1], limitOpenRequestBuilder().filledAmount(decimal(1n)).openPrice(decimal(1n)).price(decimal(1n, 17)).build()),
 		).to.be.revertedWith("PartyBFacet: Quote value is low")
 	})
 
@@ -165,7 +168,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 		await timeCompatible.increase(1000)
 		await expect(
 			hedger.openPosition(
-				1,
+				quoteDataArray[1],
 				limitOpenRequestBuilder()
 					.filledAmount(await getQuoteQuantity(context, 1n))
 					.openPrice(decimal(1n))
@@ -175,7 +178,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 		).to.be.revertedWith("PartyBFacet: Quote is expired")
 	})
 
-	it("Should run successfully for limit", async function () {
+	it("OpenPosition - Should run successfully for limit", async function () {
 		const validator = new OpenPositionValidator()
 		const beforeOut = await validator.before(context, {
 			user: user,
@@ -184,7 +187,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 		})
 		const openedPrice = decimal(1n)
 		const filledAmount = await getQuoteQuantity(context, 1n)
-		await hedger.openPosition(1, limitOpenRequestBuilder().filledAmount(filledAmount).openPrice(openedPrice).price(decimal(1n, 17)).build())
+		await hedger.openPosition(quoteDataArray[1], limitOpenRequestBuilder().filledAmount(filledAmount).openPrice(openedPrice).price(decimal(1n, 17)).build())
 		await validator.after(context, {
 			user: user,
 			hedger: hedger,
@@ -205,7 +208,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 		})
 		const filledAmount = oldQuote.quantity / 4n
 		const openedPrice = decimal(9n, 17)
-		await hedger.openPosition(1, limitOpenRequestBuilder().filledAmount(filledAmount).openPrice(openedPrice).price(decimal(1n, 17)).build())
+		await hedger.openPosition(quoteDataArray[1], limitOpenRequestBuilder().filledAmount(filledAmount).openPrice(openedPrice).price(decimal(1n, 17)).build())
 		await validator.after(context, {
 			user: user,
 			hedger: hedger,
@@ -219,7 +222,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 	})
 
 	it("Should run successfully for market", async function () {
-		await hedger.lockQuote(4)
+		await hedger.lockQuote(quoteDataArray[4])
 		const validator = new OpenPositionValidator()
 		const beforeOut = await validator.before(context, {
 			user: user,
@@ -228,7 +231,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 		})
 		const openedPrice = decimal(1n)
 		const filledAmount = await getQuoteQuantity(context, 4n)
-		await hedger.openPosition(4, marketOpenRequestBuilder().filledAmount(filledAmount).openPrice(openedPrice).price(decimal(1n)).build())
+		await hedger.openPosition(quoteDataArray[4], marketOpenRequestBuilder().filledAmount(filledAmount).openPrice(openedPrice).price(decimal(1n)).build())
 		await validator.after(context, {
 			user: user,
 			hedger: hedger,
@@ -241,12 +244,12 @@ export function shouldBehaveLikeOpenPosition(): void {
 
 	describe("Group Actions", async function () {
 		it("Should lock and open quote", async function () {
-			await hedger.lockAndOpenQuote(3)
+			await hedger.lockAndOpenQuote(quoteDataArray[3])
 			expect((await context.viewFacet.getQuote(3)).quoteStatus).to.be.eq(QuoteStatus.OPENED)
 		})
 
 		it("Should lock and open quote partially", async function () {
-			await hedger.lockAndOpenQuote(3, decimal(12n, 17), limitOpenRequestBuilder()
+			await hedger.lockAndOpenQuote(quoteDataArray[3], decimal(12n, 17), limitOpenRequestBuilder()
 				.filledAmount((await context.viewFacet.getQuote(3)).quantity / 2n)
 				.build())
 			expect((await context.viewFacet.getQuote(3)).quoteStatus).to.be.eq(QuoteStatus.OPENED)

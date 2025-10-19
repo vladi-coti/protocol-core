@@ -12,8 +12,9 @@ import {limitQuoteRequestBuilder, QuoteRequest} from "./requestModels/QuoteReque
 import {runTx} from "../utils/TxUtils"
 import {getDummyLiquidationSig} from "../utils/SignatureUtils"
 import {LiquidationSigStruct} from "../../src/types/contracts/facets/liquidation/LiquidationFacet"
-import {PrivateQuoteParamsStruct, QuoteBasicParamsStruct, QuoteStructOutput, SettlementSigStruct} from "../../src/types/contracts/interfaces/ISymmio"
+import {PrivateQuoteParamsStruct, QuoteBasicParamsStruct, QuoteStructOutput, SettlementSigStruct, SendQuoteForPartyBEvent} from "../../src/types/contracts/interfaces/ISymmio"
 import {HighLowPriceSigStruct} from "../../src/types/contracts/facets/ForceActions/ForceActionsFacet"
+import {QuoteData} from "./types"
 
 export class User {
 	constructor(protected context: RunContext, protected signer: Wallet) {
@@ -49,7 +50,7 @@ export class User {
 		await setBalance(this.signer.address, amount)
 	}
 
-	public async sendQuote(request: QuoteRequest = limitQuoteRequestBuilder().affiliate(this.context.multiAccount).build()): Promise<bigint> {
+	public async sendQuote(request: QuoteRequest = limitQuoteRequestBuilder().partyBWhiteList([this.context.signers.hedger.address]).affiliate(this.context.multiAccount).build()): Promise<QuoteData> {
 		logger.detailedDebug(
 			serializeToJson({
 				request: request,
@@ -91,8 +92,11 @@ export class User {
 		console.log("User::::SendQuote: " + tx.hash)
 		const receipt = await tx.wait()
 
+		let quoteId: bigint = 0n
+		let partyBEvent: SendQuoteForPartyBEvent.OutputObject | undefined
 		if (receipt && receipt.logs) {
 			console.log("User::::Receipt gas used: " + receipt.gasUsed.toString())
+		
 			const SendQuoteForPartyA = receipt.logs.find((log: any): log is EventLog => {
 				return (log as EventLog).eventName === "SendQuoteForPartyA"
 			})
@@ -100,10 +104,56 @@ export class User {
 			if (SendQuoteForPartyA && SendQuoteForPartyA.args) {
 				const id = SendQuoteForPartyA.args.quoteId
 				console.log("User::::SendQuote: " + id)
-				return id.toString()
+				quoteId = id
+			}
+
+			const SendQuoteForPartyB = receipt.logs.find((log: any): log is EventLog => {
+				return (log as EventLog).eventName === "SendQuoteForPartyB"
+			})
+
+			console.log("User::::SendQuoteForPartyB: ", SendQuoteForPartyB?.args)
+			if (SendQuoteForPartyB && SendQuoteForPartyB.args) {
+				// Convert raw event args to proper structure
+				const args = SendQuoteForPartyB.args as any[]
+				const rawValues = args[6] // The EncryptedQuoteValues struct is at index 6
+				
+				partyBEvent = {
+					partyA: args[0],
+					quoteId: args[1],
+					partyB: args[2],
+					symbolId: args[3],
+					positionType: args[4],
+					orderType: args[5],
+					values: this.formatEncryptedQuoteValues(rawValues),
+					deadline: args[7]
+				} as SendQuoteForPartyBEvent.OutputObject
+				console.log("User::::SendQuoteForPartyBEvent: ", partyBEvent)
 			}
 		}
-		throw new Error("SendQuoteForPartyA event not found in transaction receipt")
+		if (quoteId == 0n) {
+			throw new Error("SendQuoteForPartyA event not found in transaction receipt")
+		}
+		return { quoteId, partyBEvent }
+	}
+
+	private convertRawCiphertextToCtUint256(rawCiphertext: [bigint, bigint]): { ciphertextHigh: bigint, ciphertextLow: bigint } {
+		return {
+			ciphertextHigh: rawCiphertext[0],
+			ciphertextLow: rawCiphertext[1]
+		}
+	}
+
+	private formatEncryptedQuoteValues(rawValues: any[]): any {
+		return {
+			price: this.convertRawCiphertextToCtUint256(rawValues[0]),
+			marketPrice: this.convertRawCiphertextToCtUint256(rawValues[1]),
+			quantity: this.convertRawCiphertextToCtUint256(rawValues[2]),
+			cva: this.convertRawCiphertextToCtUint256(rawValues[3]),
+			lf: this.convertRawCiphertextToCtUint256(rawValues[4]),
+			partyAmm: this.convertRawCiphertextToCtUint256(rawValues[5]),
+			partyBmm: this.convertRawCiphertextToCtUint256(rawValues[6]),
+			tradingFee: this.convertRawCiphertextToCtUint256(rawValues[7])
+		}
 	}
 
 	public async requestToCancelQuote(id: BigNumberish) {

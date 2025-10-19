@@ -4,6 +4,8 @@ import { RunContext } from "./models/RunContext"
 import { User } from "./models/User"
 import { decimal, getQuoteQuantity } from "./utils/Common"
 import { loadFixtureCompatible } from "./utils/testHelpers"
+import { limitQuoteRequestBuilder } from "./models/requestModels/QuoteRequest"
+import { PositionType } from "./models/Enums"
 
 export function shouldBehaveLikeSendPrivateQuote(): void {
 	let context: RunContext
@@ -27,18 +29,46 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 	})
 
 	describe("Basic Private Quote Functionality", function () {
-		it("Should successfully send a private quote", async function () {
-			const quoteId = await privateUser.sendQuote()
-			expect(quoteId).to.be.a("string")
-			expect(BigInt(quoteId)).to.be.greaterThan(0)
+		it("Should successfully send a long position private quote", async function () {
+			const longQuoteRequest = limitQuoteRequestBuilder()
+				.positionType(PositionType.LONG)
+				.partyBWhiteList([context.signers.hedger.address])
+				.affiliate(context.multiAccount)
+				.build()
+
+			const {quoteId} = await privateUser.sendQuote(longQuoteRequest)
+			expect(quoteId).to.be.a("bigint")
+			expect(quoteId).to.be.greaterThan(0)
 			console.log("SendPrivateQuote.behavior.ts::::quoteId: " + quoteId)
 
 			const quantity = await getQuoteQuantity(context, quoteId, privateUser.getPrivateWallet())
 			console.log("SendPrivateQuote.behavior.ts::::quantity: " + quantity)
 		})
 
+		it("Should successfully send a short position private quote", async function () {
+			const shortQuoteRequest = limitQuoteRequestBuilder()
+				.positionType(PositionType.SHORT)
+				.partyBWhiteList([context.signers.hedger.address])
+				.affiliate(context.multiAccount)
+				.build()
+
+			const {quoteId} = await privateUser.sendQuote(shortQuoteRequest)
+			expect(quoteId).to.be.a("bigint")
+			expect(quoteId).to.be.greaterThan(0)
+			console.log("SendPrivateQuote.behavior.ts::::short quoteId: " + quoteId)
+
+			// Verify the quote was created with SHORT position type
+			const quote = await context.viewFacet.getQuote(quoteId)
+			expect(quote.positionType).to.equal(PositionType.SHORT)
+
+			// Verify we can decrypt the quantity
+			const quantity = await getQuoteQuantity(context, quoteId, privateUser.getPrivateWallet())
+			console.log("SendPrivateQuote.behavior.ts::::short quantity: " + quantity)
+			expect(quantity).to.be.greaterThan(0)
+		})
+
 		it("Should create quote with placeholder values in public storage", async function () {
-			const quoteId = await privateUser.sendQuote()
+			const {quoteId} = await privateUser.sendQuote()
 			const quote = await context.viewFacet.getQuote(quoteId)
 
 			// Verify placeholder values are used (not actual sensitive data)

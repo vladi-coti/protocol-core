@@ -35,7 +35,7 @@ const limitDefaultQuoteRequest: QuoteRequest = {
 	partyBmm: decimal(40n),
 	lf: decimal(3n),
 	maxFundingRate: decimal(2n, 16),
-	deadline: getBlockTimestamp(500n),
+	deadline: getBlockTimestamp(5000n),
 	affiliate: ZeroAddress, //FIXME find a better way
 	upnlSig: getDummySingleUpnlAndPriceSig(decimal(1n)),
 }
@@ -52,7 +52,7 @@ const marketDefaultQuoteRequest: QuoteRequest = {
 	partyBmm: decimal(40n),
 	lf: decimal(3n),
 	maxFundingRate: decimal(2n, 16),
-	deadline: getBlockTimestamp(500n),
+	deadline: getBlockTimestamp(5000n),
 	affiliate: ZeroAddress, //FIXME find a better way
 	upnlSig: getDummySingleUpnlAndPriceSig(decimal(1n)),
 }

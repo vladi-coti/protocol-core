@@ -13,8 +13,9 @@ import {limitOpenRequestBuilder, OpenRequest} from "./requestModels/OpenRequest"
 import {runTx} from "../utils/TxUtils"
 import {PairUpnlSigStructOutput} from "../../src/types/contracts/facets/FundingRate/FundingRateFacet"
 import { Wallet } from "@coti-io/coti-ethers";
-import {QuoteStructOutput, SingleUpnlSigStructOutput} from "../../src/types/contracts/interfaces/ISymmio"
+import {QuoteStructOutput, SendQuoteForPartyBEvent, SingleUpnlSigStructOutput} from "../../src/types/contracts/interfaces/ISymmio"
 import {SettlementSigStructOutput} from "../../src/types/contracts/facets/Settlement/SettlementFacet"
+import { QuoteData } from "./types";
 
 export class Hedger {
 	constructor(private context: RunContext, private signer: Wallet) {
@@ -53,14 +54,27 @@ export class Hedger {
 		await runTx(this.context.controlFacet.connect(this.context.signers.admin).registerPartyB(await this.signer.getAddress()))
 	}
 
-	public async lockQuote(id: BigNumberish, upnl: bigint = 0n, allocateCoefficient: bigint | null = decimal(12n, 17)) {
+	private async decryptQuoteData(partyBEvent:SendQuoteForPartyBEvent.OutputObject): Promise<{quantity: bigint, price: bigint, partyA: string}> {
+		const { values } = partyBEvent
+		const { price, quantity } = values
+		const quantityDecrypted = await this.signer.decryptUint256(quantity)
+		const priceDecrypted = await this.signer.decryptUint256(price)
+		return { quantity: quantityDecrypted, price: priceDecrypted, partyA: partyBEvent.partyA }
+	}
+
+	public async lockQuote(quoteData:QuoteData, upnl: bigint = 0n, allocateCoefficient: bigint | null = decimal(12n, 17)) {
+		const { quoteId: id } = quoteData
 		if (allocateCoefficient != null) {
-			const quote = await this.context.viewFacet.getQuote(id)
-			const quantity = await this.signer.decryptUint256(quote.quantity.userCiphertext)
-			const requestedOpenPrice = await this.signer.decryptUint256(quote.requestedOpenPrice.userCiphertext)
-			const notional = unDecimal(quantity * requestedOpenPrice)
+			if(quoteData.partyBEvent == undefined) {
+				throw new Error("PartyBEvent is undefined")
+			}
+			const { partyA } = quoteData.partyBEvent
+			const { price, quantity } = await this.decryptQuoteData(quoteData.partyBEvent)
+			console.log("Hedger::LockQuote: price: ", price)
+			console.log("Hedger::LockQuote: quantity: ", quantity)
+			const notional = unDecimal(quantity * price)
 			await runTx(
-				this.context.accountFacet.connect(this.signer).allocateForPartyB(unDecimal(notional * BigInt(allocateCoefficient)), quote.partyA)
+				this.context.accountFacet.connect(this.signer).allocateForPartyB(unDecimal(notional * BigInt(allocateCoefficient)), partyA)
 			)
 		}
 		await runTx(this.context.partyBQuoteActionsFacet.connect(this.signer).lockQuote(id, await getDummySingleUpnlSig(upnl)))
@@ -73,14 +87,17 @@ export class Hedger {
 		logger.info(`Hedger::UnLockQuote: ${id}`)
 	}
 
-	public async lockAndOpenQuote(id: BigNumberish, allocateCoefficient: bigint | null = decimal(12n, 17), openRequest: OpenRequest = limitOpenRequestBuilder().build()) {
+	public async lockAndOpenQuote(quoteData:QuoteData, allocateCoefficient: bigint | null = decimal(12n, 17), openRequest: OpenRequest = limitOpenRequestBuilder().build()) {
+		const { quoteId: id } = quoteData
 		if (allocateCoefficient != null) {
-			const quote = await this.context.viewFacet.getQuote(id)
-			const quantity = await this.signer.decryptUint256(quote.quantity.userCiphertext)
-			const requestedOpenPrice = await this.signer.decryptUint256(quote.requestedOpenPrice.userCiphertext)
-			const notional = unDecimal(quantity * requestedOpenPrice)
+			if(quoteData.partyBEvent == undefined) {
+				throw new Error("PartyBEvent is undefined")
+			}
+			const { partyA } = quoteData.partyBEvent
+			const { price, quantity } = await this.decryptQuoteData(quoteData.partyBEvent)
+			const notional = unDecimal(quantity * price)
 			await runTx(
-				this.context.accountFacet.connect(this.signer).allocateForPartyB(unDecimal(notional * BigInt(allocateCoefficient)), quote.partyA)
+				this.context.accountFacet.connect(this.signer).allocateForPartyB(unDecimal(notional * BigInt(allocateCoefficient)), partyA)
 			)
 		}
 		await runTx(
@@ -95,14 +112,17 @@ export class Hedger {
 		)
 	}
 
-	public async openPosition(id: BigNumberish, request: OpenRequest = limitOpenRequestBuilder().build()) {
-		const quote = await this.context.viewFacet.getQuote(id)
-		const user = this.context.manager.getUser(quote.partyA)
+	public async openPosition(quoteData:QuoteData, request: OpenRequest = limitOpenRequestBuilder().build()) {
+		if(quoteData.partyBEvent == undefined) {
+			throw new Error("PartyBEvent is undefined")
+		}
+		const { partyA } = quoteData.partyBEvent
+		const user = this.context.manager.getUser(partyA)
 		logger.detailedDebug(
 			serializeToJson({
 				request: request,
-				hedgerBalanceInfo: await this.getBalanceInfo(quote.partyA),
-				hedgerUpnl: await this.getUpnl(quote.partyA),
+				hedgerBalanceInfo: await this.getBalanceInfo(partyA),
+				hedgerUpnl: await this.getUpnl(partyA),
 				userBalanceInfo: await user.getBalanceInfo(),
 				userUpnl: await user.getUpnl(),
 			})
@@ -123,12 +143,12 @@ export class Hedger {
 			this.context.partyBPositionActionsFacet
 				.connect(this.signer)
 				.openPosition(
-					id,
+					quoteData.quoteId,
 					encryptedParams,
 					await getDummyPairUpnlAndPriceSig(BigInt(request.price), BigInt(request.upnlPartyA), BigInt(request.upnlPartyB))
 				)
 		)
-		logger.info(`Hedger::OpenPosition: ${id}`)
+		logger.info(`Hedger::OpenPosition: ${quoteData.quoteId}`)
 	}
 
 	public async getBalance(): Promise<bigint> {
@@ -136,8 +156,8 @@ export class Hedger {
 	}
 
 	public async getBalanceInfo(partyA: string): Promise<BalanceInfo> {
-		const result = await this.context.viewFacet.balanceInfoOfPartyB(await this.getAddress(), partyA)
-		const allocatedBalances = result[0]
+		const result = await this.context.viewFacet.balanceInfoOfPartyB(this.signer.address, partyA)
+		const allocatedBalances = await this.signer.decryptUint256(result[0])
 		const lockedBalances = result[1]
 		const pendingLockedBalances = result[2]
 		

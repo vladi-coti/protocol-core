@@ -48,53 +48,49 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 		);
 		
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
-		{
-			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
-			EncryptedQuoteValues memory partyAValues = EncryptedQuoteValues({
-				price: MpcCore.offBoardToUser(gtPrice, partyAEncryptionAddress),
-				marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyAEncryptionAddress),
-				quantity: MpcCore.offBoardToUser(gtQuantity, partyAEncryptionAddress),
-				cva: quote.lockedValues.cva.userCiphertext,
-				lf: quote.lockedValues.lf.userCiphertext,
-				partyAmm: quote.lockedValues.partyAmm.userCiphertext,
-				partyBmm: quote.lockedValues.partyBmm.userCiphertext,
-				tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee), partyAEncryptionAddress)
+		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
+		EncryptedQuoteValues memory partyAValues = EncryptedQuoteValues({
+			price: MpcCore.offBoardToUser(gtPrice, partyAEncryptionAddress),
+			marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyAEncryptionAddress),
+			quantity: MpcCore.offBoardToUser(gtQuantity, partyAEncryptionAddress),
+			cva: quote.lockedValues.cva.userCiphertext,
+			lf: quote.lockedValues.lf.userCiphertext,
+			partyAmm: quote.lockedValues.partyAmm.userCiphertext,
+			partyBmm: quote.lockedValues.partyBmm.userCiphertext,
+			tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee), partyAEncryptionAddress)
+		});
+		emit SendQuoteForPartyA(
+			msg.sender,
+			quoteId,
+			basicParams.partyBsWhiteList,
+			basicParams.symbolId,
+			basicParams.positionType,
+			basicParams.orderType,
+			partyAValues,
+			basicParams.deadline
+		);
+		for (uint256 i = 0; i < basicParams.partyBsWhiteList.length; i++) {
+			address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(basicParams.partyBsWhiteList[i]);
+			EncryptedQuoteValues memory partyBValues = EncryptedQuoteValues({
+				price: MpcCore.offBoardToUser(gtPrice, partyBEncryptionAddress),
+				marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyBEncryptionAddress),
+				quantity: MpcCore.offBoardToUser(gtQuantity, partyBEncryptionAddress),
+				cva: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.cva.ciphertext), partyBEncryptionAddress),
+				lf: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.lf.ciphertext), partyBEncryptionAddress),
+				partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyAmm.ciphertext), partyBEncryptionAddress),
+				partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyBmm.ciphertext), partyBEncryptionAddress),
+				tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee), partyBEncryptionAddress)
 			});
-			emit SendQuoteForPartyA(
+			emit SendQuoteForPartyB(
 				msg.sender,
 				quoteId,
-				basicParams.partyBsWhiteList,
+				partyBEncryptionAddress,
 				basicParams.symbolId,
 				basicParams.positionType,
 				basicParams.orderType,
-				partyAValues,
+				partyBValues,
 				basicParams.deadline
 			);
-		}
-		{
-			for (uint256 i = 0; i < basicParams.partyBsWhiteList.length; i++) {
-				address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(basicParams.partyBsWhiteList[i]);
-				EncryptedQuoteValues memory partyBValues = EncryptedQuoteValues({
-					price: MpcCore.offBoardToUser(gtPrice, partyBEncryptionAddress),
-					marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyBEncryptionAddress),
-					quantity: MpcCore.offBoardToUser(gtQuantity, partyBEncryptionAddress),
-					cva: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.cva.ciphertext), partyBEncryptionAddress),
-					lf: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.lf.ciphertext), partyBEncryptionAddress),
-					partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyAmm.ciphertext), partyBEncryptionAddress),
-					partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyBmm.ciphertext), partyBEncryptionAddress),
-					tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee), partyBEncryptionAddress)
-				});
-				emit SendQuoteForPartyB(
-					msg.sender,
-					quoteId,
-					partyBEncryptionAddress,
-					basicParams.symbolId,
-					basicParams.positionType,
-					basicParams.orderType,
-					partyBValues,
-					basicParams.deadline
-				);
-			}
 		}
 	}
 
