@@ -111,7 +111,6 @@ export class User {
 				return (log as EventLog).eventName === "SendQuoteForPartyB"
 			})
 
-			console.log("User::::SendQuoteForPartyB: ", SendQuoteForPartyB?.args)
 			if (SendQuoteForPartyB && SendQuoteForPartyB.args) {
 				// Convert raw event args to proper structure
 				const args = SendQuoteForPartyB.args as any[]
@@ -127,7 +126,7 @@ export class User {
 					values: this.formatEncryptedQuoteValues(rawValues),
 					deadline: args[7]
 				} as SendQuoteForPartyBEvent.OutputObject
-				console.log("User::::SendQuoteForPartyBEvent: ", partyBEvent)
+				console.log("User::::SendQuoteForPartyBEvent: ", partyBEvent.quoteId)
 			}
 		}
 		if (quoteId == 0n) {

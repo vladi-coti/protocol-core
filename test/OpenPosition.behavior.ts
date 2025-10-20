@@ -35,7 +35,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 		quoteDataArray[1] = await user.sendQuote()
 		quoteDataArray[2] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger2.address]).affiliate(context.multiAccount).positionType(PositionType.SHORT).build())
 		quoteDataArray[3] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger2.address]).affiliate(context.multiAccount).positionType(PositionType.SHORT).build())
-		quoteDataArray[4] = await user.sendQuote(marketQuoteRequestBuilder().partyBWhiteList([context.signers.hedger2.address]).affiliate(context.multiAccount).build())
+		quoteDataArray[4] = await user.sendQuote(marketQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).affiliate(context.multiAccount).build())
 
 		await hedger.lockQuote(quoteDataArray[1])
 		await hedger2.lockQuote(quoteDataArray[2])
@@ -197,7 +197,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 		})
 	})
 
-	it("Should run successfully partially for limit", async function () {
+	it("OpenPosition - Should run successfully partially for limit", async function () {
 		const validator = new OpenPositionValidator()
 		const beforeOut = await validator.before(context, {
 			user: user,
@@ -220,7 +220,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 		})
 	})
 
-	it("Should run successfully for market", async function () {
+	it("OpenPosition - Should run successfully for market", async function () {
 		await hedger.lockQuote(quoteDataArray[4])
 		const validator = new OpenPositionValidator()
 		const beforeOut = await validator.before(context, {
@@ -243,7 +243,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 
 	describe("Group Actions", async function () {
 		it("Should lock and open quote", async function () {
-			await hedger.lockAndOpenQuote(quoteDataArray[3])
+			await hedger2.lockAndOpenQuote(quoteDataArray[3])
 			expect((await context.viewFacet.getQuote(3)).quoteStatus).to.be.eq(QuoteStatus.OPENED)
 		})
 
@@ -251,7 +251,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 			const quoteData = quoteDataArray[3]
 			const quantity = quoteData.partyBEvent ? await context.signers.hedger2.decryptUint256(quoteData.partyBEvent.values.quantity) : 0n
 			const filledAmount = quantity / 2n
-			await hedger.lockAndOpenQuote(quoteData, decimal(12n, 17), limitOpenRequestBuilder()
+			await hedger2.lockAndOpenQuote(quoteData, decimal(12n, 17), limitOpenRequestBuilder()
 				.filledAmount(filledAmount)
 				.build())
 			expect((await context.viewFacet.getQuote(3)).quoteStatus).to.be.eq(QuoteStatus.OPENED)
