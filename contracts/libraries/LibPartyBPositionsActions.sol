@@ -74,8 +74,8 @@ library LibPartyBPositionsActions {
 		gtUint256 gtQuantity = LockedValuesOps.safeOnboard(quote.quantity.ciphertext);
 		uint256 quoteQuantity = MpcCore.decrypt(gtQuantity);
 
-		// Decrypt encrypted quote fields for fee calculation
-		gtUint256 gtTradingFee = LockedValuesOps.safeOnboard(quote.tradingFee.ciphertext);
+		// Decrypt trading fee RATE stored on quote and scale factor
+		gtUint256 gtTradingFeeRate = LockedValuesOps.safeOnboard(quote.tradingFee.ciphertext);
 		gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e36));
 		gtUint256 gtRequestedOpenPrice = LockedValuesOps.safeOnboard(quote.requestedOpenPrice.ciphertext);
 		
@@ -84,7 +84,8 @@ library LibPartyBPositionsActions {
 			gtBool gtFilledAmountValid = gtQuantity.ge(gtFilledAmount).and(gtFilledAmount.gt(MpcCore.setPublic256(uint256(0))));
 			require(MpcCore.decrypt(gtFilledAmountValid), "PartyBFacet: Invalid filledAmount");
 			
-			gtUint256 gtFee = gtFilledAmount.mul(gtRequestedOpenPrice).mul(gtTradingFee).div(gtScaleFactor);
+			// Compute fee AMOUNT at open using stored rate
+			gtUint256 gtFee = gtFilledAmount.mul(gtRequestedOpenPrice).mul(gtTradingFeeRate).div(gtScaleFactor);
 			accountLayout.balances[feeCollector] += MpcCore.decrypt(gtFee);
 		} else {
 			// Validate filledAmount equals quantity using encrypted comparison
@@ -92,7 +93,8 @@ library LibPartyBPositionsActions {
 			require(MpcCore.decrypt(gtFilledAmountEqualsQuantity), "PartyBFacet: Invalid filledAmount");
 			
 			gtUint256 gtMarketPrice = LockedValuesOps.safeOnboard(quote.marketPrice.ciphertext);
-			gtUint256 gtFee = gtFilledAmount.mul(gtMarketPrice).mul(gtTradingFee).div(gtScaleFactor);
+			// Compute fee AMOUNT at open using stored rate
+			gtUint256 gtFee = gtFilledAmount.mul(gtMarketPrice).mul(gtTradingFeeRate).div(gtScaleFactor);
 			accountLayout.balances[feeCollector] += MpcCore.decrypt(gtFee);
 		}
 		

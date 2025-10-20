@@ -17,7 +17,6 @@ export function shouldBehaveLikeOpenPosition(): void {
 
 	beforeEach(async function () {
 		context = await loadFixtureCompatible(initializeFixture)
-		console.log('context.signers.hedger.address: ', context.signers.hedger.address)
 		this.user_allocated = decimal(500n)
 		this.hedger_allocated = decimal(4000n)
 
@@ -199,14 +198,14 @@ export function shouldBehaveLikeOpenPosition(): void {
 	})
 
 	it("Should run successfully partially for limit", async function () {
-		const oldQuote = await context.viewFacet.getQuote(1)
 		const validator = new OpenPositionValidator()
 		const beforeOut = await validator.before(context, {
 			user: user,
 			hedger: hedger,
 			quoteId: BigInt(1),
 		})
-		const filledAmount = oldQuote.quantity / 4n
+		const quantity = quoteDataArray[1].partyBEvent ? await context.signers.hedger.decryptUint256(quoteDataArray[1].partyBEvent.values.quantity) : 0n
+		const filledAmount = quantity / 4n
 		const openedPrice = decimal(9n, 17)
 		await hedger.openPosition(quoteDataArray[1], limitOpenRequestBuilder().filledAmount(filledAmount).openPrice(openedPrice).price(decimal(1n, 17)).build())
 		await validator.after(context, {
@@ -249,8 +248,11 @@ export function shouldBehaveLikeOpenPosition(): void {
 		})
 
 		it("Should lock and open quote partially", async function () {
-			await hedger.lockAndOpenQuote(quoteDataArray[3], decimal(12n, 17), limitOpenRequestBuilder()
-				.filledAmount((await context.viewFacet.getQuote(3)).quantity / 2n)
+			const quoteData = quoteDataArray[3]
+			const quantity = quoteData.partyBEvent ? await context.signers.hedger2.decryptUint256(quoteData.partyBEvent.values.quantity) : 0n
+			const filledAmount = quantity / 2n
+			await hedger.lockAndOpenQuote(quoteData, decimal(12n, 17), limitOpenRequestBuilder()
+				.filledAmount(filledAmount)
 				.build())
 			expect((await context.viewFacet.getQuote(3)).quoteStatus).to.be.eq(QuoteStatus.OPENED)
 		})

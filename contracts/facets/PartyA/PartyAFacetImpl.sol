@@ -82,7 +82,7 @@ library PartyAFacetImpl {
 		// Check minimum quote value: totalForPartyA >= minAcceptableQuoteValue
 		gtBool quoteSufficient = gtTotalForPartyA.ge(MpcCore.setPublic256(symbolLayout.symbols[symbolId].minAcceptableQuoteValue));
 
-		// Calculate gt trading fee: (quantity * tradingPrice * tradingFee) / 1e36
+		// Calculate fee amount now for allocated balance deduction: (quantity * tradingPrice * tradingFeeRate) / 1e36
 		gtUint256 gtTradingFee = gtQuantity.mul(gtTradingPrice).mul(MpcCore.setPublic256(symbolLayout.symbols[symbolId].tradingFee)).div(
 			MpcCore.setPublic256(uint256(1e36))
 		);
@@ -147,7 +147,7 @@ library PartyAFacetImpl {
 			quantityToClose: gtZero.offBoardCombined(partyAEncryptionAddress),
 			lastFundingPaymentTimestamp: 0,
 			deadline: deadline,
-			tradingFee: gtTradingFee.offBoardCombined(partyAEncryptionAddress),
+			tradingFee: MpcCore.setPublic256(symbolLayout.symbols[symbolId].tradingFee).offBoardCombined(partyAEncryptionAddress),
 			affiliate: affiliate
 		});
 
