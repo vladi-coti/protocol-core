@@ -82,9 +82,10 @@ export class OpenPositionValidator implements TransactionValidator {
 
 		if (partially && arg.newQuoteId != null) {
 			const newlyCreatedQuote = await context.viewFacet.getQuote(arg.newQuoteId!)
+			const newlyCreatedQuantity = await arg.user.decryptUint256(newlyCreatedQuote.quantity.userCiphertext)
 			expect(newlyCreatedQuote.quoteStatus).to.be.equal(arg.newQuoteTargetStatus!)
 			const lv = await getTotalPartyALockedValuesForQuotes([newlyCreatedQuote], arg.user.getWallet())
-			expect(newQuantity).to.be.equal(oldQuantity - arg.fillAmount)
+			expect(newlyCreatedQuantity).to.be.equal(oldQuantity - arg.fillAmount)
 			expect(lv).to.be.equal(new BN(oldLockedValuesPartyA.toString()).times(new BN(1).minus(fillAmountCoef)).toString())
 		}
 
