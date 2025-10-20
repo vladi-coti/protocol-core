@@ -49,7 +49,7 @@ library PartyBQuoteActionsFacetImpl {
 		} else {
 			quote.statusModifyTimestamp = block.timestamp;
 			quote.quoteStatus = QuoteStatus.PENDING;
-			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuotePartyB(quote);
+			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
 			LibQuote.removeFromPartyBPendingQuotes(quote);
 			quote.partyB = address(0);
 			return QuoteStatus.PENDING;
@@ -63,8 +63,8 @@ library PartyBQuoteActionsFacetImpl {
 		require(quote.quoteStatus == QuoteStatus.CANCEL_PENDING, "PartyBFacet: Invalid state");
 		quote.statusModifyTimestamp = block.timestamp;
 		quote.quoteStatus = QuoteStatus.CANCELED;
-		accountLayout.pendingLockedBalances[quote.partyA].subQuotePartyA(quote);
-		accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuotePartyB(quote);
+		accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
+		accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
 
 		// send trading Fee back to partyA
 		gtUint256 gtFee = LibQuote.getTradingFee(quoteId);

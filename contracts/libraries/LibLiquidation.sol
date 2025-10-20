@@ -66,7 +66,7 @@ library LibLiquidation {
 		for (uint256 index = 0; index < pendingQuotes.length; ) {
 			Quote storage quote = quoteLayout.quotes[pendingQuotes[index]];
 			if (quote.partyB == partyB && (quote.quoteStatus == QuoteStatus.LOCKED || quote.quoteStatus == QuoteStatus.CANCEL_PENDING)) {
-				accountLayout.pendingLockedBalances[partyA].subQuotePartyA(quote);
+				accountLayout.pendingLockedBalances[partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(partyA));
 				
 				// Get encrypted trading fee and update balance with encrypted operations
 				gtUint256 gtFee = LibQuote.getTradingFee(quote.id);

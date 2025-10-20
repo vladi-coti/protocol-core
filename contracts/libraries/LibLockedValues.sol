@@ -103,79 +103,37 @@ library LockedValuesOps {
 	}
 
 	/**
-	 * @notice Adds the locked values of a quote to PartyA LockedValues struct (modifies storage in place).
-	 * @param self The PartyA LockedValues struct to which values will be added.
+	 * @notice Adds the locked values of a quote to a LockedValues struct (modifies storage in place).
+	 * @param self The LockedValues struct to which values will be added.
 	 * @param quote The Quote struct containing locked values to be added.
+	 * @param encryptionAddress The encryption address to use for offboarding.
 	 */
-	function addQuotePartyA(LockedValues storage self, Quote storage quote) internal {
+	function addQuote(LockedValues storage self, Quote storage quote, address encryptionAddress) internal {
 		GarbledLockedValues memory gtSelf = onBoard(self);
 		GarbledLockedValues memory gtQuote = onBoard(quote.lockedValues);
 		GarbledLockedValues memory gtResult = add(gtSelf, gtQuote);
 		
-		// Encrypt with PartyA's encryption address
-		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
-		
-		self.cva = MpcCore.offBoardCombined(gtResult.cva, partyAEncryptionAddress);
-		self.partyAmm = MpcCore.offBoardCombined(gtResult.partyAmm, partyAEncryptionAddress);
-		self.partyBmm = MpcCore.offBoardCombined(gtResult.partyBmm, partyAEncryptionAddress);
-		self.lf = MpcCore.offBoardCombined(gtResult.lf, partyAEncryptionAddress);
+		self.cva = MpcCore.offBoardCombined(gtResult.cva, encryptionAddress);
+		self.partyAmm = MpcCore.offBoardCombined(gtResult.partyAmm, encryptionAddress);
+		self.partyBmm = MpcCore.offBoardCombined(gtResult.partyBmm, encryptionAddress);
+		self.lf = MpcCore.offBoardCombined(gtResult.lf, encryptionAddress);
 	}
 
 	/**
-	 * @notice Adds the locked values of a quote to PartyB LockedValues struct (modifies storage in place).
-	 * @param self The PartyB LockedValues struct to which values will be added.
-	 * @param quote The Quote struct containing locked values to be added.
-	 */
-	function addQuotePartyB(LockedValues storage self, Quote storage quote) internal {
-		GarbledLockedValues memory gtSelf = onBoard(self);
-		GarbledLockedValues memory gtQuote = onBoard(quote.lockedValues);
-		GarbledLockedValues memory gtResult = add(gtSelf, gtQuote);
-		
-		// Encrypt with PartyB's encryption address
-		address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
-		
-		self.cva = MpcCore.offBoardCombined(gtResult.cva, partyBEncryptionAddress);
-		self.partyAmm = MpcCore.offBoardCombined(gtResult.partyAmm, partyBEncryptionAddress);
-		self.partyBmm = MpcCore.offBoardCombined(gtResult.partyBmm, partyBEncryptionAddress);
-		self.lf = MpcCore.offBoardCombined(gtResult.lf, partyBEncryptionAddress);
-	}
-
-	/**
-	 * @notice Subtracts the locked values of a quote from PartyA LockedValues struct (modifies storage in place).
-	 * @param self The PartyA LockedValues struct from which values will be subtracted.
+	 * @notice Subtracts the locked values of a quote from a LockedValues struct (modifies storage in place).
+	 * @param self The LockedValues struct from which values will be subtracted.
 	 * @param quote The Quote struct containing locked values to be subtracted.
+	 * @param encryptionAddress The encryption address to use for offboarding.
 	 */
-	function subQuotePartyA(LockedValues storage self, Quote storage quote) internal {
+	function subQuote(LockedValues storage self, Quote storage quote, address encryptionAddress) internal {
 		GarbledLockedValues memory gtSelf = onBoard(self);
 		GarbledLockedValues memory gtQuote = onBoard(quote.lockedValues);
 		GarbledLockedValues memory gtResult = sub(gtSelf, gtQuote);
 		
-		// Encrypt with PartyA's encryption address
-		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
-		
-		self.cva = MpcCore.offBoardCombined(gtResult.cva, partyAEncryptionAddress);
-		self.partyAmm = MpcCore.offBoardCombined(gtResult.partyAmm, partyAEncryptionAddress);
-		self.partyBmm = MpcCore.offBoardCombined(gtResult.partyBmm, partyAEncryptionAddress);
-		self.lf = MpcCore.offBoardCombined(gtResult.lf, partyAEncryptionAddress);
-	}
-
-	/**
-	 * @notice Subtracts the locked values of a quote from PartyB LockedValues struct (modifies storage in place).
-	 * @param self The PartyB LockedValues struct from which values will be subtracted.
-	 * @param quote The Quote struct containing locked values to be subtracted.
-	 */
-	function subQuotePartyB(LockedValues storage self, Quote storage quote) internal {
-		GarbledLockedValues memory gtSelf = onBoard(self);
-		GarbledLockedValues memory gtQuote = onBoard(quote.lockedValues);
-		GarbledLockedValues memory gtResult = sub(gtSelf, gtQuote);
-		
-		// Encrypt with PartyB's encryption address
-		address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
-		
-		self.cva = MpcCore.offBoardCombined(gtResult.cva, partyBEncryptionAddress);
-		self.partyAmm = MpcCore.offBoardCombined(gtResult.partyAmm, partyBEncryptionAddress);
-		self.partyBmm = MpcCore.offBoardCombined(gtResult.partyBmm, partyBEncryptionAddress);
-		self.lf = MpcCore.offBoardCombined(gtResult.lf, partyBEncryptionAddress);
+		self.cva = MpcCore.offBoardCombined(gtResult.cva, encryptionAddress);
+		self.partyAmm = MpcCore.offBoardCombined(gtResult.partyAmm, encryptionAddress);
+		self.partyBmm = MpcCore.offBoardCombined(gtResult.partyBmm, encryptionAddress);
+		self.lf = MpcCore.offBoardCombined(gtResult.lf, encryptionAddress);
 	}
 
 	/**

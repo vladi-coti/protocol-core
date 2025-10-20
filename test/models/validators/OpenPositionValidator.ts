@@ -66,47 +66,15 @@ export class OpenPositionValidator implements TransactionValidator {
 		expect(newQuantity).to.be.equal(arg.fillAmount)
 
 		const newCollectorBalance = await context.viewFacet.balanceOf(await context.viewFacet.getFeeCollector(newQuote.affiliate))
-		// Extra diagnostics to investigate fee discrepancy on testnet
-		const symbol = await context.viewFacet.getSymbol(newQuote.symbolId)
-		const tradingFee = symbol.tradingFee
-		let requestedOpenPriceDec = 0n
-		let marketPriceDec = 0n
-		try {
-			requestedOpenPriceDec = await arg.user.decryptUint256(newQuote.requestedOpenPrice.userCiphertext)
-		} catch (e) {
-			// ignore
-		}
-		try {
-			marketPriceDec = await arg.user.decryptUint256(newQuote.marketPrice.userCiphertext)
-		} catch (e) {
-			// ignore
-		}
-		const feeCollectorAddr = await context.viewFacet.getFeeCollector(newQuote.affiliate)
 		const expectedTradingFee = await getTradingFeeForQuoteWithFilledAmount(context, newQuote.id!, arg.fillAmount)
 		const balanceChange = newCollectorBalance - arg.beforeOutput.feeCollectorBalance
-		console.log("[Diagnostics] quoteId=" + String(newQuote.id))
-		console.log("[Diagnostics] orderType=" + String(newQuote.orderType))
-		console.log("[Diagnostics] symbolId=" + String(newQuote.symbolId))
-		console.log("[Diagnostics] tradingFee=" + String(tradingFee))
-		console.log("[Diagnostics] fillAmount=" + String(arg.fillAmount))
-		console.log("[Diagnostics] requestedOpenPrice(dec)=" + String(requestedOpenPriceDec))
-		console.log("[Diagnostics] marketPrice(dec)=" + String(marketPriceDec))
-		console.log("[Diagnostics] feeCollector=" + String(feeCollectorAddr))
-		console.log("[Diagnostics] beforeCollectorBalance=" + String(arg.beforeOutput.feeCollectorBalance))
-		console.log("[Diagnostics] afterCollectorBalance=" + String(newCollectorBalance))
-		console.log("[Diagnostics] balanceChange=" + String(balanceChange))
-		console.log("[Diagnostics] expectedTradingFee=" + String(expectedTradingFee))
 		expect(balanceChange).to.be.equal(expectedTradingFee)
 
 		const oldLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([oldQuote], arg.user.getWallet())
-		console.log("[Diagnostics] oldLockedValuesPartyA=" + String(oldLockedValuesPartyA))
 		const newLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([newQuote], arg.user.getWallet())
-		console.log("[Diagnostics] newLockedValuesPartyA=" + String(newLockedValuesPartyA))
 
 		const oldLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([oldQuote], arg.user.getWallet())
-		console.log("[Diagnostics] oldLockedValuesPartyB=" + String(oldLockedValuesPartyB))
 		const newLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([newQuote], arg.user.getWallet())
-		console.log("[Diagnostics] newLockedValuesPartyB=" + String(newLockedValuesPartyB))
 
 		const fillAmountCoef = new BN(arg.fillAmount.toString()).div(new BN(oldQuantity.toString()))
 		const priceCoef = new BN(arg.openedPrice.toString()).div(new BN(oldRequestedOpenPrice.toString()))
@@ -127,9 +95,6 @@ export class OpenPositionValidator implements TransactionValidator {
 		const partialWithPriceLockedValuesPartyB = BigInt(
 			new BN(oldLockedValuesPartyB.toString()).times(fillAmountCoef).times(priceCoef).toFixed(0, BN.ROUND_DOWN).toString(),
 		)
-		console.log("[Diagnostics] partialLockedValues=" + String(partialLockedValues))
-		console.log("[Diagnostics] partialWithPriceLockedValuesPartyA=" + String(partialWithPriceLockedValuesPartyA))
-		console.log("[Diagnostics] partialWithPriceLockedValuesPartyB=" + String(partialWithPriceLockedValuesPartyA))
 		expectToBeApproximately(newLockedValuesPartyA, partialWithPriceLockedValuesPartyA)
 
 		// Check Balances partyA
@@ -142,11 +107,6 @@ export class OpenPositionValidator implements TransactionValidator {
 		} else {
 			expectToBeApproximately(newBalanceInfoPartyA.totalPendingLockedPartyA, oldBalanceInfoPartyA.totalPendingLockedPartyA - partialLockedValues)
 		}
-		console.log("[Diagnostics] totalPendingLockedPartyA=" + String(newBalanceInfoPartyA.totalPendingLockedPartyA))
-		console.log("[Diagnostics] totalLockedPartyA=" + String(newBalanceInfoPartyA.totalLockedPartyA))
-		console.log("[Diagnostics] allocatedBalances=" + String(newBalanceInfoPartyA.allocatedBalances))
-		console.log("[Diagnostics] oldBalanceInfoPartyA.totalLockedPartyA=" + String(oldBalanceInfoPartyA.totalLockedPartyA ))
-		console.log("[Diagnostics] partialWithPriceLockedValuesPartyA=" + String(partialWithPriceLockedValuesPartyA))
 		expectToBeApproximately(newBalanceInfoPartyA.totalLockedPartyA, oldBalanceInfoPartyA.totalLockedPartyA + partialWithPriceLockedValuesPartyA)
 		if (arg.newQuoteTargetStatus == QuoteStatus.CANCELED) {
 			expect(newBalanceInfoPartyA.allocatedBalances).to.be.equal(

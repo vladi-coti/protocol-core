@@ -271,7 +271,7 @@ library LiquidationFacetImpl {
                     accountLayout.settlementStates[partyA][quote.partyB].expectedAmount = MpcCore.offBoardCombined(gtNewExpected, LibAccount.getUserEncryptionAddress(partyA));
                 }
             }
-            accountLayout.partyBLockedBalances[quote.partyB][partyA].subQuotePartyB(quote);
+            accountLayout.partyBLockedBalances[quote.partyB][partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
             
             // Calculate new avgClosedPrice with encrypted values
             gtUint256 gtAvgClosedPrice = LockedValuesOps.safeOnboard(quote.avgClosedPrice.ciphertext);
@@ -487,7 +487,7 @@ library LiquidationFacetImpl {
             quote.quoteStatus = QuoteStatus.LIQUIDATED;
             quote.statusModifyTimestamp = block.timestamp;
 
-            accountLayout.lockedBalances[partyA].subQuotePartyA(quote);
+            accountLayout.lockedBalances[partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(partyA));
 
             // Calculate new avgClosedPrice with encrypted values
             gtUint256 gtAvgClosedPriceB = LockedValuesOps.safeOnboard(quote.avgClosedPrice.ciphertext);

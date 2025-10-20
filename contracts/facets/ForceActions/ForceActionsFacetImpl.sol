@@ -27,8 +27,8 @@ library ForceActionsFacetImpl {
 		require(block.timestamp > quote.statusModifyTimestamp + maLayout.forceCancelCooldown, "PartyAFacet: Cooldown not reached");
 		quote.statusModifyTimestamp = block.timestamp;
 		quote.quoteStatus = QuoteStatus.CANCELED;
-		accountLayout.pendingLockedBalances[quote.partyA].subQuotePartyA(quote);
-		accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuotePartyB(quote);
+		accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
+		accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
 
 		// send trading Fee back to partyA
 		gtUint256 gtFee = LibQuote.getTradingFee(quote.id);

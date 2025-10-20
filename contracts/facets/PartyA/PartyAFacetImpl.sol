@@ -166,7 +166,7 @@ library PartyAFacetImpl {
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
 		gtUint256 gtFeeAmount = MpcCore.setPublic256(fee);
 		gtUint256 gtNewBalance = gtCurrentBalance.sub(gtFeeAmount);
-		accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewBalance, msg.sender);
+		accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(msg.sender));
 		
 		emit SharedEvents.BalanceChangePartyA(msg.sender, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_OUT);
 	}
@@ -190,10 +190,10 @@ library PartyAFacetImpl {
 			gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
 			gtUint256 gtFeeAmount = MpcCore.setPublic256(fee);
 			gtUint256 gtNewBalance = gtCurrentBalance.add(gtFeeAmount);
-			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, quote.partyA);
+			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 			emit SharedEvents.BalanceChangePartyA(quote.partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 			
-			accountLayout.pendingLockedBalances[quote.partyA].subQuotePartyA(quote);
+			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
 			LibQuote.removeFromPartyAPendingQuotes(quote);
 			result = QuoteStatus.CANCELED;
 		} else {

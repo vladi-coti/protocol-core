@@ -209,16 +209,6 @@ export class User {
 		const pendingLockedMmPartyA = await this.decryptUint256(pendingLockedBalances.partyAmm)
 		const pendingLockedMmPartyB = await this.decryptUint256(pendingLockedBalances.partyBmm)
 
-		console.log(`lockedCva`, lockedCva)
-		console.log(`lockedLf`, lockedLf)
-		console.log(`lockedMmPartyA`, lockedMmPartyA)
-		console.log(`lockedMmPartyB`, lockedMmPartyB)
-		
-		console.log(`pendingLockedCva`, pendingLockedCva)
-		console.log(`pendingLockedLf`, pendingLockedLf)
-		console.log(`pendingLockedMmPartyA`, pendingLockedMmPartyA)
-		console.log(`pendingLockedMmPartyB`, pendingLockedMmPartyB)
-		
 		return {
 			allocatedBalances,
 			lockedCva,

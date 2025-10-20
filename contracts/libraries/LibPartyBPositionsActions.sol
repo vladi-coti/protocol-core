@@ -108,15 +108,15 @@ library LibPartyBPositionsActions {
 		}
 
 		// Store encrypted openedPrice
-		quote.openedPrice = gtOpenedPrice.offBoardCombined(quote.partyA);
-		quote.initialOpenedPrice = gtOpenedPrice.offBoardCombined(quote.partyA);
+		quote.openedPrice = gtOpenedPrice.offBoardCombined(LibAccount.getUserEncryptionAddress(quote.partyA));
+		quote.initialOpenedPrice = gtOpenedPrice.offBoardCombined(LibAccount.getUserEncryptionAddress(quote.partyA));
 		quote.statusModifyTimestamp = block.timestamp;
 
 		LibQuote.removeFromPendingQuotes(quote);
 
 		if (quoteQuantity == MpcCore.decrypt(gtFilledAmount)) {
-			accountLayout.pendingLockedBalances[quote.partyA].subQuotePartyA(quote);
-			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuotePartyB(quote);
+			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
+			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
 			
 			// Scale locked values by price ratio: lockedValues * openedPrice / requestedOpenPrice
 			GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
@@ -204,20 +204,20 @@ library LibPartyBPositionsActions {
 				gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[newQuote.partyA].ciphertext);
 				gtUint256 gtFeeAmount = MpcCore.setPublic256(fee);
 				gtUint256 gtNewBalance = gtCurrentBalance.add(gtFeeAmount);
-				accountLayout.allocatedBalances[newQuote.partyA] = MpcCore.offBoardCombined(gtNewBalance, newQuote.partyA);
+				accountLayout.allocatedBalances[newQuote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(newQuote.partyA));
 				
 				emit SharedEvents.BalanceChangePartyA(newQuote.partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 
 				// part of quote has been filled and part of it has been canceled
-				accountLayout.pendingLockedBalances[quote.partyA].subQuotePartyA(quote);
-				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuotePartyB(quote);
+				accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
+				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
 			} else {
 				// Subtract filled locked values from pending balances
 				GarbledLockedValues memory gtPendingA = accountLayout.pendingLockedBalances[quote.partyA].onBoard();
 				GarbledLockedValues memory gtResultA = gtPendingA.sub(gtFilledLockedValues);
 				accountLayout.pendingLockedBalances[quote.partyA] = gtResultA.offBoard(LibAccount.getUserEncryptionAddress(quote.partyA));
 				
-				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuotePartyB(quote);
+				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
 			}
 			
 			// Calculate remaining locked values for the new quote
@@ -232,8 +232,8 @@ library LibPartyBPositionsActions {
 			quote.lockedValues = gtAppliedFilledLockedValues.offBoard(LibAccount.getUserEncryptionAddress(quote.partyA));
 		}
 		// lock with amount of filledAmount
-		accountLayout.lockedBalances[quote.partyA].addQuotePartyA(quote);
-		accountLayout.partyBLockedBalances[quote.partyB][quote.partyA].addQuotePartyB(quote);
+		accountLayout.lockedBalances[quote.partyA].addQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
+		accountLayout.partyBLockedBalances[quote.partyB][quote.partyA].addQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
 
 		// check leverage (is in 18 decimals): (quantity * openedPrice) / totalForPartyA <= maxLeverage
 		gtUint256 gtFinalQuantity = LockedValuesOps.safeOnboard(quote.quantity.ciphertext);

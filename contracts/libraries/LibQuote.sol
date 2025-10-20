@@ -259,11 +259,11 @@ library LibQuote {
 			// Update PartyA balance
 			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
 			gtUint256 gtNewPartyABalance = gtPartyABalance.add(gtPnl);
-			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, quote.partyA);
+			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 			
 			// Update PartyB balance
 			gtUint256 gtNewPartyBBalance = gtPartyBBalance.sub(gtPnl);
-			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewPartyBBalance, quote.partyA);
+			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewPartyBBalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 			
 			// Emit encrypted events for both parties
 			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
@@ -285,12 +285,12 @@ library LibQuote {
 			
 			// Update PartyA balance
 			gtUint256 gtNewPartyABalance = gtPartyABalance.sub(gtPnl);
-			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, quote.partyA);
+			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 			
 			// Update PartyB balance
 			gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
 			gtUint256 gtNewPartyBBalance = gtPartyBBalance.add(gtPnl);
-			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewPartyBBalance, quote.partyA);
+			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewPartyBBalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 			
 			// Emit encrypted events for both parties
 			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
@@ -311,14 +311,14 @@ library LibQuote {
 		gtUint256 gtClosedAmount = LockedValuesOps.safeOnboard(quote.closedAmount.ciphertext);
 		gtUint256 gtClosedPrice = MpcCore.setPublic256(closedPrice);
 		gtUint256 gtNewAvgClosedPrice = gtAvgClosedPrice.mul(gtClosedAmount).add(gtFilledAmount.mul(gtClosedPrice)).div(gtClosedAmount.add(gtFilledAmount));
-		quote.avgClosedPrice = MpcCore.offBoardCombined(gtNewAvgClosedPrice, quote.partyA);
+		quote.avgClosedPrice = MpcCore.offBoardCombined(gtNewAvgClosedPrice, LibAccount.getUserEncryptionAddress(quote.partyA));
 
 		// Update closedAmount and quantityToClose
 		gtUint256 gtNewClosedAmount = gtClosedAmount.add(gtFilledAmount);
-		quote.closedAmount = MpcCore.offBoardCombined(gtNewClosedAmount, quote.partyA);
+		quote.closedAmount = MpcCore.offBoardCombined(gtNewClosedAmount, LibAccount.getUserEncryptionAddress(quote.partyA));
 		
 		gtUint256 gtNewQuantityToClose = gtQuantityToClose.sub(gtFilledAmount);
-		quote.quantityToClose = MpcCore.offBoardCombined(gtNewQuantityToClose, quote.partyA);
+		quote.quantityToClose = MpcCore.offBoardCombined(gtNewQuantityToClose, LibAccount.getUserEncryptionAddress(quote.partyA));
 
 		// Check if quote is fully closed
 		gtUint256 gtQuantity = LockedValuesOps.safeOnboard(quote.quantity.ciphertext);
@@ -326,14 +326,14 @@ library LibQuote {
 		if (MpcCore.decrypt(isFullyClosed)) {
 			quote.statusModifyTimestamp = block.timestamp;
 			quote.quoteStatus = QuoteStatus.CLOSED;
-			quote.requestedClosePrice = MpcCore.offBoardCombined(gtZero, quote.partyA);
+			quote.requestedClosePrice = MpcCore.offBoardCombined(gtZero, LibAccount.getUserEncryptionAddress(quote.partyA));
 			removeFromOpenPositions(quote.id);
 			quoteLayout.partyAPositionsCount[quote.partyA] -= 1;
 			quoteLayout.partyBPositionsCount[quote.partyB][quote.partyA] -= 1;
 		} else if (quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING || MpcCore.decrypt(gtNewQuantityToClose.eq(gtZero))) {
 			quote.quoteStatus = QuoteStatus.OPENED;
 			quote.statusModifyTimestamp = block.timestamp;
-			quote.requestedClosePrice = MpcCore.offBoardCombined(gtZero, quote.partyA);
+			quote.requestedClosePrice = MpcCore.offBoardCombined(gtZero, LibAccount.getUserEncryptionAddress(quote.partyA));
 			quote.quantityToClose = MpcCore.offBoardCombined(gtZero, quote.partyA);
 		}
 	}
@@ -361,7 +361,7 @@ library LibQuote {
 		require(!MAStorage.layout().partyBLiquidationStatus[quote.partyB][quote.partyA], "LibQuote: PartyB isn't solvent");
 		if (quote.quoteStatus == QuoteStatus.PENDING || quote.quoteStatus == QuoteStatus.LOCKED || quote.quoteStatus == QuoteStatus.CANCEL_PENDING) {
 			quote.statusModifyTimestamp = block.timestamp;
-			accountLayout.pendingLockedBalances[quote.partyA].subQuotePartyA(quote);
+			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
 
 			// send trading Fee back to partyA
 			gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
@@ -370,7 +370,7 @@ library LibQuote {
 			// Update PartyA balance with encrypted operations
 			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
 			gtUint256 gtNewPartyABalance = gtPartyABalance.add(gtFee);
-			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, quote.partyA);
+			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 			
 			// Emit encrypted event for PartyA
 			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
@@ -382,7 +382,7 @@ library LibQuote {
 
 			removeFromPartyAPendingQuotes(quote);
 			if (quote.quoteStatus == QuoteStatus.LOCKED || quote.quoteStatus == QuoteStatus.CANCEL_PENDING) {
-				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuotePartyB(quote);
+				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
 				removeFromPartyBPendingQuotes(quote);
 			}
 			quote.quoteStatus = QuoteStatus.EXPIRED;
@@ -390,8 +390,8 @@ library LibQuote {
 		} else if (quote.quoteStatus == QuoteStatus.CLOSE_PENDING || quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING) {
 			quote.statusModifyTimestamp = block.timestamp;
 			gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
-			quote.requestedClosePrice = MpcCore.offBoardCombined(gtZero, quote.partyA);
-			quote.quantityToClose = MpcCore.offBoardCombined(gtZero, quote.partyA);
+			quote.requestedClosePrice = MpcCore.offBoardCombined(gtZero, LibAccount.getUserEncryptionAddress(quote.partyA));
+			quote.quantityToClose = MpcCore.offBoardCombined(gtZero, LibAccount.getUserEncryptionAddress(quote.partyA));
 			quote.quoteStatus = QuoteStatus.OPENED;
 			result = QuoteStatus.OPENED;
 		}
