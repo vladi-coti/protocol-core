@@ -24,7 +24,7 @@ export class User {
 		await this.context.manager.registerUser(this)
 	}
 
-	public getPrivateWallet(): Wallet {
+	public getWallet(): Wallet {
 		return this.signer
 	}
 

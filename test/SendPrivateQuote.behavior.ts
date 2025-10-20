@@ -41,7 +41,7 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 			expect(quoteId).to.be.greaterThan(0)
 			console.log("SendPrivateQuote.behavior.ts::::quoteId: " + quoteId)
 
-			const quantity = await getQuoteQuantity(context, quoteId, privateUser.getPrivateWallet())
+			const quantity = await getQuoteQuantity(context, quoteId, privateUser.getWallet())
 			console.log("SendPrivateQuote.behavior.ts::::quantity: " + quantity)
 		})
 
@@ -62,7 +62,7 @@ export function shouldBehaveLikeSendPrivateQuote(): void {
 			expect(quote.positionType).to.equal(PositionType.SHORT)
 
 			// Verify we can decrypt the quantity
-			const quantity = await getQuoteQuantity(context, quoteId, privateUser.getPrivateWallet())
+			const quantity = await getQuoteQuantity(context, quoteId, privateUser.getWallet())
 			console.log("SendPrivateQuote.behavior.ts::::short quantity: " + quantity)
 			expect(quantity).to.be.greaterThan(0)
 		})

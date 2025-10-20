@@ -56,29 +56,33 @@ export class OpenPositionValidator implements TransactionValidator {
 		logger.debug("After OpenPositionValidator...")
 		// Check Quote
 		const newQuote = await context.viewFacet.getQuote(arg.quoteId)
+		const newOpenedPrice = await arg.user.decryptUint256(newQuote.openedPrice.userCiphertext)
+		const newQuantity = await arg.user.decryptUint256(newQuote.quantity.userCiphertext)
 		const oldQuote = arg.beforeOutput.quote
+		const oldRequestedOpenPrice = await arg.user.decryptUint256(oldQuote.requestedOpenPrice.userCiphertext)
+		const oldQuantity = await arg.user.decryptUint256(oldQuote.quantity.userCiphertext)
 		expect(newQuote.quoteStatus).to.be.equal(QuoteStatus.OPENED)
-		expect(newQuote.openedPrice).to.be.equal(arg.openedPrice)
-		expect(newQuote.quantity).to.be.equal(arg.fillAmount)
+		expect(newOpenedPrice).to.be.equal(arg.openedPrice)
+		expect(newQuantity).to.be.equal(arg.fillAmount)
 
 		const newCollectorBalance = await context.viewFacet.balanceOf(await context.viewFacet.getFeeCollector(newQuote.affiliate))
 		expect(newCollectorBalance).to.be.equal(arg.beforeOutput.feeCollectorBalance + await getTradingFeeForQuoteWithFilledAmount(context, newQuote.id!, arg.fillAmount))
 
-		const oldLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([oldQuote])
-		const newLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([newQuote])
+		const oldLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([oldQuote], arg.user.getWallet())
+		const newLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([newQuote], arg.user.getWallet())
 
-		const oldLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([oldQuote])
-		const newLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([newQuote])
+		const oldLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([oldQuote], arg.user.getWallet())
+		const newLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([newQuote], arg.user.getWallet())
 
-		const fillAmountCoef = new BN(arg.fillAmount.toString()).div(new BN(oldQuote.quantity.toString()))
-		const priceCoef = new BN(arg.openedPrice.toString()).div(new BN(oldQuote.requestedOpenPrice.toString()))
+		const fillAmountCoef = new BN(arg.fillAmount.toString()).div(new BN(oldQuantity.toString()))
+		const priceCoef = new BN(arg.openedPrice.toString()).div(new BN(oldRequestedOpenPrice.toString()))
 		const partially = !fillAmountCoef.eq(1)
 
 		if (partially && arg.newQuoteId != null) {
 			const newlyCreatedQuote = await context.viewFacet.getQuote(arg.newQuoteId!)
 			expect(newlyCreatedQuote.quoteStatus).to.be.equal(arg.newQuoteTargetStatus!)
-			const lv = await getTotalPartyALockedValuesForQuotes([newlyCreatedQuote])
-			expect(newlyCreatedQuote.quantity).to.be.equal(oldQuote.quantity - arg.fillAmount)
+			const lv = await getTotalPartyALockedValuesForQuotes([newlyCreatedQuote], arg.user.getWallet())
+			expect(newQuantity).to.be.equal(oldQuantity - arg.fillAmount)
 			expect(lv).to.be.equal(new BN(oldLockedValuesPartyA.toString()).times(new BN(1).minus(fillAmountCoef)).toString())
 		}
 
