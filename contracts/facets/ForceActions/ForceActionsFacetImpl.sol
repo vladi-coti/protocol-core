@@ -27,8 +27,8 @@ library ForceActionsFacetImpl {
 		require(block.timestamp > quote.statusModifyTimestamp + maLayout.forceCancelCooldown, "PartyAFacet: Cooldown not reached");
 		quote.statusModifyTimestamp = block.timestamp;
 		quote.quoteStatus = QuoteStatus.CANCELED;
-		accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote);
-		accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote);
+		accountLayout.pendingLockedBalances[quote.partyA].subQuotePartyA(quote);
+		accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuotePartyB(quote);
 
 		// send trading Fee back to partyA
 		gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
@@ -38,7 +38,7 @@ library ForceActionsFacetImpl {
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
 		gtUint256 gtFeeAmount = MpcCore.setPublic256(fee);
 		gtUint256 gtNewBalance = gtCurrentBalance.add(gtFeeAmount);
-		accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, quote.partyA);
+		accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 		
 		emit SharedEvents.BalanceChangePartyA(quote.partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 
@@ -145,7 +145,7 @@ library ForceActionsFacetImpl {
 			gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
 			gtUint256 gtAvailableAmount = MpcCore.setPublic256(available);
 			gtUint256 gtNewBalance = gtCurrentBalance.add(gtAvailableAmount);
-			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, quote.partyA);
+			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 			
 			emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, available, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
 			if (updatedPrices.length > 0) {
@@ -159,7 +159,7 @@ library ForceActionsFacetImpl {
 			gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
 			gtUint256 gtReserveAmount = MpcCore.setPublic256(reserveAmount);
 			gtUint256 gtNewBalance = gtCurrentBalance.add(gtReserveAmount);
-			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, quote.partyA);
+			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 			
 			emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, reserveAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
 			int256 diff = (int256(quantityToClose) * (int256(closePrice) - int256(sig.currentPrice))) / 1e18;

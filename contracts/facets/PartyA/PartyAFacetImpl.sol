@@ -47,6 +47,9 @@ library PartyAFacetImpl {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		MAStorage.Layout storage maLayout = MAStorage.layout();
 		SymbolStorage.Layout storage symbolLayout = SymbolStorage.layout();
+		
+		// Initialize locked balances to encrypted zeros if uninitialized
+		_ensureInitializedLockedBalances(accountLayout, msg.sender);
 
 		require(!LibAccessibility.hasRole(msg.sender, LibAccessibility.LIQUIDATOR_ROLE), "PartyAFacet: Liquidator can't be partyA");
 		require(
@@ -190,7 +193,7 @@ library PartyAFacetImpl {
 			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, quote.partyA);
 			emit SharedEvents.BalanceChangePartyA(quote.partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 			
-			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote);
+			accountLayout.pendingLockedBalances[quote.partyA].subQuotePartyA(quote);
 			LibQuote.removeFromPartyAPendingQuotes(quote);
 			result = QuoteStatus.CANCELED;
 		} else {
@@ -254,6 +257,28 @@ library PartyAFacetImpl {
 			quote.statusModifyTimestamp = block.timestamp;
 			quote.quoteStatus = QuoteStatus.CANCEL_CLOSE_PENDING;
 			return QuoteStatus.CANCEL_CLOSE_PENDING;
+		}
+	}
+
+	/**
+	 * @notice Ensures that Party A locked balances are initialized to encrypted zeros.
+	 * @param accountLayout The account storage layout.
+	 * @param partyA The address of Party A.
+	 */
+	function _ensureInitializedLockedBalances(
+		AccountStorage.Layout storage accountLayout,
+		address partyA
+	) internal {
+		// Check if locked balances are uninitialized (all zeros in ciphertext)
+		LockedValues storage lockedBalances = accountLayout.lockedBalances[partyA];
+		LockedValues storage pendingLockedBalances = accountLayout.pendingLockedBalances[partyA];
+		
+		// Initialize locked balances if they contain garbage values
+		if (lockedBalances.isUninitialized()) {
+			lockedBalances.initializeToZeros(LibAccount.getUserEncryptionAddress(partyA));
+		}
+		if (pendingLockedBalances.isUninitialized()) {
+			pendingLockedBalances.initializeToZeros(LibAccount.getUserEncryptionAddress(partyA));
 		}
 	}
 }

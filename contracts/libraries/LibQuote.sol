@@ -361,7 +361,7 @@ library LibQuote {
 		require(!MAStorage.layout().partyBLiquidationStatus[quote.partyB][quote.partyA], "LibQuote: PartyB isn't solvent");
 		if (quote.quoteStatus == QuoteStatus.PENDING || quote.quoteStatus == QuoteStatus.LOCKED || quote.quoteStatus == QuoteStatus.CANCEL_PENDING) {
 			quote.statusModifyTimestamp = block.timestamp;
-			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote);
+			accountLayout.pendingLockedBalances[quote.partyA].subQuotePartyA(quote);
 
 			// send trading Fee back to partyA
 			gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
@@ -382,7 +382,7 @@ library LibQuote {
 
 			removeFromPartyAPendingQuotes(quote);
 			if (quote.quoteStatus == QuoteStatus.LOCKED || quote.quoteStatus == QuoteStatus.CANCEL_PENDING) {
-				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote);
+				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuotePartyB(quote);
 				removeFromPartyBPendingQuotes(quote);
 			}
 			quote.quoteStatus = QuoteStatus.EXPIRED;
