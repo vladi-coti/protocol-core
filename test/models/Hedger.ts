@@ -13,8 +13,7 @@ import {limitOpenRequestBuilder, OpenRequest} from "./requestModels/OpenRequest"
 import {runTx} from "../utils/TxUtils"
 import {PairUpnlSigStructOutput} from "../../src/types/contracts/facets/FundingRate/FundingRateFacet"
 import { Wallet } from "@coti-io/coti-ethers";
-import {QuoteStructOutput, SendQuoteForPartyBEvent, SingleUpnlSigStructOutput} from "../../src/types/contracts/interfaces/ISymmio"
-import {SettlementSigStructOutput} from "../../src/types/contracts/facets/Settlement/SettlementFacet"
+import {QuoteStructOutput, SendQuoteForPartyBEvent, SettlementSigStructOutput, SingleUpnlSigStruct} from "../../src/types/contracts/interfaces/ISymmio"
 import { QuoteData } from "./types";
 
 export class Hedger {
@@ -139,7 +138,7 @@ export class Hedger {
 			encryptedOpenedPrice
 		}
 		
-		await runTx(
+		const tx = await runTx(
 			this.context.partyBPositionActionsFacet
 				.connect(this.signer)
 				.openPosition(
@@ -148,7 +147,7 @@ export class Hedger {
 					await getDummyPairUpnlAndPriceSig(BigInt(request.price), BigInt(request.upnlPartyA), BigInt(request.upnlPartyB))
 				)
 		)
-		logger.info(`Hedger::OpenPosition: ${quoteData.quoteId}`)
+		logger.info(`Hedger::OpenPosition: ${quoteData.quoteId} gas used: ${tx.gasUsed.toString()}`)
 	}
 
 	public async getBalance(): Promise<bigint> {
@@ -229,7 +228,7 @@ export class Hedger {
 		logger.info(`Hedger::AcceptCancelCloseRequest: ${id}`)
 	}
 
-	public async liquidate(partyA: string, sig: SingleUpnlSigStructOutput | Promise<SingleUpnlSigStructOutput> = getDummySingleUpnlSig()) {
+	public async liquidate(partyA: string, sig: SingleUpnlSigStruct | Promise<SingleUpnlSigStruct> = getDummySingleUpnlSig()) {
 		let signature = sig instanceof Promise ? await sig : sig
 		await runTx(this.context.liquidationFacet.connect(this.context.signers.liquidator).liquidatePartyB(await this.signer.getAddress(), partyA, signature))
 		logger.info(`Hedger::Liquidator: ${partyA}`)

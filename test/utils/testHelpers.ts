@@ -61,8 +61,8 @@ export const timeCompatible = {
 			await time.increase(seconds)
 		} else {
 			// For testnets, just wait the actual time (much shorter for testing)
-			const waitTime = Math.min(Number(seconds), 60) // Max 60 seconds wait
-			console.log(`Waiting ${waitTime}ms to simulate time increase on testnet...`)
+			const waitTime = Number(seconds)
+			console.log(`Waiting ${waitTime}s to simulate time increase on testnet...`)
 			await new Promise(resolve => setTimeout(resolve, waitTime * 1000))
 		}
 	},
