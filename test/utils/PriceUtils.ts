@@ -8,11 +8,11 @@ export async function getPrice(): Promise<bigint> {
 	return randomBigNumber(110000000000000000000n, 100000000000000000000n)
 }
 
-export function calculateExpectedClosePriceForForceClose(q: QuoteStructOutput, penalty: bigint, isLongPosition: boolean): bigint {
-	const a = (q.requestedClosePrice * penalty) / decimal(1n)
-	return isLongPosition ? q.requestedClosePrice + a : q.requestedClosePrice - a
+export function calculateExpectedClosePriceForForceClose(requestedClosePrice: bigint, penalty: bigint, isLongPosition: boolean): bigint {
+	const a = (requestedClosePrice * penalty) / decimal(1n)
+	return isLongPosition ? requestedClosePrice + a : requestedClosePrice - a
 }
 
-export function calculateExpectedAvgPriceForForceClose(q: QuoteStructOutput, expectedClosePrice: bigint): bigint {
-	return ((q.avgClosedPrice * q.closedAmount) + (q.quantityToClose * expectedClosePrice)) / (q.closedAmount + q.quantityToClose)
+export function calculateExpectedAvgPriceForForceClose(avgClosedPrice: bigint, closedAmount: bigint, quantityToClose: bigint, expectedClosePrice: bigint): bigint {
+	return ((avgClosedPrice * closedAmount) + (quantityToClose * expectedClosePrice)) / (closedAmount + quantityToClose)
 }

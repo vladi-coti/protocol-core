@@ -91,7 +91,7 @@ export function shouldBehaveLikeSendQuote(): void {
 	})
 
 	it("Quote should expire", async function () {
-		let qId = await user.sendQuote(limitQuoteRequestBuilder().deadline(getBlockTimestamp(5n)).build())
+		let {quoteId: qId} = await user.sendQuote(limitQuoteRequestBuilder().deadline(getBlockTimestamp(5n)).build())
 		await expect(context.partyAFacet.expireQuote([qId])).to.be.revertedWith("LibQuote: Quote isn't expired")
 		await timeCompatible.increase(10)
 		await context.partyAFacet.expireQuote([1])
@@ -101,14 +101,14 @@ export function shouldBehaveLikeSendQuote(): void {
 	it("Should run successfully for limit", async function () {
 		let validator = new SendQuoteValidator()
 		const before = await validator.before(context, {user: user})
-		let qId = await user.sendQuote()
+		let {quoteId: qId} = await user.sendQuote()
 		await validator.after(context, {user: user, quoteId: qId, beforeOutput: before})
 	})
 
 	it("Should run successfully for market", async function () {
 		let validator = new SendQuoteValidator()
 		const before = await validator.before(context, {user: user})
-		let qId = await user.sendQuote(marketQuoteRequestBuilder().build())
+		let {quoteId: qId} = await user.sendQuote(marketQuoteRequestBuilder().build())
 		await validator.after(context, {user: user, quoteId: qId, beforeOutput: before})
 	})
 

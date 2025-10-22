@@ -44,8 +44,10 @@ export class CloseRequestValidator implements TransactionValidator {
 		const newQuote = await context.viewFacet.getQuote(arg.quoteId)
 		const oldQuote = arg.beforeOutput.quote
 		expect(newQuote.quoteStatus).to.be.equal(QuoteStatus.CLOSE_PENDING)
-		expect(newQuote.quantityToClose).to.be.equal(arg.quantityToClose)
-		expect(newQuote.requestedClosePrice).to.be.equal(arg.closePrice)
+		const decryptedQuantityToClose = await arg.user.decryptUint256(newQuote.quantityToClose.userCiphertext)
+		const decryptedRequestedClosePrice = await arg.user.decryptUint256(newQuote.requestedClosePrice.userCiphertext)
+		expect(decryptedQuantityToClose).to.be.equal(arg.quantityToClose)
+		expect(decryptedRequestedClosePrice).to.be.equal(arg.closePrice)
 
 		// Check Balances partyA
 		const newBalanceInfoPartyA = await arg.user.getBalanceInfo()

@@ -43,7 +43,8 @@ export class AcceptCancelCloseRequestValidator implements TransactionValidator {
 		const newQuote = await context.viewFacet.getQuote(arg.quoteId)
 		const oldQuote = arg.beforeOutput.quote
 		expect(newQuote.quoteStatus).to.be.equal(QuoteStatus.OPENED)
-		expect(newQuote.quantityToClose).to.be.equal(0n)
+		const decryptedQuantityToClose = await arg.user.decryptUint256(newQuote.quantityToClose.userCiphertext)
+		expect(decryptedQuantityToClose).to.be.equal(0n)
 
 		// Check Balances partyA
 		const newBalanceInfoPartyA = await arg.user.getBalanceInfo()

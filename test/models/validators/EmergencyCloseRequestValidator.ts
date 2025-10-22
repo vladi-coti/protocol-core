@@ -47,24 +47,28 @@ export class EmergencyCloseRequestValidator implements TransactionValidator {
 		const oldQuote = arg.beforeOutput.quote
 
 		expect(newQuote.quoteStatus).to.be.equal(QuoteStatus.CLOSED)
-		expect(newQuote.closedAmount).to.be.equal(oldQuote.quantity)
+		const decryptedNewClosedAmount = await arg.user.decryptUint256(newQuote.closedAmount.userCiphertext)
+		const decryptedOldQuantity = await arg.user.decryptUint256(oldQuote.quantity.userCiphertext)
+		const decryptedOldClosedAmount = await arg.user.decryptUint256(oldQuote.closedAmount.userCiphertext)
+		const decryptedNewOpenedPrice = await arg.user.decryptUint256(newQuote.openedPrice.userCiphertext)
+		expect(decryptedNewClosedAmount).to.be.equal(decryptedOldQuantity)
 
-		const oldLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([oldQuote])
-		const newLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([newQuote])
+		const oldLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([oldQuote], context.signers.user)
+		const newLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([newQuote], context.signers.user)
 
-		const oldLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([oldQuote])
-		const newLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([newQuote])
+		const oldLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([oldQuote], context.signers.hedger)
+		const newLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([newQuote], context.signers.hedger)
 
-		const closedAmount = BigInt(newQuote.closedAmount) - BigInt(oldQuote.closedAmount)
+		const closedAmount = BigInt(decryptedNewClosedAmount) - BigInt(decryptedOldClosedAmount)
 		let profit
 		if (newQuote.positionType === BigInt(PositionType.LONG)) {
-			profit = unDecimal((BigInt(arg.price) - BigInt(newQuote.openedPrice)) * closedAmount)
+			profit = unDecimal((BigInt(arg.price) - BigInt(decryptedNewOpenedPrice)) * closedAmount)
 		} else {
-			profit = unDecimal((BigInt(newQuote.openedPrice) - BigInt(arg.price)) * closedAmount)
+			profit = unDecimal((BigInt(decryptedNewOpenedPrice) - BigInt(arg.price)) * closedAmount)
 		}
 
-		const returnedLockedValuesPartyA = (BigInt(oldLockedValuesPartyA) * closedAmount) / BigInt(oldQuote.quantity)
-		const returnedLockedValuesPartyB = (BigInt(oldLockedValuesPartyB) * closedAmount) / BigInt(oldQuote.quantity)
+		const returnedLockedValuesPartyA = (BigInt(oldLockedValuesPartyA) * closedAmount) / BigInt(decryptedOldQuantity)
+		const returnedLockedValuesPartyB = (BigInt(oldLockedValuesPartyB) * closedAmount) / BigInt(decryptedOldQuantity)
 
 // Check Balances partyA
 		const newBalanceInfoPartyA = await arg.user.getBalanceInfo()

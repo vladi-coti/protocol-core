@@ -45,8 +45,12 @@ export class FillCloseRequestValidator implements TransactionValidator {
 // Check Quote
 		const newQuote = await context.viewFacet.getQuote(arg.quoteId)
 		const oldQuote = arg.beforeOutput.quote
-		const zeroToClose = newQuote.quantityToClose === 0n
-		const isFullyClosed = newQuote.quantity === newQuote.closedAmount
+		const decryptedZeroToClose = await arg.user.decryptUint256(newQuote.quantityToClose.userCiphertext)
+		const zeroToClose = decryptedZeroToClose === 0n
+		const decryptedNewQuantity = await arg.user.decryptUint256(newQuote.quantity.userCiphertext)
+		const decryptedNewClosedAmount = await arg.user.decryptUint256(newQuote.closedAmount.userCiphertext)
+		const decryptedOldClosedAmount = await arg.user.decryptUint256(oldQuote.closedAmount.userCiphertext)
+		const isFullyClosed = decryptedNewQuantity === decryptedNewClosedAmount
 
 		if (isFullyClosed) {
 			expect(newQuote.quoteStatus).to.equal(QuoteStatus.CLOSED)
@@ -56,27 +60,31 @@ export class FillCloseRequestValidator implements TransactionValidator {
 			expect(newQuote.quoteStatus).to.equal(QuoteStatus.CLOSE_PENDING)
 		}
 
-		expect(newQuote.closedAmount.toString()).to.equal((BigInt(oldQuote.closedAmount) + BigInt(arg.fillAmount)).toString())
+		expect(decryptedNewClosedAmount.toString()).to.equal((decryptedOldClosedAmount + BigInt(arg.fillAmount)).toString())
 
 // TODO: Sometimes fillCloseRequest has Error
 
-		expect(newQuote.quantityToClose.toString()).to.equal((BigInt(oldQuote.quantityToClose) - BigInt(arg.fillAmount)).toString())
+		const decryptedNewQuantityToClose = await arg.user.decryptUint256(newQuote.quantityToClose.userCiphertext)
+		const decryptedOldQuantityToClose = await arg.user.decryptUint256(oldQuote.quantityToClose.userCiphertext)
+		expect(decryptedNewQuantityToClose.toString()).to.equal((decryptedOldQuantityToClose - BigInt(arg.fillAmount)).toString())
 
-		const oldLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([oldQuote])
-		const newLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([newQuote])
+		const oldLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([oldQuote], context.signers.user)
+		const newLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([newQuote], context.signers.user)
 
-		const oldLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([oldQuote])
-		const newLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([newQuote])
+		const oldLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([oldQuote], context.signers.hedger)
+		const newLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([newQuote], context.signers.hedger)
 
 		let profit
+		const decryptedOpenedPrice = await arg.user.decryptUint256(newQuote.openedPrice.userCiphertext)
 		if (newQuote.positionType === BigInt(PositionType.LONG)) {
-			profit = unDecimal((BigInt(arg.closePrice) - BigInt(newQuote.openedPrice)) * BigInt(arg.fillAmount))
+			profit = unDecimal((BigInt(arg.closePrice) - decryptedOpenedPrice) * BigInt(arg.fillAmount))
 		} else {
-			profit = unDecimal((BigInt(newQuote.openedPrice) - BigInt(arg.closePrice)) * BigInt(arg.fillAmount))
+			profit = unDecimal((decryptedOpenedPrice - BigInt(arg.closePrice)) * BigInt(arg.fillAmount))
 		}
 
-		const returnedLockedValuesPartyA = (BigInt(oldLockedValuesPartyA) * BigInt(arg.fillAmount)) / BigInt(oldQuote.quantity)
-		const returnedLockedValuesPartyB = (BigInt(oldLockedValuesPartyB) * BigInt(arg.fillAmount)) / BigInt(oldQuote.quantity)
+		const decryptedOldQuantity = await arg.user.decryptUint256(oldQuote.quantity.userCiphertext)
+		const returnedLockedValuesPartyA = (BigInt(oldLockedValuesPartyA) * BigInt(arg.fillAmount)) / decryptedOldQuantity
+		const returnedLockedValuesPartyB = (BigInt(oldLockedValuesPartyB) * BigInt(arg.fillAmount)) / decryptedOldQuantity
 
 // Check Balances partyA
 		const newBalanceInfoPartyA = await arg.user.getBalanceInfo()

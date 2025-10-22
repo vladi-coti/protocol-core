@@ -10,11 +10,12 @@ import {decimal, unDecimal} from "./utils/Common"
 import {expect} from "chai"
 import {getDummySettlementSig, getDummySingleUpnlSig} from "./utils/SignatureUtils"
 import {QuoteSettlementDataStructOutput} from "../src/types/contracts/facets/Settlement/ISettlementFacet"
+import {QuoteData} from "./models/types"
 
 export function shouldBehaveLikeSettlement(): void {
 	let context: RunContext, user: User, user2: User, hedger: Hedger, hedger2: Hedger
-	let longHedger1: bigint, shortHedger1: bigint, shortHedger2: bigint, shortClosePending: bigint,
-		longClosed: bigint, longHedger1User2: bigint
+	let longHedger1: QuoteData, shortHedger1: QuoteData, shortHedger2: QuoteData, shortClosePending: QuoteData,
+		longClosed: QuoteData, longHedger1User2: QuoteData
 
 	beforeEach(async function () {
 		context = await loadFixtureCompatible(initializeFixture)
@@ -56,13 +57,13 @@ export function shouldBehaveLikeSettlement(): void {
 		shortClosePending = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
 		await hedger.lockQuote(shortClosePending)
 		await hedger.openPosition(shortClosePending)
-		await user.requestToClosePosition(shortClosePending)
+		await user.requestToClosePosition(shortClosePending.quoteId)
 
 		longClosed = await user.sendQuote()
 		await hedger.lockQuote(longClosed)
 		await hedger.openPosition(longClosed)
-		await user.requestToClosePosition(longClosed)
-		await hedger.fillCloseRequest(longClosed)
+		await user.requestToClosePosition(longClosed.quoteId)
+		await hedger.fillCloseRequest(longClosed.quoteId)
 	})
 
 	it("Should fail when partyB actions paused", async function () {
@@ -82,7 +83,7 @@ export function shouldBehaveLikeSettlement(): void {
 	it("Should fail when when partyA is insolvent", async function () {
 		await expect(hedger.settleUpnl(await user.getAddress(), [1n], getDummySettlementSig(decimal(600n) * -1n, [0n], [
 			{
-				quoteId: longHedger1User2,
+				quoteId: longHedger1User2.quoteId,
 				currentPrice: 0n,
 				partyBUpnlIndex: 0n
 			} as QuoteSettlementDataStructOutput
@@ -92,7 +93,7 @@ export function shouldBehaveLikeSettlement(): void {
 	it("Should fail if sender doesn't have open position with user", async function () {
 		await expect(hedger2.settleUpnl(await user2.getAddress(), [1n], getDummySettlementSig(decimal(600n) * -1n, [0n], [
 			{
-				quoteId: longHedger1User2,
+				quoteId: longHedger1User2.quoteId,
 				currentPrice: 0n,
 				partyBUpnlIndex: 0n
 			} as QuoteSettlementDataStructOutput
@@ -102,7 +103,7 @@ export function shouldBehaveLikeSettlement(): void {
 	it("Should fail if one of quotes has different partyA than the one in parameter", async function () {
 		await expect(hedger.settleUpnl(await user.getAddress(), [1n], getDummySettlementSig(0n, [0n], [
 			{
-				quoteId: longHedger1User2,
+				quoteId: longHedger1User2.quoteId,
 				currentPrice: 0n,
 				partyBUpnlIndex: 0n
 			} as QuoteSettlementDataStructOutput
@@ -112,7 +113,7 @@ export function shouldBehaveLikeSettlement(): void {
 	it("Should fail if the quoteStatus is neither OPENED/CLOSE_PENDING/CANCEL_CLOSE_PENDING", async function () {
 		await expect(hedger.settleUpnl(await user.getAddress(), [1n], getDummySettlementSig(0n, [0n], [
 			{
-				quoteId: longClosed,
+				quoteId: longClosed.quoteId,
 				currentPrice: 0n,
 				partyBUpnlIndex: 0n
 			} as QuoteSettlementDataStructOutput
@@ -122,14 +123,14 @@ export function shouldBehaveLikeSettlement(): void {
 	it("Should fail if the newPrice hasn't move to the right direction (Both for short and long)", async function () {
 		await expect(hedger.settleUpnl(await user.getAddress(), [decimal(0n)], getDummySettlementSig(0n, [0n], [
 			{
-				quoteId: longHedger1,
+				quoteId: longHedger1.quoteId,
 				currentPrice: decimal(2n),
 				partyBUpnlIndex: decimal(0n)
 			} as QuoteSettlementDataStructOutput
 		]))).to.be.revertedWith("LibSettlement: Updated price is out of range")
 		await expect(hedger.settleUpnl(await user.getAddress(), [decimal(2n)], getDummySettlementSig(0n, [0n], [
 			{
-				quoteId: shortHedger1,
+				quoteId: shortHedger1.quoteId,
 				currentPrice: decimal(0n),
 				partyBUpnlIndex: decimal(0n)
 			} as QuoteSettlementDataStructOutput
@@ -140,7 +141,7 @@ export function shouldBehaveLikeSettlement(): void {
 		await hedger.liquidate(await user.getAddress(), await getDummySingleUpnlSig(decimal(10000n) * -1n) as any)
 		await expect(hedger.settleUpnl(await user.getAddress(), [1n], getDummySettlementSig(0n, [0n], [
 			{
-				quoteId: longHedger1,
+				quoteId: longHedger1.quoteId,
 				currentPrice: 0n,
 				partyBUpnlIndex: 0n
 			} as QuoteSettlementDataStructOutput
@@ -150,7 +151,7 @@ export function shouldBehaveLikeSettlement(): void {
 	it("Should fail if partyB is not solvent", async function () {
 		await expect(hedger.settleUpnl(await user.getAddress(), [1n], getDummySettlementSig(0n, [decimal(10000n) * -1n], [
 			{
-				quoteId: shortHedger1,
+				quoteId: shortHedger1.quoteId,
 				currentPrice: 0n,
 				partyBUpnlIndex: 0n
 			} as QuoteSettlementDataStructOutput
@@ -160,14 +161,14 @@ export function shouldBehaveLikeSettlement(): void {
 	it("Should fail if partyB is settling too frequently for the relation of user with another partyB", async function () {
 		await hedger.settleUpnl(await user.getAddress(), [decimal(5n, 17)], getDummySettlementSig(0n, [0n], [
 			{
-				quoteId: shortHedger2,
+				quoteId: shortHedger2.quoteId,
 				currentPrice: 0n,
 				partyBUpnlIndex: 0n
 			} as QuoteSettlementDataStructOutput
 		]))
 		await expect(hedger.settleUpnl(await user.getAddress(), [decimal(2n, 17)], getDummySettlementSig(0n, [0n], [
 			{
-				quoteId: shortHedger2,
+				quoteId: shortHedger2.quoteId,
 				currentPrice: 0n,
 				partyBUpnlIndex: 0n
 			} as QuoteSettlementDataStructOutput
@@ -177,7 +178,7 @@ export function shouldBehaveLikeSettlement(): void {
 	it("Should fail on invalid partyBUpnlIndex in signature", async function () {
 		await expect(hedger.settleUpnl(await user.getAddress(), [decimal(5n, 17)], getDummySettlementSig(0n, [0n], [
 			{
-				quoteId: shortHedger1,
+				quoteId: shortHedger1.quoteId,
 				currentPrice: 0n,
 				partyBUpnlIndex: 3n
 			} as QuoteSettlementDataStructOutput,
@@ -188,12 +189,12 @@ export function shouldBehaveLikeSettlement(): void {
 	it("Should fail on invalid upnlPartyBs list", async function () {
 		await expect(hedger.settleUpnl(await user.getAddress(), [decimal(5n, 17), decimal(5n, 17)], getDummySettlementSig(0n, [0n], [
 			{
-				quoteId: shortHedger1,
+				quoteId: shortHedger1.quoteId,
 				currentPrice: 0n,
 				partyBUpnlIndex: 0n
 			} as QuoteSettlementDataStructOutput,
 			{
-				quoteId: shortHedger2,
+				quoteId: shortHedger2.quoteId,
 				currentPrice: 0n,
 				partyBUpnlIndex: 0n
 			} as QuoteSettlementDataStructOutput
@@ -209,17 +210,17 @@ export function shouldBehaveLikeSettlement(): void {
 		const beforeAllocatedPartyB = (await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances
 		const beforeAllocatedPartyB2 = (await hedger2.getBalanceInfo(await user.getAddress())).allocatedBalances
 
-		const quote1 = await context.viewFacet.getQuote(shortHedger1)
-		const quote2 = await context.viewFacet.getQuote(shortHedger2)
+		const quote1 = await context.viewFacet.getQuote(shortHedger1.quoteId)
+		const quote2 = await context.viewFacet.getQuote(shortHedger2.quoteId)
 
 		await hedger.settleUpnl(await user.getAddress(), [decimal(5n, 17), decimal(5n, 17)], getDummySettlementSig(0n, [0n, 0n], [
 			{
-				quoteId: shortHedger1,
+				quoteId: shortHedger1.quoteId,
 				currentPrice: 0n,
 				partyBUpnlIndex: 0n
 			} as QuoteSettlementDataStructOutput,
 			{
-				quoteId: shortHedger2,
+				quoteId: shortHedger2.quoteId,
 				currentPrice: 0n,
 				partyBUpnlIndex: 1n
 			} as QuoteSettlementDataStructOutput
@@ -227,11 +228,17 @@ export function shouldBehaveLikeSettlement(): void {
 		expect(await context.viewFacet.nonceOfPartyA(await user.getAddress())).to.be.eq(beforeNoncePartyA + 1n)
 		expect(await context.viewFacet.nonceOfPartyB(await hedger.getAddress(), await user.getAddress())).to.be.eq(beforeNoncePartyB + 1n)
 		expect(await context.viewFacet.nonceOfPartyB(await hedger2.getAddress(), await user.getAddress())).to.be.eq(beforeNoncePartyB2 + 1n)
-		expect((await context.viewFacet.getQuote(shortHedger1)).openedPrice).to.be.eq(decimal(5n, 17).toString())
-		expect((await context.viewFacet.getQuote(shortHedger2)).openedPrice).to.be.eq(decimal(5n, 17).toString())
 
-		expect((await user.getBalanceInfo()).allocatedBalances).to.be.eq(beforeAllocatedPartyA + unDecimal((quote1.quantity + quote2.quantity) * decimal(5n, 17)))
-		expect((await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances).to.be.eq(beforeAllocatedPartyB - unDecimal(quote1.quantity * decimal(5n, 17)))
-		expect((await hedger2.getBalanceInfo(await user.getAddress())).allocatedBalances).to.be.eq(beforeAllocatedPartyB2 - unDecimal(quote2.quantity * decimal(5n, 17)))
+		const openedPrice1 = await user.decryptUint256(quote1.openedPrice.userCiphertext)
+		const openedPrice2 = await user.decryptUint256(quote2.openedPrice.userCiphertext)
+		expect(openedPrice1).to.be.eq(decimal(5n, 17))
+		expect(openedPrice2).to.be.eq(decimal(5n, 17))
+
+		const decryptedQuote1Quantity = await user.decryptUint256(quote1.quantity.userCiphertext)
+		const decryptedQuote2Quantity = await user.decryptUint256(quote2.quantity.userCiphertext)
+		
+		expect((await user.getBalanceInfo()).allocatedBalances).to.be.eq(beforeAllocatedPartyA + unDecimal((decryptedQuote1Quantity + decryptedQuote2Quantity) * decimal(5n, 17)))
+		expect((await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances).to.be.eq(beforeAllocatedPartyB - unDecimal(decryptedQuote1Quantity * decimal(5n, 17)))
+		expect((await hedger2.getBalanceInfo(await user.getAddress())).allocatedBalances).to.be.eq(beforeAllocatedPartyB2 - unDecimal(decryptedQuote2Quantity * decimal(5n, 17)))
 	})
 }
