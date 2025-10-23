@@ -12,9 +12,11 @@ import {UnlockQuoteValidator} from "./models/validators/UnlockQuoteValidator"
 import {decimal, pausePartyB} from "./utils/Common"
 import {getDummySingleUpnlSig} from "./utils/SignatureUtils"
 import {QuoteStruct} from "../src/types/contracts/interfaces/ISymmio"
+import {QuoteData} from "./models/types";
 
 export function shouldBehaveLikeLockQuote(): void {
 	let context: RunContext, user: User, hedger: Hedger, hedger2: Hedger
+	let quoteDataArray: {[key: string]: QuoteData} = {}
 
 	beforeEach(async function () {
 		context = await loadFixtureCompatible(initializeFixture)
@@ -33,59 +35,59 @@ export function shouldBehaveLikeLockQuote(): void {
 		await hedger2.setup()
 		await hedger2.setBalances(this.hedger_allocated, this.hedger_allocated)
 
-		await user.sendQuote()
-		await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
-		await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
-		await user.sendQuote(
+		quoteDataArray[1] = await user.sendQuote()
+		quoteDataArray[2] = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		quoteDataArray[3] = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		quoteDataArray[4] = await user.sendQuote(
 			limitQuoteRequestBuilder()
 				.partyBWhiteList([await context.signers.hedger.getAddress()])
 				.build(),
 		)
-		await user.sendQuote()
+		quoteDataArray[5] = await user.sendQuote()
 	})
 
 	it("Should fail on invalid quoteId", async function () {
-		await expect(hedger.lockQuote(6, 0n, null)).to.be.reverted
+		await expect(hedger.lockQuote({quoteId:6n, partyBEvent: undefined}, 0n, null)).to.be.reverted
 	})
 
 	it("Should fail on low balance", async function () {
-		await expect(hedger.lockQuote(1, 0n, null)).to.be.revertedWith("PartyBFacet: insufficient available balance")
+		await expect(hedger.lockQuote(quoteDataArray[1], 0n, null)).to.be.revertedWith("PartyBFacet: insufficient available balance")
 	})
 
 	it("Should fail on low balance (negative upnl)", async function () {
-		await expect(hedger.lockQuote(1, decimal(-125n))).to.be.revertedWith("PartyBFacet: Available balance is lower than zero")
+		await expect(hedger.lockQuote(quoteDataArray[1], decimal(-125n))).to.be.revertedWith("PartyBFacet: Available balance is lower than zero")
 	})
 
 	it("Should fail on invalid partyB", async function () {
-		await expect(context.partyBQuoteActionsFacet.connect(context.signers.user2).lockQuote(1, await getDummySingleUpnlSig())).to.be.revertedWith(
+		await expect(context.partyBQuoteActionsFacet.connect(context.signers.user2).lockQuote(quoteDataArray[1].quoteId, await getDummySingleUpnlSig())).to.be.revertedWith(
 			"Accessibility: Should be partyB",
 		)
 	})
 
 	it("Should fail on invalid state", async function () {
-		await hedger.lockQuote(1)
-		await expect(hedger.lockQuote(1)).to.be.revertedWith("PartyBFacet: Invalid state")
+		await hedger.lockQuote(quoteDataArray[1])
+		await expect(hedger.lockQuote(quoteDataArray[1])).to.be.revertedWith("PartyBFacet: Invalid state")
 	})
 
 	it("Should fail on liquidated partyA", async function () {
-		await hedger.lockQuote(2)
-		await hedger.openPosition(2)
+		await hedger.lockQuote(quoteDataArray[2])
+		await hedger.openPosition(quoteDataArray[2])
 		await user.liquidateAndSetSymbolPrices([1n], [decimal(200n)])
-		await expect(hedger.lockQuote(1)).to.be.revertedWith("Accessibility: PartyA isn't solvent")
+		await expect(hedger.lockQuote(quoteDataArray[1])).to.be.revertedWith("Accessibility: PartyA isn't solvent")
 	})
 
 	it("Should fail on paused partyB", async function () {
 		await pausePartyB(context)
-		await expect(hedger.lockQuote(1)).to.be.revertedWith("Pausable: PartyB actions paused")
+		await expect(hedger.lockQuote(quoteDataArray[1])).to.be.revertedWith("Pausable: PartyB actions paused")
 	})
 
 	it("Should fail on paused partyB", async function () {
-		await expect(hedger2.lockQuote(4)).to.be.revertedWith("PartyBFacet: Sender isn't whitelisted")
+		await expect(hedger2.lockQuote(quoteDataArray[4])).to.be.revertedWith("PartyBFacet: Sender isn't whitelisted")
 	})
 
 	it("Should fail on expired quote", async function () {
 		await timeCompatible.increase(1000)
-		await expect(hedger.lockQuote(1)).to.be.revertedWith("PartyBFacet: Quote is expired")
+		await expect(hedger.lockQuote(quoteDataArray[1])).to.be.revertedWith("PartyBFacet: Quote is expired")
 	})
 
 	it("Should run successfully", async function () {
@@ -93,32 +95,32 @@ export function shouldBehaveLikeLockQuote(): void {
 		const beforeOut = await validator.before(context, {
 			user: user,
 		})
-		await hedger.lockQuote(1)
+		await hedger.lockQuote(quoteDataArray[1])
 		await validator.after(context, {
 			user: user,
 			hedger: hedger,
-			quoteId: BigInt(1),
+			quoteId: quoteDataArray[1].quoteId,
 			beforeOutput: beforeOut,
 		})
 	})
 
 	describe("Unlock Quote", async function () {
 		beforeEach(async function () {
-			await hedger.lockQuote(1)
+			await hedger.lockQuote(quoteDataArray[1])
 		})
 
 		it("Should liquidate on partyB being not the one", async function () {
-			await expect(hedger2.unlockQuote(1)).to.be.revertedWith("Accessibility: Should be partyB of quote")
+			await expect(hedger2.unlockQuote(quoteDataArray[1].quoteId)).to.be.revertedWith("Accessibility: Should be partyB of quote")
 		})
 
 		it("Should fail on paused partyB", async function () {
 			await pausePartyB(context)
-			await expect(hedger.unlockQuote(1)).to.be.revertedWith("Pausable: PartyB actions paused")
+			await expect(hedger.unlockQuote(quoteDataArray[1].quoteId)).to.be.revertedWith("Pausable: PartyB actions paused")
 		})
 
 		it("Should expire quote during unlock", async function () {
 			await timeCompatible.increase(1000)
-			await hedger.unlockQuote(1)
+			await hedger.unlockQuote(quoteDataArray[1].quoteId)
 			let q: QuoteStruct = await context.viewFacet.getQuote(1)
 			expect(q.quoteStatus).to.be.equal(QuoteStatus.EXPIRED)
 		})
@@ -126,10 +128,10 @@ export function shouldBehaveLikeLockQuote(): void {
 		it("Should run successfully", async function () {
 			const validator = new UnlockQuoteValidator()
 			const beforeOut = await validator.before(context, {user: user})
-			await hedger.unlockQuote(1)
+			await hedger.unlockQuote(quoteDataArray[1].quoteId)
 			await validator.after(context, {
 				user: user,
-				quoteId: BigInt(1),
+				quoteId: quoteDataArray[1].quoteId,
 				beforeOutput: beforeOut,
 			})
 		})

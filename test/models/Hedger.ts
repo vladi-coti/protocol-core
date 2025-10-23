@@ -53,7 +53,7 @@ export class Hedger {
 		await runTx(this.context.controlFacet.connect(this.context.signers.admin).registerPartyB(await this.signer.getAddress()))
 	}
 
-	private async decryptQuoteData(partyBEvent:SendQuoteForPartyBEvent.OutputObject): Promise<{quantity: bigint, price: bigint, partyA: string}> {
+	private async decryptQuoteData(partyBEvent: SendQuoteForPartyBEvent.OutputObject): Promise<{quantity: bigint, price: bigint, partyA: string}> {
 		const { values } = partyBEvent
 		const { price, quantity } = values
 		const quantityDecrypted = await this.signer.decryptUint256(quantity)
@@ -61,7 +61,7 @@ export class Hedger {
 		return { quantity: quantityDecrypted, price: priceDecrypted, partyA: partyBEvent.partyA }
 	}
 
-	public async lockQuote(quoteData:QuoteData, upnl: bigint = 0n, allocateCoefficient: bigint | null = decimal(12n, 17)) {
+	public async lockQuote(quoteData: QuoteData, upnl: bigint = 0n, allocateCoefficient: bigint | null = decimal(12n, 17)) {
 		const { quoteId: id } = quoteData
 		if (allocateCoefficient != null) {
 			if(quoteData.partyBEvent == undefined) {
@@ -86,7 +86,7 @@ export class Hedger {
 		logger.info(`Hedger::UnLockQuote: ${id}`)
 	}
 
-	public async lockAndOpenQuote(quoteData:QuoteData, allocateCoefficient: bigint | null = decimal(12n, 17), openRequest: OpenRequest = limitOpenRequestBuilder().build()) {
+	public async lockAndOpenQuote(quoteData: QuoteData, allocateCoefficient: bigint | null = decimal(12n, 17), openRequest: OpenRequest = limitOpenRequestBuilder().build()) {
 		const { quoteId: id } = quoteData
 		if (allocateCoefficient != null) {
 			if(quoteData.partyBEvent == undefined) {
@@ -111,7 +111,7 @@ export class Hedger {
 		)
 	}
 
-	public async openPosition(quoteData:QuoteData, request: OpenRequest = limitOpenRequestBuilder().build()) {
+	public async openPosition(quoteData: QuoteData, request: OpenRequest = limitOpenRequestBuilder().build()) {
 		if(quoteData.partyBEvent == undefined) {
 			throw new Error("PartyBEvent is undefined")
 		}
