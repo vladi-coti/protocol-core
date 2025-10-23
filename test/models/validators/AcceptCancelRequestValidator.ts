@@ -45,7 +45,7 @@ export class AcceptCancelRequestValidator implements TransactionValidator {
 		const newBalanceInfoPartyA = await arg.user.getBalanceInfo()
 		const oldBalanceInfoPartyA = arg.beforeOutput.balanceInfoPartyA
 
-		const lockedValues = await getTotalPartyALockedValuesForQuotes([oldQuote])
+		const lockedValues = await getTotalPartyALockedValuesForQuotes([oldQuote], arg.user.getWallet())
 
 		// Assert changes in totalPendingLockedPartyA
 		expect(newBalanceInfoPartyA.totalPendingLockedPartyA).to.equal(
@@ -58,7 +58,7 @@ export class AcceptCancelRequestValidator implements TransactionValidator {
 		)
 
 		// Calculate and assert changes in allocatedBalances
-		const tradingFee = await getTradingFeeForQuotes(context, [arg.quoteId])
+		const tradingFee = await getTradingFeeForQuotes(context, [arg.quoteId], arg.user.getWallet())
 		expectToBeApproximately(
 			newBalanceInfoPartyA.allocatedBalances,
 			oldBalanceInfoPartyA.allocatedBalances + tradingFee

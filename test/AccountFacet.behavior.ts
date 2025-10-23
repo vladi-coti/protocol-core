@@ -255,7 +255,7 @@ export function shouldBehaveLikeAccountFacet(): void {
 			await context.accountFacet.connect(context.signers.user).internalTransfer(await user2.getAddress(), "250")
 			expect(await context.viewFacet.balanceOf(await user2.getAddress())).to.be.equal("0")
 			const ctAllocatedBalance = await context.viewFacet.allocatedBalanceOfPartyA(await user2.getAddress())
-			const allocatedBalance = await user.decryptUint256(ctAllocatedBalance)
+			const allocatedBalance = await user2.decryptUint256(ctAllocatedBalance)
 			expect(allocatedBalance).to.be.equal("250")
 
 			expect(await context.viewFacet.balanceOf(await user.getAddress())).to.be.equal("50")

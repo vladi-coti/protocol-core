@@ -63,28 +63,37 @@ export class ForceClosePositionValidator implements TransactionValidator {
 
 		expect(newQuote.quoteStatus).to.be.equal(isPartyBLiquidated ? QuoteStatus.CLOSE_PENDING : QuoteStatus.CLOSED)
 		expect(newQuote.orderType).to.be.equal(OrderType.LIMIT)
+
+		const decryptedOldRequestedClosePrice = await arg.user.decryptUint256(oldQuote.requestedClosePrice.userCiphertext)
+		const decryptedOldAvgClosedPrice = await arg.user.decryptUint256(oldQuote.avgClosedPrice.userCiphertext)
+		const decryptedOldClosedAmount = await arg.user.decryptUint256(oldQuote.closedAmount.userCiphertext)
+		const decryptedOldQuantityToClose = await arg.user.decryptUint256(oldQuote.quantityToClose.userCiphertext)
+		const decryptedNewAvgClosedPrice = await arg.user.decryptUint256(newQuote.avgClosedPrice.userCiphertext)
+		const decryptedNewOpenedPrice = await arg.user.decryptUint256(newQuote.openedPrice.userCiphertext)
+		const decryptedNewClosedAmount = await arg.user.decryptUint256(newQuote.closedAmount.userCiphertext)
+
 		// check the Final ClosePrice (Long and Short)
 		if (newQuote.positionType === BigInt(PositionType.LONG)) {
-			const expectClosePrice = BigInt(oldQuote.requestedClosePrice) + (BigInt(oldQuote.requestedClosePrice) * BigInt(penalty) / BigInt(decimal(1n)))
+			const expectClosePrice = decryptedOldRequestedClosePrice + (decryptedOldRequestedClosePrice * BigInt(penalty) / BigInt(decimal(1n)))
 
 			closePrice = expectClosePrice > BigInt(arg.sig.averagePrice) ? expectClosePrice : BigInt(arg.sig.averagePrice)
 
-			const expectedAvgClosedPrice = (BigInt(oldQuote.avgClosedPrice) * BigInt(oldQuote.closedAmount) +
-					BigInt(oldQuote.quantityToClose) * closePrice) /
-				(BigInt(oldQuote.closedAmount) + BigInt(oldQuote.quantityToClose))
+			const expectedAvgClosedPrice = (decryptedOldAvgClosedPrice * decryptedOldClosedAmount +
+					decryptedOldQuantityToClose * closePrice) /
+				(decryptedOldClosedAmount + decryptedOldQuantityToClose)
 
-			expectToBeApproximately(BigInt(newQuote.avgClosedPrice), expectedAvgClosedPrice)
+			expectToBeApproximately(decryptedNewAvgClosedPrice, expectedAvgClosedPrice)
 		} else {
 			//SHORT
-			const expectClosePrice = BigInt(oldQuote.requestedClosePrice) - (BigInt(oldQuote.requestedClosePrice) * BigInt(penalty) / BigInt(decimal(1n)))
+			const expectClosePrice = decryptedOldRequestedClosePrice - (decryptedOldRequestedClosePrice * BigInt(penalty) / BigInt(decimal(1n)))
 
 			closePrice = expectClosePrice > BigInt(arg.sig.averagePrice) ? BigInt(arg.sig.averagePrice) : expectClosePrice
 
-			const expectedAvgClosedPrice = (BigInt(oldQuote.avgClosedPrice) * BigInt(oldQuote.closedAmount) +
-					BigInt(oldQuote.quantityToClose) * closePrice) /
-				(BigInt(oldQuote.closedAmount) + BigInt(oldQuote.quantityToClose))
+			const expectedAvgClosedPrice = (decryptedOldAvgClosedPrice * decryptedOldClosedAmount +
+					decryptedOldQuantityToClose * closePrice) /
+				(decryptedOldClosedAmount + decryptedOldQuantityToClose)
 
-			expectToBeApproximately(BigInt(newQuote.avgClosedPrice), expectedAvgClosedPrice)
+			expectToBeApproximately(decryptedNewAvgClosedPrice, expectedAvgClosedPrice)
 		}
 
 // Check CoolDown (start and End Time)
@@ -93,9 +102,9 @@ export class ForceClosePositionValidator implements TransactionValidator {
 
 		let profit
 		if (newQuote.positionType === BigInt(PositionType.LONG)) {
-			profit = unDecimal((BigInt(newQuote.avgClosedPrice) - BigInt(newQuote.openedPrice)) * BigInt(newQuote.closedAmount))
+			profit = unDecimal((decryptedNewAvgClosedPrice - decryptedNewOpenedPrice) * decryptedNewClosedAmount)
 		} else {
-			profit = unDecimal((BigInt(newQuote.openedPrice) - BigInt(newQuote.avgClosedPrice)) * BigInt(newQuote.closedAmount))
+			profit = unDecimal((decryptedNewOpenedPrice - decryptedNewAvgClosedPrice) * decryptedNewClosedAmount)
 		}
 
 // Check partyA balance

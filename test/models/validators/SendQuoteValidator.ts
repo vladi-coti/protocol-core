@@ -35,9 +35,9 @@ export class SendQuoteValidator implements TransactionValidator {
 		const oldBalanceInfo = arg.beforeOutput.balanceInfoPartyA
 
 		expect(newBalanceInfo.totalPendingLockedPartyA).to.be.equal(
-			(oldBalanceInfo.totalPendingLockedPartyA + await getTotalLockedValuesForQuoteIds(context, [arg.quoteId])).toString(),
+			(oldBalanceInfo.totalPendingLockedPartyA + await getTotalLockedValuesForQuoteIds(context, [arg.quoteId], arg.user.getWallet())).toString(),
 		)
-		expect(newBalanceInfo.allocatedBalances).to.be.equal((oldBalanceInfo.allocatedBalances - await getTradingFeeForQuotes(context, [arg.quoteId])))
+		expect(newBalanceInfo.allocatedBalances).to.be.equal((oldBalanceInfo.allocatedBalances - await getTradingFeeForQuotes(context, [arg.quoteId], arg.user.getWallet())))
 		expect((await context.viewFacet.getQuote(arg.quoteId)).quoteStatus).to.be.equal(QuoteStatus.PENDING)
 	}
 }

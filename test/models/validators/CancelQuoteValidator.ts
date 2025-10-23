@@ -53,11 +53,11 @@ export class CancelQuoteValidator implements TransactionValidator {
 		}
 		if (arg.targetStatus != null) expect(newQuote.quoteStatus).to.be.equal(arg.targetStatus)
 
-		const lockedValues = await getTotalPartyALockedValuesForQuotes([oldQuote])
+		const lockedValues = await getTotalPartyALockedValuesForQuotes([oldQuote], arg.user.getWallet())
 
 		expect(newBalanceInfoPartyA.totalPendingLockedPartyA.toString()).to.equal((oldBalanceInfoPartyA.totalPendingLockedPartyA - lockedValues).toString())
 		expect(newBalanceInfoPartyA.totalLockedPartyA.toString()).to.equal(oldBalanceInfoPartyA.totalLockedPartyA.toString())
-		const tradingFee = await getTradingFeeForQuotes(context, [arg.quoteId])
+		const tradingFee = await getTradingFeeForQuotes(context, [arg.quoteId], arg.user.getWallet())
 		expectToBeApproximately(BigInt(newBalanceInfoPartyA.allocatedBalances), BigInt(oldBalanceInfoPartyA.allocatedBalances) + BigInt(tradingFee))
 
 	}

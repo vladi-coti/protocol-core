@@ -68,7 +68,6 @@ export function shouldBehaveLikeDiamond(): void {
 			],
 			ethers.ZeroAddress,
 			"0x",
-			{ gasLimit: 800000 },
 		)
 		const receipt = await tx.wait()
 
@@ -95,7 +94,6 @@ export function shouldBehaveLikeDiamond(): void {
 			],
 			ethers.ZeroAddress,
 			"0x",
-			{ gasLimit: 800000 },
 		)
 		const receipt = await tx.wait()
 
