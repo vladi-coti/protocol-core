@@ -209,4 +209,61 @@ library LibAccount {
 		gtInt256 freeBalance = allocatedBalanceEncrypted.sub(cvaLf);
 		return freeBalance.add(gtUpnl);
 	}
+
+	/**
+	 * @notice Initializes Party A encrypted values to encrypted zeros if uninitialized.
+	 * @dev This function checks and initializes Party A encrypted storage in a single call.
+	 * @param partyA The address of Party A whose encrypted values should be initialized.
+	 */
+	function initializePartyA(address partyA) internal {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		address encryptionAddress = getUserEncryptionAddress(partyA);
+		
+		// Initialize Party A locked balances if uninitialized
+		LockedValues storage lockedBalances = accountLayout.lockedBalances[partyA];
+		LockedValues storage pendingLockedBalances = accountLayout.pendingLockedBalances[partyA];
+		
+		if (lockedBalances.isUninitialized()) {
+			lockedBalances.initializeToZeros(encryptionAddress);
+		}
+		if (pendingLockedBalances.isUninitialized()) {
+			pendingLockedBalances.initializeToZeros(encryptionAddress);
+		}
+		
+		// Initialize Party A allocated balance if uninitialized (contains zeros)
+		if (ctUint128.unwrap(accountLayout.allocatedBalances[partyA].ciphertext.ciphertextHigh) == 0 && 
+			ctUint128.unwrap(accountLayout.allocatedBalances[partyA].ciphertext.ciphertextLow) == 0) {
+			gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
+			accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtZero, encryptionAddress);
+		}
+	}
+
+	/**
+	 * @notice Initializes Party B encrypted values for a specific Party A to encrypted zeros if uninitialized.
+	 * @dev This function checks and initializes Party B encrypted storage in a single call.
+	 * @param partyB The address of Party B whose encrypted values should be initialized.
+	 * @param partyA The address of Party A for which to initialize values.
+	 */
+	function initializePartyB(address partyB, address partyA) internal {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		address encryptionAddress = getUserEncryptionAddress(partyB);
+		
+		// Initialize Party B locked balances for this Party A if uninitialized
+		LockedValues storage lockedBalances = accountLayout.partyBLockedBalances[partyB][partyA];
+		LockedValues storage pendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA];
+		
+		if (lockedBalances.isUninitialized()) {
+			lockedBalances.initializeToZeros(encryptionAddress);
+		}
+		if (pendingLockedBalances.isUninitialized()) {
+			pendingLockedBalances.initializeToZeros(encryptionAddress);
+		}
+		
+		// Initialize Party B allocated balance for this Party A if uninitialized (contains zeros)
+		if (ctUint128.unwrap(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext.ciphertextHigh) == 0 && 
+			ctUint128.unwrap(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext.ciphertextLow) == 0) {
+			gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
+			accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtZero, encryptionAddress);
+		}
+	}
 }

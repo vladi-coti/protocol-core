@@ -42,6 +42,9 @@ library AccountFacetImpl {
 	function allocate(uint256 amount) internal {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		
+		// Initialize Party A encrypted values to zeros if uninitialized
+		LibAccount.initializePartyA(msg.sender);
+		
 		// Check limit using encrypted comparison
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
 		gtUint256 gtAmount = MpcCore.setPublic256(amount);
@@ -93,6 +96,10 @@ library AccountFacetImpl {
 		require(!MAStorage.layout().liquidationStatus[origin], "PartyBFacet: Origin isn't solvent");
 		require(!MAStorage.layout().liquidationStatus[recipient], "PartyBFacet: Recipient isn't solvent");
 		
+		// Initialize Party B encrypted values for both origin and recipient if uninitialized
+		LibAccount.initializePartyB(msg.sender, origin);
+		LibAccount.initializePartyB(msg.sender, recipient);
+		
 		LibMuonAccount.verifyPartyBUpnl(upnlSig, msg.sender, origin);
 		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, origin);
 		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
@@ -135,6 +142,9 @@ library AccountFacetImpl {
 
 	function allocateForPartyB(uint256 amount, address partyA) internal {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+
+		// Initialize Party B encrypted values for this Party A if uninitialized
+		LibAccount.initializePartyB(msg.sender, partyA);
 
 		require(accountLayout.balances[msg.sender] >= amount, "AccountFacet: Insufficient balance");
 		require(!MAStorage.layout().partyBLiquidationStatus[msg.sender][partyA], "AccountFacet: PartyB isn't solvent");
