@@ -36,13 +36,9 @@ export function shouldBehaveLikeLockQuote(): void {
 		await hedger2.setBalances(this.hedger_allocated, this.hedger_allocated)
 
 		quoteDataArray[1] = await user.sendQuote()
-		quoteDataArray[2] = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
-		quoteDataArray[3] = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
-		quoteDataArray[4] = await user.sendQuote(
-			limitQuoteRequestBuilder()
-				.partyBWhiteList([await context.signers.hedger.getAddress()])
-				.build(),
-		)
+		quoteDataArray[2] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).affiliate(context.multiAccount).positionType(PositionType.SHORT).build())
+		quoteDataArray[3] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).affiliate(context.multiAccount).positionType(PositionType.SHORT).build())
+		quoteDataArray[4] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).affiliate(context.multiAccount).build())
 		quoteDataArray[5] = await user.sendQuote()
 	})
 
@@ -69,7 +65,7 @@ export function shouldBehaveLikeLockQuote(): void {
 		await expect(hedger.lockQuote(quoteDataArray[1])).to.be.revertedWith("PartyBFacet: Invalid state")
 	})
 
-	it("Should fail on liquidated partyA", async function () {
+	it("LockQuote - Should fail on liquidated partyA", async function () {
 		await hedger.lockQuote(quoteDataArray[2])
 		await hedger.openPosition(quoteDataArray[2])
 		await user.liquidateAndSetSymbolPrices([1n], [decimal(200n)])

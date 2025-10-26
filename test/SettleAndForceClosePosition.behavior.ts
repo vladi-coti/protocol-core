@@ -33,21 +33,16 @@ export function shouldBehaveLikeSettleAndForceClosePosition(): void {
 		await hedger.setBalances(this.hedger_allocated, this.hedger_allocated)
 
 		// Quote1 LONG opened
-		quote1LongOpened = await context.viewFacet.getQuote(await user.sendQuote())
-		await hedger.lockQuote(quote1LongOpened.id)
-		await hedger.openPosition(quote1LongOpened.id)
+		const quote1LongOpenedData = await user.sendQuote()
+		quote1LongOpened = await context.viewFacet.getQuote(quote1LongOpenedData.quoteId)
+		await hedger.lockQuote(quote1LongOpenedData)
+		await hedger.openPosition(quote1LongOpenedData)
 
 		// Quote2 SHORT opened
-		quote2ShortOpened = await context.viewFacet.getQuote(
-			await user.sendQuote(
-				limitQuoteRequestBuilder()
-					.positionType(PositionType.SHORT)
-					.quantity(decimal(75n))
-					.build()
-			)
-		)
-		await hedger.lockQuote(quote2ShortOpened.id)
-		await hedger.openPosition(quote2ShortOpened.id, limitOpenRequestBuilder().filledAmount(decimal(75n)).build())
+		const quote2ShortOpenedData = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).quantity(decimal(75n)).build())
+		quote2ShortOpened = await context.viewFacet.getQuote(quote2ShortOpenedData.quoteId)
+		await hedger.lockQuote(quote2ShortOpenedData)
+		await hedger.openPosition(quote2ShortOpenedData, limitOpenRequestBuilder().filledAmount(decimal(75n)).build())
 
 		await user.requestToClosePosition(
 			quote1LongOpened.id,

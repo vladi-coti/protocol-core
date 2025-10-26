@@ -292,9 +292,9 @@ export class User {
 		let upnl = 0n
 		for (const pos of openPositions) {
 			// Decrypt encrypted quote fields
-			const openedPrice = await this.decryptUint256(pos.openedPrice.ciphertext)
-			const quantity = await this.decryptUint256(pos.quantity.ciphertext)
-			const closedAmount = await this.decryptUint256(pos.closedAmount.ciphertext)
+			const openedPrice = await this.decryptUint256(pos.openedPrice.userCiphertext)
+			const quantity = await this.decryptUint256(pos.quantity.userCiphertext)
+			const closedAmount = await this.decryptUint256(pos.closedAmount.userCiphertext)
 			
 			const priceDiff = openedPrice - (
 				symbolIdPriceFetcher != null
@@ -315,9 +315,9 @@ export class User {
 		let upnl = 0n
 		for (const pos of openPositions) {
 			// Decrypt encrypted quote fields
-			const openedPrice = await this.decryptUint256(pos.openedPrice.ciphertext)
-			const quantity = await this.decryptUint256(pos.quantity.ciphertext)
-			const closedAmount = await this.decryptUint256(pos.closedAmount.ciphertext)
+			const openedPrice = await this.decryptUint256(pos.openedPrice.userCiphertext)
+			const quantity = await this.decryptUint256(pos.quantity.userCiphertext)
+			const closedAmount = await this.decryptUint256(pos.closedAmount.userCiphertext)
 			
 			const priceDiff = openedPrice - (
 				symbolIdPriceFetcher != null

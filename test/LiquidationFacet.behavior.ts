@@ -9,9 +9,11 @@ import {BalanceInfo, User} from "./models/User"
 import {decimal, getTotalLockedValuesForQuoteIds, getTradingFeeForQuotes, unDecimal} from "./utils/Common"
 import {getDummyLiquidationSig, getDummySingleUpnlSig} from "./utils/SignatureUtils"
 import {limitQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
+import {QuoteData} from "./models/types";
 
 export function shouldBehaveLikeLiquidationFacet(): void {
 	let context: RunContext, user: User, user2: User, liquidator: User, hedger: Hedger, hedger2: Hedger
+	let quoteDataArray: {[key: string]: QuoteData} = {}
 
 	beforeEach(async function () {
 		context = await loadFixtureCompatible(initializeFixture)
@@ -35,25 +37,25 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 		await hedger2.setBalances(decimal(2000n), decimal(1000n))
 
 		// Quote1 -> opened
-		await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
-		await hedger.lockQuote(1)
-		await hedger.openPosition(1)
+		quoteDataArray[1] = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		await hedger.lockQuote(quoteDataArray[1])
+		await hedger.openPosition(quoteDataArray[1])
 
 		// Quote2 -> locked
-		await user.sendQuote()
-		await hedger.lockQuote(2)
+		quoteDataArray[2] = await user.sendQuote()
+		await hedger.lockQuote(quoteDataArray[2])
 
 		// Quote3 -> sent
-		await user.sendQuote()
+		quoteDataArray[3] = await user.sendQuote()
 
 		// Quote4 -> user2 -> opened
-		await user2.sendQuote()
-		await hedger.lockQuote(4)
-		await hedger.openPosition(4)
+		quoteDataArray[4] = await user2.sendQuote()
+		await hedger.lockQuote(quoteDataArray[4])
+		await hedger.openPosition(quoteDataArray[4])
 
 		// Quote5 -> locked
-		await user.sendQuote()
-		await hedger.lockQuote(5)
+		quoteDataArray[5] = await user.sendQuote()
+		await hedger.lockQuote(quoteDataArray[5])
 	})
 
 	describe("Liquidate PartyA", async function () {
@@ -75,7 +77,7 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 
 			let balanceInfoOfPartyA: BalanceInfo = await user.getBalanceInfo()
 			expect(balanceInfoOfPartyA.allocatedBalances).to.be.equal(decimal(500n) - (await getTradingFeeForQuotes(context, [1n, 2n, 3n, 4n])))
-			expect(balanceInfoOfPartyA.totalLockedPartyA).to.be.equal(await getTotalLockedValuesForQuoteIds(context, [1n]))
+			expect(balanceInfoOfPartyA.totalLockedPartyA).to.be.equal(await getTotalLockedValuesForQuoteIds(context, [1n], user.getWallet()))
 			expect(balanceInfoOfPartyA.pendingLockedCva).to.be.equal("0")
 			expect(balanceInfoOfPartyA.pendingLockedMmPartyA).to.be.equal("0")
 			expect(balanceInfoOfPartyA.pendingLockedLf).to.be.equal("0")

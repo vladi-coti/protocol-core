@@ -6,6 +6,7 @@ import {
 	decimal,
 	getBlockTimestamp,
 	getQuoteMinLeftQuantityForClose,
+	getQuoteQuantity,
 	getSymbols,
 	min,
 	unDecimal
@@ -126,7 +127,7 @@ export class UserController {
 		if (availableForQuote - tradingFee < lockedAmount)
 			throw new ManagedError("Random data lead to invalid quote... This request will be rejected")
 
-		const id = await this.user.sendQuote(
+		const quoteData = await this.user.sendQuote(
 			Builder<QuoteRequest>()
 				.partyBWhiteList([])
 				.quantity(quantity)
@@ -143,10 +144,10 @@ export class UserController {
 				.maxFundingRate(0n)
 				.build(),
 		)
-		console.log((await this.context.viewFacet.getQuote(id)).deadline)
+		console.log((await this.context.viewFacet.getQuote(quoteData.quoteId)).deadline)
 
 		if (randomBigNumber(100n, 1n) <= 110n) {
-			this.checkpoint.addBlockedQuotes(id)
+			this.checkpoint.addBlockedQuotes(quoteData.quoteId)
 		}
 	}
 
@@ -183,9 +184,12 @@ export class UserController {
 				let symbolQP = this.manager.symbolManager.getSymbolQuantityPrecision(Number(symbol.symbolId))
 				let symbolPP = this.manager.symbolManager.getSymbolPricePrecision(Number(symbol.symbolId))
 
+				const quantity = await this.user.decryptUint256(quote.quantity.userCiphertext);
+				const closedAmount = await this.user.decryptUint256(quote.closedAmount.userCiphertext)
+
 				let quantityToClose: bigint
-				const openAmount = quote.quantity - quote.closedAmount
-				const minLeftQuantity = await getQuoteMinLeftQuantityForClose(this.manager.context, quote.id)
+				const openAmount = quantity - closedAmount
+				const minLeftQuantity = await getQuoteMinLeftQuantityForClose(this.manager.context, quote.id, this.user.getWallet())
 				let maxValidClose = openAmount - minLeftQuantity
 				if (maxValidClose <= 0n) {
 					quantityToClose = openAmount

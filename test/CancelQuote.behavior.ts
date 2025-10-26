@@ -12,9 +12,11 @@ import {CancelQuoteValidator} from "./models/validators/CancelQuoteValidator"
 import {OpenPositionValidator} from "./models/validators/OpenPositionValidator"
 import {decimal, getQuoteQuantity, pausePartyA, pausePartyB} from "./utils/Common"
 import {limitQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
+import {QuoteData} from "./models/types";
 
 export function shouldBehaveLikeCancelQuote(): void {
 	let context: RunContext, user: User, hedger: Hedger, hedger2: Hedger
+	let quoteDataArray: {[key: string]: QuoteData} = {}
 
 	beforeEach(async function () {
 		context = await loadFixtureCompatible(initializeFixture)
@@ -33,7 +35,7 @@ export function shouldBehaveLikeCancelQuote(): void {
 		await hedger2.setup()
 		await hedger2.setBalances(this.hedger_allocated, this.hedger_allocated)
 
-		await user.sendQuote()
+		quoteDataArray[1] = await user.sendQuote()
 	})
 
 	it("Should fail due to invalid quoteId", async function () {
@@ -50,18 +52,18 @@ export function shouldBehaveLikeCancelQuote(): void {
 	})
 
 	it("Should fail on liquidated partyA", async function () {
-		await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
-		await hedger.lockQuote(2)
-		await hedger.openPosition(2)
+		const quoteData = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		await hedger.lockQuote(quoteData)
+		await hedger.openPosition(quoteData)
 		await user.liquidateAndSetSymbolPrices([1n], [decimal(2000n)])
-		await expect(user.requestToCancelQuote(1)).to.be.revertedWith("Accessibility: PartyA isn't solvent")
+		await expect(user.requestToCancelQuote(quoteData.quoteId)).to.be.revertedWith("Accessibility: PartyA isn't solvent")
 	})
 
 	it("Should fail on invalid state", async function () {
-		await user.sendQuote()
-		await hedger.lockQuote(2)
-		await hedger.openPosition(2)
-		await expect(user.requestToCancelQuote(2)).to.be.revertedWith("PartyAFacet: Invalid state")
+		const quoteData = await user.sendQuote()
+		await hedger.lockQuote(quoteData)
+		await hedger.openPosition(quoteData)
+		await expect(user.requestToCancelQuote(quoteData.quoteId)).to.be.revertedWith("PartyAFacet: Invalid state")
 	})
 
 	it("Should cancel a pending quote", async function () {
@@ -97,7 +99,7 @@ export function shouldBehaveLikeCancelQuote(): void {
 
 	describe("Should cancel a locked quote", async function () {
 		beforeEach(async function () {
-			await hedger.lockQuote(1)
+			await hedger.lockQuote(quoteDataArray[1])
 		})
 
 		it("Should fail to accept cancel request on invalid quoteId", async function () {
@@ -153,7 +155,7 @@ export function shouldBehaveLikeCancelQuote(): void {
 				})
 				const openedPrice = decimal(1n)
 				const filledAmount = quantity / 2n
-				await hedger.openPosition(1, limitOpenRequestBuilder().filledAmount(filledAmount).openPrice(openedPrice).price(decimal(1n, 17)).build())
+				await hedger.openPosition(quoteDataArray[1], limitOpenRequestBuilder().filledAmount(filledAmount).openPrice(openedPrice).price(decimal(1n, 17)).build())
 				await validator.after(context, {
 					user: user,
 					hedger: hedger,
@@ -177,7 +179,7 @@ export function shouldBehaveLikeCancelQuote(): void {
 				})
 				const openedPrice = decimal(1n)
 				const filledAmount = quantity
-				await hedger.openPosition(1, limitOpenRequestBuilder().filledAmount(quantity).openPrice(openedPrice).price(decimal(1n, 17)).build())
+				await hedger.openPosition(quoteDataArray[1], limitOpenRequestBuilder().filledAmount(quantity).openPrice(openedPrice).price(decimal(1n, 17)).build())
 				await validator.after(context, {
 					user: user,
 					hedger: hedger,

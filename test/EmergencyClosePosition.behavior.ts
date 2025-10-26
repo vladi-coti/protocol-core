@@ -10,13 +10,12 @@ import {limitQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
 import {decimal, pausePartyB,} from "./utils/Common"
 import {emergencyCloseRequestBuilder} from "./models/requestModels/EmergencyCloseRequest"
 import {EmergencyCloseRequestValidator} from "./models/validators/EmergencyCloseRequestValidator"
-import {QuoteStructOutput} from "../src/types/contracts/interfaces/ISymmio"
+import {QuoteData} from "./models/types";
 
 export function shouldBehaveLikeEmergencyClosePosition(): void {
 	let user: User, hedger: Hedger, hedger2: Hedger
 	let context: RunContext
-	let quote1LongOpened: QuoteStructOutput, quote2ShortOpened: QuoteStructOutput, quote3JustSent: QuoteStructOutput,
-		quote4LongOpened: QuoteStructOutput
+	let quoteDataArray: {[key: string]: QuoteData} = {}
 
 	beforeEach(async function () {
 		context = await loadFixtureCompatible(initializeFixture)
@@ -36,22 +35,23 @@ export function shouldBehaveLikeEmergencyClosePosition(): void {
 		await hedger2.setBalances(this.hedger_allocated, this.hedger_allocated)
 
 		// Quote1 LONG opened
-		quote1LongOpened = await context.viewFacet.getQuote(await user.sendQuote())
-		await hedger.lockQuote(quote1LongOpened.id)
-		await hedger.openPosition(quote1LongOpened.id)
+
+		quoteDataArray[1] = await user.sendQuote()
+		await hedger.lockQuote(quoteDataArray[1])
+		await hedger.openPosition(quoteDataArray[1])
 
 		// Quote2 SHORT opened
-		quote2ShortOpened = await context.viewFacet.getQuote(await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build()))
-		await hedger.lockQuote(quote2ShortOpened.id)
-		await hedger.openPosition(quote2ShortOpened.id)
+		quoteDataArray[2] = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		await hedger.lockQuote(quoteDataArray[2])
+		await hedger.openPosition(quoteDataArray[2])
 
 		// Quote3 SHORT sent
-		quote3JustSent = await context.viewFacet.getQuote(await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build()))
+		quoteDataArray[3] = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
 
 		// Quote4 LONG sent
-		quote4LongOpened = await context.viewFacet.getQuote(await user.sendQuote())
-		await hedger.lockQuote(quote4LongOpened.id)
-		await hedger.openPosition(quote4LongOpened.id)
+		quoteDataArray[4] = await user.sendQuote()
+		await hedger.lockQuote(quoteDataArray[4])
+		await hedger.openPosition(quoteDataArray[4])
 	})
 
 

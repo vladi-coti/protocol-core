@@ -23,7 +23,8 @@ export enum OrderType {
 }
 
 export enum Event {
-	SEND_QUOTE = "SendQuote",
+	SEND_QUOTE_FOR_PARTY_A = "SendQuoteForPartyA",
+	SEND_QUOTE_FOR_PARTY_B = "SendQuoteForPartyB",
 	REQUEST_TO_CANCEL_QUOTE = "RequestToCancelQuote",
 	REQUEST_TO_CLOSE_POSITION = "RequestToClosePosition",
 	REQUEST_TO_CANCEL_CLOSE_REQUEST = "RequestToCancelCloseRequest",

@@ -66,6 +66,35 @@ export const timeCompatible = {
 			await new Promise(resolve => setTimeout(resolve, waitTime * 1000))
 		}
 	},
+	async latest(): Promise<number> {
+		const network = await ethers.provider.getNetwork()
+
+		if (network.chainId === 31337n) {
+			// Use hardhat-network-helpers for local network
+			return await time.latest()
+		} else {
+			// For testnets, get current block timestamp
+			const block = await ethers.provider.getBlock("latest")
+			return block!.timestamp
+		}
+	},
+	async setNextBlockTimestamp(timestamp: bigint): Promise<void> {
+		const network = await ethers.provider.getNetwork()
+
+		if (network.chainId === 31337n) {
+			// Use hardhat-network-helpers for local network
+			await time.setNextBlockTimestamp(timestamp)
+		} else {
+			// For testnets, just increase to reach the target
+			const currentBlock = await ethers.provider.getBlock("latest")
+			const currentTime = currentBlock!.timestamp
+			const targetTime = Number(timestamp)
+			const diff = targetTime - currentTime
+			if (diff > 0) {
+				await this.increase(diff)
+			}
+		}
+	},
 }
 
 /**

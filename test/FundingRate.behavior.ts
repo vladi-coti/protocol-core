@@ -9,9 +9,11 @@ import {getDummyPairUpnlSig} from "./utils/SignatureUtils"
 import {expect} from "chai"
 import {limitQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
 import {PositionType} from "./models/Enums"
+import { QuoteData } from "./models/types";
 
 export function shouldBehaveLikeFundingRate(): void {
 	let context: RunContext, user: User, user2: User, hedger: Hedger, hedger2: Hedger
+	let quoteDataArray: {[key: string]: QuoteData} = {}
 
 	beforeEach(async function () {
 		context = await loadFixtureCompatible(initializeFixture)
@@ -27,20 +29,20 @@ export function shouldBehaveLikeFundingRate(): void {
 		hedger2 = new Hedger(context, context.signers.hedger2)
 		await hedger2.setBalances(decimal(5000n), decimal(5000n))
 
-		await user.sendQuote()
-		await hedger.lockQuote(1)
-		await hedger.openPosition(1)
+		quoteDataArray[1] = await user.sendQuote()
+		await hedger.lockQuote(quoteDataArray[1])
+		await hedger.openPosition(quoteDataArray[1])
 
-		await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
-		await hedger.lockQuote(2)
-		await hedger.openPosition(2)
-		await user.requestToClosePosition(2)
+		quoteDataArray[2] = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		await hedger.lockQuote(quoteDataArray[2])
+		await hedger.openPosition(quoteDataArray[2])
+		await user.requestToClosePosition(quoteDataArray[2].quoteId)
 
-		await user.sendQuote()
-		await hedger.lockQuote(3)
-		await hedger.openPosition(3)
-		await user.requestToClosePosition(3)
-		await hedger.fillCloseRequest(3)
+		quoteDataArray[3] = await user.sendQuote()
+		await hedger.lockQuote(quoteDataArray[3])
+		await hedger.openPosition(quoteDataArray[3])
+		await user.requestToClosePosition(quoteDataArray[3].quoteId)
+		await hedger.fillCloseRequest(quoteDataArray[3].quoteId)
 	})
 
 	it("Should fail on different length", async function () {
@@ -126,14 +128,14 @@ export function shouldBehaveLikeFundingRate(): void {
 		let targetTime = (duration * 2n) + window - 1n + currentEpoch
 
 		let oldQuote = await context.viewFacet.getQuote(1)
+		let oldOpenedPrice = await user.decryptUint256(oldQuote.openedPrice.userCiphertext)
 
 		await timeCompatible.setNextBlockTimestamp(targetTime)
 		await hedger.chargeFundingRate(await context.signers.user.getAddress(), [1], [decimal(1n, 16)], await getDummyPairUpnlSig())
 
 		let newQuote = await context.viewFacet.getQuote(1)
-		expect(newQuote.openedPrice).to.be.equal(unDecimal(
-			oldQuote.openedPrice * (decimal(1n) + decimal(1n, 16)))
-		)
+		let newOpenedPrice = await user.decryptUint256(newQuote.openedPrice.userCiphertext)
+		expect(oldOpenedPrice).to.be.equal(unDecimal(newOpenedPrice * (decimal(1n) + decimal(1n, 16))))
 	})
 
 	it("Should run successfully for short", async function () {
@@ -144,13 +146,13 @@ export function shouldBehaveLikeFundingRate(): void {
 		let targetTime = (duration * 2n) + window - 1n + currentEpoch
 
 		let oldQuote = await context.viewFacet.getQuote(2)
+		let oldOpenedPrice = await user.decryptUint256(oldQuote.openedPrice.userCiphertext)
 
 		await timeCompatible.setNextBlockTimestamp(targetTime)
 		await hedger.chargeFundingRate(await context.signers.user.getAddress(), [2], [decimal(1n, 16)], await getDummyPairUpnlSig())
 
 		let newQuote = await context.viewFacet.getQuote(2)
-		expect(newQuote.openedPrice).to.be.equal(unDecimal(
-			oldQuote.openedPrice * (decimal(1n) - decimal(1n, 16)))
-		)
+		let newOpenedPrice = await user.decryptUint256(newQuote.openedPrice.userCiphertext)
+		expect(oldOpenedPrice).to.be.equal(unDecimal(newOpenedPrice * (decimal(1n) - decimal(1n, 16))))
 	})
 }
