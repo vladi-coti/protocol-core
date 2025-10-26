@@ -33,7 +33,7 @@ export function shouldBehaveLikeFundingRate(): void {
 		await hedger.lockQuote(quoteDataArray[1])
 		await hedger.openPosition(quoteDataArray[1])
 
-		quoteDataArray[2] = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		quoteDataArray[2] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).positionType(PositionType.SHORT).build())
 		await hedger.lockQuote(quoteDataArray[2])
 		await hedger.openPosition(quoteDataArray[2])
 		await user.requestToClosePosition(quoteDataArray[2].quoteId)

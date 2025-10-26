@@ -46,15 +46,15 @@ export function shouldBehaveLikeSettlement(): void {
 		await hedger.lockQuote(longHedger1User2)
 		await hedger.openPosition(longHedger1User2)
 
-		shortHedger1 = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		shortHedger1 = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).positionType(PositionType.SHORT).build())
 		await hedger.lockQuote(shortHedger1)
 		await hedger.openPosition(shortHedger1)
 
-		shortHedger2 = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		shortHedger2 = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger2.address]).positionType(PositionType.SHORT).build())
 		await hedger2.lockQuote(shortHedger2)
 		await hedger2.openPosition(shortHedger2)
 
-		shortClosePending = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		shortClosePending = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).positionType(PositionType.SHORT).build())
 		await hedger.lockQuote(shortClosePending)
 		await hedger.openPosition(shortClosePending)
 		await user.requestToClosePosition(shortClosePending.quoteId)

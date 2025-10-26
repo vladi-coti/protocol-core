@@ -23,7 +23,7 @@ export function shouldBehaveLikeSendQuote(): void {
 
 	it("Should fail on paused partyA", async function () {
 		await pausePartyA(context)
-		await expect(user.sendQuote(limitQuoteRequestBuilder().quantity(50).cva(50).partyAmm(1).lf(100).build())).to.be.revertedWith(
+		await expect(user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).quantity(50).cva(50).partyAmm(1).lf(100).build())).to.be.revertedWith(
 			"Pausable: PartyA actions paused",
 		)
 	})
@@ -41,19 +41,19 @@ export function shouldBehaveLikeSendQuote(): void {
 
 	it("Should fail on invalid symbol", async function () {
 		await expect(
-			user.sendQuote(limitQuoteRequestBuilder().symbolId(2).quantity(decimal(0n)).cva(decimal(3n)).partyAmm(decimal(75n)).lf(decimal(22n)).build()),
+			user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).symbolId(2).quantity(decimal(0n)).cva(decimal(3n)).partyAmm(decimal(75n)).lf(decimal(22n)).build()),
 		).to.be.revertedWith("PartyAFacet: Symbol is not valid")
 	})
 
 	it("Should fail on LF lower than minAcceptablePortionLF", async function () {
 		await expect(
-			user.sendQuote(limitQuoteRequestBuilder().quantity(decimal(100n)).cva(decimal(1n)).partyAmm(decimal(1n)).lf(decimal(0n)).build()),
+			user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).quantity(decimal(100n)).cva(decimal(1n)).partyAmm(decimal(1n)).lf(decimal(0n)).build()),
 		).to.be.revertedWith("PartyAFacet: LF is not enough")
 	})
 
 	it("Should fail on quote value lower than minAcceptableQuoteValue", async function () {
 		await expect(
-			user.sendQuote(limitQuoteRequestBuilder().quantity(decimal(50n)).cva(decimal(1n)).partyAmm(decimal(1n)).lf(decimal(1n)).build()),
+			user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).quantity(decimal(50n)).cva(decimal(1n)).partyAmm(decimal(1n)).lf(decimal(1n)).build()),
 		).to.be.revertedWith("PartyAFacet: Quote value is low")
 	})
 
@@ -75,6 +75,7 @@ export function shouldBehaveLikeSendQuote(): void {
 		await expect(
 			user.sendQuote(
 				limitQuoteRequestBuilder()
+					.partyBWhiteList([context.signers.hedger.address])
 					.price(decimal(16n))
 					.quantity(decimal(500n))
 					.cva(decimal(120n))
@@ -86,12 +87,12 @@ export function shouldBehaveLikeSendQuote(): void {
 		).to.be.revertedWith("PartyAFacet: insufficient available balance")
 
 		await expect(
-			user.sendQuote(limitQuoteRequestBuilder().quantity(decimal(1600n)).cva(decimal(250n)).partyAmm(this.user_allocated).lf(decimal(60n)).build()),
+			user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).quantity(decimal(1600n)).cva(decimal(250n)).partyAmm(this.user_allocated).lf(decimal(60n)).build()),
 		).to.be.revertedWith("PartyAFacet: insufficient available balance")
 	})
 
 	it("Quote should expire", async function () {
-		let {quoteId} = await user.sendQuote(limitQuoteRequestBuilder().deadline(getBlockTimestamp(5n)).build())
+		let {quoteId} = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).deadline(getBlockTimestamp(5n)).build())
 		await expect(context.partyAFacet.expireQuote([quoteId])).to.be.revertedWith("LibQuote: Quote isn't expired")
 		await timeCompatible.increase(10)
 		await context.partyAFacet.expireQuote([1])
@@ -108,7 +109,7 @@ export function shouldBehaveLikeSendQuote(): void {
 	it("SendQuote - Should run successfully for market", async function () {
 		let validator = new SendQuoteValidator()
 		const before = await validator.before(context, {user: user})
-		let {quoteId} = await user.sendQuote(marketQuoteRequestBuilder().build())
+		let {quoteId} = await user.sendQuote(marketQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).build())
 		await validator.after(context, {user: user, quoteId, beforeOutput: before})
 	})
 

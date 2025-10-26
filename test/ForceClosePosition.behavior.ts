@@ -51,13 +51,13 @@ export function shouldBehaveLikeForceClosePosition(): void {
 		await hedger.openPosition(quote1LongOpenedData)
 
 		// Quote2 SHORT opened
-		const quote2ShortOpenedData = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		const quote2ShortOpenedData = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).positionType(PositionType.SHORT).build())
 		quote2ShortOpened = await context.viewFacet.getQuote(quote2ShortOpenedData.quoteId)
 		await hedger.lockQuote(quote2ShortOpenedData)
 		await hedger.openPosition(quote2ShortOpenedData)
 
 		// Quote3 SHORT sent
-		const quote3JustSentData = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		const quote3JustSentData = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).positionType(PositionType.SHORT).build())
 		quote3JustSent = await context.viewFacet.getQuote(quote3JustSentData.quoteId)
 
 		// Quote4 LONG sent

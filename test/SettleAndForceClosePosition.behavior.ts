@@ -39,7 +39,7 @@ export function shouldBehaveLikeSettleAndForceClosePosition(): void {
 		await hedger.openPosition(quote1LongOpenedData)
 
 		// Quote2 SHORT opened
-		const quote2ShortOpenedData = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).quantity(decimal(75n)).build())
+		const quote2ShortOpenedData = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).positionType(PositionType.SHORT).quantity(decimal(75n)).build())
 		quote2ShortOpened = await context.viewFacet.getQuote(quote2ShortOpenedData.quoteId)
 		await hedger.lockQuote(quote2ShortOpenedData)
 		await hedger.openPosition(quote2ShortOpenedData, limitOpenRequestBuilder().filledAmount(decimal(75n)).build())

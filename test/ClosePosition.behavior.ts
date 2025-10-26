@@ -53,12 +53,12 @@ export function shouldBehaveLikeClosePosition(): void {
 		await hedger.openPosition(quoteDataArray[1])
 
 		// Quote2 SHORT opened
-		quoteDataArray[2] = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		quoteDataArray[2] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).positionType(PositionType.SHORT).build())
 		await hedger.lockQuote(quoteDataArray[2])
 		await hedger.openPosition(quoteDataArray[2])
 
 		// Quote3 SHORT sent
-		quoteDataArray[3] = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		quoteDataArray[3] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).positionType(PositionType.SHORT).build())
 
 		// Quote4 LONG sent
 		quoteDataArray[4] = await user.sendQuote()

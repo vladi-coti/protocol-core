@@ -37,7 +37,7 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 		await hedger2.setBalances(decimal(2000n), decimal(1000n))
 
 		// Quote1 -> opened
-		quoteDataArray[1] = await user.sendQuote(limitQuoteRequestBuilder().positionType(PositionType.SHORT).build())
+		quoteDataArray[1] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).positionType(PositionType.SHORT).build())
 		await hedger.lockQuote(quoteDataArray[1])
 		await hedger.openPosition(quoteDataArray[1])
 
