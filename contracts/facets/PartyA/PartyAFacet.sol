@@ -130,31 +130,38 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 	}
 
 	/**
-	 * @notice User requests to close one of their position.
+	 * @notice User requests to close one of their position with encrypted parameters.
 	 * @param quoteId The ID of the quote associated with the position to be closed.
-	 * @param closePrice The closing price for the position. In the case of limit orders, this is the price the user wants to close the position at.
+	 * @param encryptedClosePrice The encrypted closing price for the position. In the case of limit orders, this is the price the user wants to close the position at.
 	 * 						For market orders, it's more like a price threshold the user's okay with when closing their position. Say, for a random symbol, the market price is $1000.
 	 * 						If a user wants to close a short position on this symbol, they might be cool with prices up to $1010
-	 * @param quantityToClose The quantity of the position to be closed.
+	 * @param encryptedQuantityToClose The encrypted quantity of the position to be closed.
 	 * @param orderType  orderType can again be LIMIT or MARKET with the same logic as in SendQuote
 	 * @param deadline The deadline for executing the position closure. If 'partyB' doesn't get back to the request within a certain time, then the request will just time out
 	 */
 	function requestToClosePosition(
 		uint256 quoteId,
-		uint256 closePrice,
-		uint256 quantityToClose,
+		itUint256 calldata encryptedClosePrice,
+		itUint256 calldata encryptedQuantityToClose,
 		OrderType orderType,
 		uint256 deadline
 	) external whenNotPartyAActionsPaused onlyPartyAOfQuote(quoteId) notLiquidated(quoteId) {
-		PartyAFacetImpl.requestToClosePosition(quoteId, closePrice, quantityToClose, orderType, deadline);
+		gtUint256 gtClosePrice = MpcCore.validateCiphertext(encryptedClosePrice);
+		gtUint256 gtQuantityToClose = MpcCore.validateCiphertext(encryptedQuantityToClose);
+		
+		PartyAFacetImpl.requestToClosePosition(quoteId, gtClosePrice, gtQuantityToClose, orderType, deadline);
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
+		
+		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
+		
+		// Emit encrypted event for Party A
 		emit RequestToClosePosition(
 			quote.partyA,
 			quote.partyB,
 			quoteId,
-			closePrice,
-			quantityToClose,
+			MpcCore.offBoardToUser(gtClosePrice, partyAEncryptionAddress),
+			MpcCore.offBoardToUser(gtQuantityToClose, partyAEncryptionAddress),
 			orderType,
 			deadline,
 			QuoteStatus.CLOSE_PENDING,

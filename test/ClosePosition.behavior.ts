@@ -67,11 +67,17 @@ export function shouldBehaveLikeClosePosition(): void {
 	})
 
 	it("Should fail on invalid partyA", async function () {
+		const contractAddress = context.diamond
+		const selector = context.partyAFacet.interface.getFunction("requestToClosePosition").selector
+
+		const encryptedClosePrice = await user.encryptUint256(BigInt(1n), contractAddress, selector);
+		const encryptedQuantityToClose = await user.encryptUint256(BigInt(1n), contractAddress, selector);
+
 		await expect(
 			context.partyAFacet.requestToClosePosition(
 				2n, //quoteId
-				decimal(1n), //closePrice
-				decimal(1n), //quantityToClose
+				encryptedClosePrice,
+				encryptedQuantityToClose,
 				BigInt(OrderType.LIMIT),
 				await getBlockTimestamp(100n),
 			),

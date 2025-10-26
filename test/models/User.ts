@@ -234,10 +234,17 @@ export class User {
 				userUpnl: await this.getUpnl(),
 			}),
 		)
+
+		const contractAddress = this.context.diamond
+		const selector = this.context.partyAFacet.interface.getFunction("requestToClosePosition").selector
+
+		const encryptedClosePrice = await this.encryptUint256(BigInt(request.closePrice), contractAddress, selector);
+		const encryptedQuantityToClose = await this.encryptUint256(BigInt(request.quantityToClose), contractAddress, selector);
+
 		await runTx(
 			this.context.partyAFacet
 				.connect(this.signer)
-				.requestToClosePosition(id, request.closePrice, request.quantityToClose, request.orderType, await request.deadline),
+				.requestToClosePosition(id, encryptedClosePrice, encryptedQuantityToClose, request.orderType, await request.deadline),
 		)
 		logger.info(`User::::RequestToClosePosition: ${id}`)
 	}

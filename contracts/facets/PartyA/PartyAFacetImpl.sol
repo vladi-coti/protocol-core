@@ -201,7 +201,7 @@ library PartyAFacetImpl {
 		quote.statusModifyTimestamp = block.timestamp;
 	}
 
-	function requestToClosePosition(uint256 quoteId, uint256 closePrice, uint256 quantityToClose, OrderType orderType, uint256 deadline) internal {
+	function requestToClosePosition(uint256 quoteId, gtUint256 gtClosePrice, gtUint256 gtQuantityToClose, OrderType orderType, uint256 deadline) internal {
 		SymbolStorage.Layout storage symbolLayout = SymbolStorage.layout();
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
@@ -211,7 +211,6 @@ library PartyAFacetImpl {
 		
 		// Get encrypted values for validation
 		gtUint256 gtQuoteOpenAmount = LibQuote.quoteOpenAmount(quote);
-		gtUint256 gtQuantityToClose = MpcCore.setPublic256(quantityToClose);
 		
 		// Check quantityToClose is valid
 		gtBool isValidQuantity = gtQuoteOpenAmount.ge(gtQuantityToClose);
@@ -236,7 +235,6 @@ library PartyAFacetImpl {
 		quote.quoteStatus = QuoteStatus.CLOSE_PENDING;
 		
 		// Store encrypted values
-		gtUint256 gtClosePrice = MpcCore.setPublic256(closePrice);
 		quote.requestedClosePrice = gtClosePrice.offBoardCombined(quote.partyA);
 		quote.quantityToClose = gtQuantityToClose.offBoardCombined(quote.partyA);
 		quote.orderType = orderType;
