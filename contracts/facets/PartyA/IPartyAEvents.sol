@@ -9,7 +9,18 @@ import "../../interfaces/IPartiesEvents.sol";
 
 interface IPartyAEvents is IPartiesEvents {
 	event RequestToCancelQuote(address partyA, address partyB, QuoteStatus quoteStatus, uint256 quoteId);
-	event RequestToClosePosition(
+	event RequestToClosePositionForPartyA(
+		address partyA,
+		address partyB,
+		uint256 quoteId,
+		ctUint256 closePrice,
+		ctUint256 quantityToClose,
+		OrderType orderType,
+		uint256 deadline,
+		QuoteStatus quoteStatus,
+		uint256 closeId
+	);
+	event RequestToClosePositionForPartyB(
 		address partyA,
 		address partyB,
 		uint256 quoteId,

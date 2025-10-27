@@ -1,13 +1,12 @@
 import {time} from "@nomicfoundation/hardhat-network-helpers"
 import {JsonSerializer} from "typescript-json-serializer"
-import {ctUint256, Wallet} from "@coti-io/coti-ethers"
+import {Wallet} from "@coti-io/coti-ethers"
 
 import {OrderType, QuoteStatus} from "../models/Enums"
 import {RunContext} from "../models/RunContext"
 import {safeDiv} from "./SafeMath"
 import {network} from "hardhat"
 import {QuoteStructOutput, SymbolStructOutput} from "../../src/types/contracts/interfaces/ISymmio"
-import {User} from "../models/User"
 
 const defaultSerializer = new JsonSerializer()
 

@@ -205,13 +205,24 @@ export class Hedger {
 				userUpnl: await user.getUpnl(),
 			})
 		)
+		
+		// Encrypt the parameters for privacy
+		const contractAddress = await this.context.partyBPositionActionsFacet.getAddress()
+		const selector = this.context.partyBPositionActionsFacet.interface.getFunction("fillCloseRequest").selector
+		const encryptedFilledAmount = await this.signer.encryptUint256(BigInt(request.filledAmount), contractAddress, selector)
+		const encryptedClosedPrice = await this.signer.encryptUint256(BigInt(request.closedPrice), contractAddress, selector)
+		
+		const encryptedCloseParams = {
+			encryptedFilledAmount,
+			encryptedClosedPrice
+		}
+		
 		await runTx(
 			this.context.partyBPositionActionsFacet
 				.connect(this.signer)
 				.fillCloseRequest(
 					id,
-					request.filledAmount,
-					request.closedPrice,
+					encryptedCloseParams,
 					await getDummyPairUpnlAndPriceSig(BigInt(request.price), BigInt(request.upnlPartyA), BigInt(request.upnlPartyB))
 				)
 		)

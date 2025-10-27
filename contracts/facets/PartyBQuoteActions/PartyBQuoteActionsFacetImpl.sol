@@ -67,16 +67,16 @@ library PartyBQuoteActionsFacetImpl {
 		accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
 
 		// send trading Fee back to partyA
-		gtUint256 gtFee = LibQuote.getTradingFee(quoteId);
-		uint256 fee = MpcCore.decrypt(gtFee);
+		gtUint256 gtFeeAmount = LibQuote.getTradingFee(quoteId);
 		
 		// Update allocated balance with encrypted operations
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
-		gtUint256 gtFeeAmount = MpcCore.setPublic256(fee);
 		gtUint256 gtNewBalance = gtCurrentBalance.add(gtFeeAmount);
 		accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 		
-		emit SharedEvents.BalanceChangePartyA(quote.partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
+		// Emit encrypted event
+		ctUint256 memory ctFeeAmount = MpcCore.offBoardToUser(gtFeeAmount, LibAccount.getUserEncryptionAddress(quote.partyA));
+		emit SharedEvents.BalanceChangePartyA(quote.partyA, ctFeeAmount, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 
 		LibQuote.removeFromPendingQuotes(quote);
 	}

@@ -9,7 +9,6 @@ import { ctUint256 } from "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.s
 
 interface IPartyBPositionActionsEvents is IPartiesEvents {
 	event AcceptCancelCloseRequest(uint256 quoteId, QuoteStatus quoteStatus, uint256 closeId);
-	event AcceptCancelCloseRequest(uint256 quoteId, QuoteStatus quoteStatus); // For backward compatibility, will be removed in future
 	event EmergencyClosePosition(
 		uint256 quoteId,
 		address partyA,
@@ -19,8 +18,6 @@ interface IPartyBPositionActionsEvents is IPartiesEvents {
 		QuoteStatus quoteStatus,
 		uint256 closeId
 	);
-	event EmergencyClosePosition(uint256 quoteId, address partyA, address partyB, uint256 filledAmount, uint256 closedPrice, QuoteStatus quoteStatus); // For backward compatibility, will be removed in future
 
-	// Private event for encrypted position opening
 	event OpenPositionPrivate(uint256 quoteId, address partyA, address partyB, ctUint256 encryptedFilledAmount, uint256 openedPrice);
 }

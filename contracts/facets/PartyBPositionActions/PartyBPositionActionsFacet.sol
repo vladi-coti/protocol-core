@@ -114,22 +114,38 @@ contract PartyBPositionActionsFacet is Accessibility, Pausable, IPartyBPositionA
 	/**
 	 * @notice Fills the close request for the specified quote.
 	 * @param quoteId The ID of the quote for which the close request is filled.
-	 * @param filledAmount The filled amount for the close request. PartyB can fill the LIMIT requests in multiple steps
-	 * 						and each within a different price but the market requests should be filled all at once.
-	 * @param closedPrice The closed price for the close request.
+	 * @param encryptedCloseParams The encrypted close parameters containing encrypted filledAmount and closedPrice.
 	 * @param upnlSig The Muon signature containing PairUpnlAndPriceSig data.
 	 */
 	function fillCloseRequest(
 		uint256 quoteId,
-		uint256 filledAmount,
-		uint256 closedPrice,
+		PrivateClosePositionParams calldata encryptedCloseParams,
 		PairUpnlAndPriceSig memory upnlSig
 	) external whenNotPartyBActionsPaused onlyPartyBOfQuote(quoteId) notLiquidated(quoteId) {
+		gtUint256 gtFilledAmount = MpcCore.validateCiphertext(encryptedCloseParams.encryptedFilledAmount);
+		gtUint256 gtClosedPrice = MpcCore.validateCiphertext(encryptedCloseParams.encryptedClosedPrice);
+
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
-		PartyBPositionActionsFacetImpl.fillCloseRequest(quoteId, filledAmount, closedPrice, upnlSig);
-		emit FillCloseRequest(quoteId, quote.partyA, quote.partyB, filledAmount, closedPrice, quote.quoteStatus, quoteLayout.closeIds[quoteId]);
-		emit FillCloseRequest(quoteId, quote.partyA, quote.partyB, filledAmount, closedPrice, quote.quoteStatus); // For backward compatibility, will be removed in future
+		PartyBPositionActionsFacetImpl.fillCloseRequest(quoteId, gtFilledAmount, gtClosedPrice, upnlSig);
+		
+		// Emit encrypted position events for both parties
+		{
+			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
+			EncryptedPositionValues memory partyAValues = EncryptedPositionValues({
+				filledAmount: MpcCore.offBoardToUser(gtFilledAmount, partyAEncryptionAddress),
+				openedPrice: MpcCore.offBoardToUser(gtClosedPrice, partyAEncryptionAddress)
+			});
+			emit FillCloseRequestForPartyA(quoteId, quote.partyA, quote.partyB, partyAValues, quote.quoteStatus, quoteLayout.closeIds[quoteId]);
+		}
+		{
+			address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
+			EncryptedPositionValues memory partyBValues = EncryptedPositionValues({
+				filledAmount: MpcCore.offBoardToUser(gtFilledAmount, partyBEncryptionAddress),
+				openedPrice: MpcCore.offBoardToUser(gtClosedPrice, partyBEncryptionAddress)
+			});
+			emit FillCloseRequestForPartyB(quoteId, quote.partyA, quote.partyB, partyBValues, quote.quoteStatus, quoteLayout.closeIds[quoteId]);
+		}
 	}
 
 	/**
@@ -139,7 +155,6 @@ contract PartyBPositionActionsFacet is Accessibility, Pausable, IPartyBPositionA
 	function acceptCancelCloseRequest(uint256 quoteId) external whenNotPartyBActionsPaused onlyPartyBOfQuote(quoteId) notLiquidated(quoteId) {
 		PartyBPositionActionsFacetImpl.acceptCancelCloseRequest(quoteId);
 		emit AcceptCancelCloseRequest(quoteId, QuoteStatus.OPENED, QuoteStorage.layout().closeIds[quoteId]);
-		emit AcceptCancelCloseRequest(quoteId, QuoteStatus.OPENED); // For backward compatibility, will be removed in future
 	}
 
 	/**

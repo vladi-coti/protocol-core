@@ -47,22 +47,24 @@ library PartyBPositionActionsFacetImpl {
 		);
 	}
 
-	function fillCloseRequest(uint256 quoteId, uint256 filledAmount, uint256 closedPrice, PairUpnlAndPriceSig memory upnlSig) internal {
+	function fillCloseRequest(uint256 quoteId, gtUint256 gtFilledAmount, gtUint256 gtClosedPrice, PairUpnlAndPriceSig memory upnlSig) internal {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
 		LibMuonPartyB.verifyPairUpnlAndPrice(upnlSig, quote.partyB, quote.partyA, quote.symbolId);
+		
+		// Prepare arrays for solvency check
 		uint256[] memory quoteIds = new uint256[](1);
-		uint256[] memory filledAmounts = new uint256[](1);
-		uint256[] memory closedPrices = new uint256[](1);
+		gtUint256[] memory gtFilledAmounts = new gtUint256[](1);
+		gtUint256[] memory gtClosedPrices = new gtUint256[](1);
 		uint256[] memory marketPrices = new uint256[](1);
 		quoteIds[0] = quoteId;
-		filledAmounts[0] = filledAmount;
-		closedPrices[0] = closedPrice;
+		gtFilledAmounts[0] = gtFilledAmount;
+		gtClosedPrices[0] = gtClosedPrice;
 		marketPrices[0] = upnlSig.price;
 		LibSolvency.isSolventAfterClosePosition(
 			quoteIds,
-			filledAmounts,
-			closedPrices,
+			gtFilledAmounts,
+			gtClosedPrices,
 			marketPrices,
 			upnlSig.upnlPartyB,
 			upnlSig.upnlPartyA,
@@ -71,7 +73,7 @@ library PartyBPositionActionsFacetImpl {
 		);
 		accountLayout.partyBNonces[quote.partyB][quote.partyA] += 1;
 		accountLayout.partyANonces[quote.partyA] += 1;
-		LibPartyBPositionsActions.fillCloseRequest(quoteId, filledAmount, closedPrice);
+		LibPartyBPositionsActions.fillCloseRequest(quoteId, gtFilledAmount, gtClosedPrice);
 	}
 
 	function acceptCancelCloseRequest(uint256 quoteId) internal {
@@ -99,9 +101,8 @@ library PartyBPositionActionsFacetImpl {
 		require(quote.quoteStatus == QuoteStatus.OPENED || quote.quoteStatus == QuoteStatus.CLOSE_PENDING, "PartyBFacet: Invalid state");
 		LibMuonPartyB.verifyPairUpnlAndPrice(upnlSig, quote.partyB, quote.partyA, quote.symbolId);
 		
-		// Get encrypted quoteOpenAmount and decrypt
+		// Get encrypted quoteOpenAmount
 		gtUint256 gtFilledAmount = LibQuote.quoteOpenAmount(quote);
-		uint256 filledAmount = MpcCore.decrypt(gtFilledAmount);
 		
 		// Set encrypted fields
 		gtUint256 gtPrice = MpcCore.setPublic256(upnlSig.price);
@@ -118,6 +119,6 @@ library PartyBPositionActionsFacetImpl {
 		
 		accountLayout.partyBNonces[quote.partyB][quote.partyA] += 1;
 		accountLayout.partyANonces[quote.partyA] += 1;
-		LibQuote.closeQuote(quote, filledAmount, upnlSig.price);
+		LibQuote.closeQuote(quote, gtFilledAmount, gtPrice);
 	}
 }

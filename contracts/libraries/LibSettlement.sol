@@ -120,29 +120,23 @@ library LibSettlement {
 				gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
 				gtUint256 gtAmount = MpcCore.setPublic256(uint256(settlementAmount));
 				gtUint256 gtNewBalance = gtPartyBBalance.sub(gtAmount);
-				accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, partyA);
+				accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyA));
 				
 				// Emit encrypted event
-				address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
-				ctUint256 memory partyBAmount = MpcCore.offBoardToUser(gtAmount, partyBEncryptionAddress);
-				emit SharedEvents.BalanceChangePartyBEncrypted(partyB, partyA, partyBAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
-				
-				// Keep plaintext event for backward compatibility
-				emit SharedEvents.BalanceChangePartyB(partyB, partyA, uint256(settlementAmount), SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
+				address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
+				ctUint256 memory partyBAmount = MpcCore.offBoardToUser(gtAmount, partyAEncryptionAddress);
+				emit SharedEvents.BalanceChangePartyB(partyB, partyA, partyBAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
 			} else {
 				// Update PartyB balance with encrypted operations
 				gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
 				gtUint256 gtAmount = MpcCore.setPublic256(uint256(-settlementAmount));
 				gtUint256 gtNewBalance = gtPartyBBalance.add(gtAmount);
-				accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, partyA);
+				accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyA));
 				
 				// Emit encrypted event
-				address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
-				ctUint256 memory partyBAmount = MpcCore.offBoardToUser(gtAmount, partyBEncryptionAddress);
-				emit SharedEvents.BalanceChangePartyBEncrypted(partyB, partyA, partyBAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
-				
-				// Keep plaintext event for backward compatibility
-				emit SharedEvents.BalanceChangePartyB(partyB, partyA, uint256(-settlementAmount), SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
+				address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
+				ctUint256 memory partyBAmount = MpcCore.offBoardToUser(gtAmount, partyAEncryptionAddress);
+				emit SharedEvents.BalanceChangePartyB(partyB, partyA, partyBAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
 			}
 			// Store the new encrypted balance for return
 			newPartyBsAllocatedBalances[i] = accountLayout.partyBAllocatedBalances[partyB][partyA];
@@ -152,29 +146,23 @@ library LibSettlement {
 			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
 			gtUint256 gtAmount = MpcCore.setPublic256(uint256(totalSettlementAmount));
 			gtUint256 gtNewBalance = gtPartyABalance.add(gtAmount);
-			accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, partyA);
+			accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyA));
 			
 			// Emit encrypted event
 			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
 			ctUint256 memory partyAAmount = MpcCore.offBoardToUser(gtAmount, partyAEncryptionAddress);
-			emit SharedEvents.BalanceChangePartyAEncrypted(partyA, partyAAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
-			
-			// Keep plaintext event for backward compatibility
-			emit SharedEvents.BalanceChangePartyA(partyA, uint256(totalSettlementAmount), SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
+			emit SharedEvents.BalanceChangePartyA(partyA, partyAAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
 		} else {
 			// Update PartyA balance with encrypted operations
 			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
 			gtUint256 gtAmount = MpcCore.setPublic256(uint256(-totalSettlementAmount));
 			gtUint256 gtNewBalance = gtPartyABalance.sub(gtAmount);
-			accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, partyA);
+			accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyA));
 			
 			// Emit encrypted event
 			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
 			ctUint256 memory partyAAmount = MpcCore.offBoardToUser(gtAmount, partyAEncryptionAddress);
-			emit SharedEvents.BalanceChangePartyAEncrypted(partyA, partyAAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
-			
-			// Keep plaintext event for backward compatibility
-			emit SharedEvents.BalanceChangePartyA(partyA, uint256(-totalSettlementAmount), SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
+			emit SharedEvents.BalanceChangePartyA(partyA, partyAAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
 		}
 	}
 }

@@ -36,10 +36,6 @@ interface IPartiesEvents {
 
 	event ExpireQuoteClose(QuoteStatus quoteStatus, uint256 quoteId, uint256 closeId);
 
-	// @deprecated Use OpenPositionForPartyA and OpenPositionForPartyB instead for privacy
-	event OpenPosition(uint256 quoteId, address partyA, address partyB, uint256 filledAmount, uint256 openedPrice);
-
-	// Private events for encrypted position opening
 	event OpenPositionForPartyA(
 		uint256 quoteId,
 		address partyA,
@@ -54,17 +50,23 @@ interface IPartiesEvents {
 		EncryptedPositionValues values
 	);
 
-	event FillCloseRequest(
+	event FillCloseRequestForPartyA(
 		uint256 quoteId,
 		address partyA,
 		address partyB,
-		uint256 filledAmount,
-		uint256 closedPrice,
+		EncryptedPositionValues values,
 		QuoteStatus quoteStatus,
 		uint256 closeId
 	);
 
-	event FillCloseRequest(uint256 quoteId, address partyA, address partyB, uint256 filledAmount, uint256 closedPrice, QuoteStatus quoteStatus); // For backward compatibility, will be removed in future
+	event FillCloseRequestForPartyB(
+		uint256 quoteId,
+		address partyA,
+		address partyB,
+		EncryptedPositionValues values,
+		QuoteStatus quoteStatus,
+		uint256 closeId
+	);
 
 	event LiquidatePartyB(address liquidator, address partyB, address partyA, uint256 partyBAllocatedBalance, int256 upnl);
 }

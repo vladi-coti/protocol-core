@@ -34,7 +34,6 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 		gtUint256 gtFilledAmount = MpcCore.setPublic256(filledAmount);
 		gtUint256 gtOpenedPrice = MpcCore.setPublic256(openedPrice);
 		uint256 newId = PartyBPositionActionsFacetImpl.openPosition(quoteId, gtFilledAmount, gtOpenedPrice, pairUpnlSig);
-		emit OpenPosition(quoteId, quote.partyA, quote.partyB, filledAmount, openedPrice);
 		if (newId != 0) {
 			Quote storage newQuote = QuoteStorage.layout().quotes[newId];
 			if (newQuote.quoteStatus == QuoteStatus.PENDING) {
@@ -88,24 +87,6 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 						);
 					}
 				}
-
-				// emit SendQuote(
-				// 	newQuote.partyA,
-				// 	newQuote.id,
-				// 	newQuote.partyBsWhiteList,
-				// 	newQuote.symbolId,
-				// 	newQuote.positionType,
-				// 	newQuote.orderType,
-				// 	newQuote.requestedOpenPrice,
-				// 	newQuote.marketPrice,
-				// 	newQuote.quantity,
-				// 	newQuote.lockedValues.cva,
-				// 	newQuote.lockedValues.lf,
-				// 	newQuote.lockedValues.partyAmm,
-				// 	newQuote.lockedValues.partyBmm,
-				// 	newQuote.tradingFee,
-				// 	newQuote.deadline
-				// );
 			} else if (newQuote.quoteStatus == QuoteStatus.CANCELED) {
 				emit AcceptCancelRequest(newQuote.id, QuoteStatus.CANCELED);
 			}

@@ -153,20 +153,35 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
 		
-		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
-		
-		// Emit encrypted event for Party A
-		emit RequestToClosePosition(
-			quote.partyA,
-			quote.partyB,
-			quoteId,
-			MpcCore.offBoardToUser(gtClosePrice, partyAEncryptionAddress),
-			MpcCore.offBoardToUser(gtQuantityToClose, partyAEncryptionAddress),
-			orderType,
-			deadline,
-			QuoteStatus.CLOSE_PENDING,
-			quoteLayout.closeIds[quoteId]
-		);
+		// Emit encrypted events for both parties
+		{
+			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
+			emit RequestToClosePositionForPartyA(
+				quote.partyA,
+				quote.partyB,
+				quoteId,
+				MpcCore.offBoardToUser(gtClosePrice, partyAEncryptionAddress),
+				MpcCore.offBoardToUser(gtQuantityToClose, partyAEncryptionAddress),
+				orderType,
+				deadline,
+				QuoteStatus.CLOSE_PENDING,
+				quoteLayout.closeIds[quoteId]
+			);
+		}
+		{
+			address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
+			emit RequestToClosePositionForPartyB(
+				quote.partyA,
+				quote.partyB,
+				quoteId,
+				MpcCore.offBoardToUser(gtClosePrice, partyBEncryptionAddress),
+				MpcCore.offBoardToUser(gtQuantityToClose, partyBEncryptionAddress),
+				orderType,
+				deadline,
+				QuoteStatus.CLOSE_PENDING,
+				quoteLayout.closeIds[quoteId]
+			);
+		}
 	}
 
 	/**

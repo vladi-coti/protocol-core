@@ -117,7 +117,7 @@ export function shouldBehaveLikeClosePosition(): void {
 		).to.be.revertedWith("PartyAFacet: Invalid quantityToClose")
 	})
 
-	it("Should request limit successfully", async function () {
+	it("ClosePosition - Should request limit successfully", async function () {
 		const validator = new CloseRequestValidator()
 		const beforeOut = await validator.before(context, {
 			user: user,

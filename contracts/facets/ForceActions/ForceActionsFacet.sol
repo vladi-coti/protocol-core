@@ -46,22 +46,34 @@ contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceAct
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
 		
-		// Decrypt quantityToClose for event
+		// Get encrypted quantityToClose
 		gtUint256 gtQuantityToClose = LockedValuesOps.safeOnboard(quote.quantityToClose.ciphertext);
-		uint256 filledAmount = MpcCore.decrypt(gtQuantityToClose);
 		
 		SettlementSig memory settleSig;
-		(uint256 closePrice, bool isPartyBLiquidated, int256 upnlPartyB, uint256 partyBAllocatedBalance) = ForceActionsFacetImpl.forceClosePosition(
+		(gtUint256 gtClosePrice, bool isPartyBLiquidated, gtInt256 gtUpnlPartyB, gtUint256 gtPartyBAllocatedBalance) = ForceActionsFacetImpl.forceClosePosition(
 			quoteId,
 			sig,
 			settleSig,
 			new uint256[](0)
 		);
 		if (isPartyBLiquidated) {
+			// Decrypt for event emission
+			uint256 partyBAllocatedBalance = MpcCore.decrypt(gtPartyBAllocatedBalance);
+			int256 upnlPartyB = MpcCore.decrypt(gtUpnlPartyB);
 			emit LiquidatePartyB(msg.sender, quote.partyB, quote.partyA, partyBAllocatedBalance, upnlPartyB);
 		} else {
-			emit ForceClosePosition(quoteId, quote.partyA, quote.partyB, filledAmount, closePrice, quote.quoteStatus, quoteLayout.closeIds[quoteId]);
-			emit ForceClosePosition(quoteId, quote.partyA, quote.partyB, filledAmount, closePrice, quote.quoteStatus); // For backward compatibility, will be removed in future
+			{
+				address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
+				ctUint256 memory ctFilledAmount = MpcCore.offBoardToUser(gtQuantityToClose, partyAEncryptionAddress);
+				ctUint256 memory ctClosePrice = MpcCore.offBoardToUser(gtClosePrice, partyAEncryptionAddress);
+				emit ForceClosePositionForPartyA(quoteId, quote.partyA, quote.partyB, ctFilledAmount, ctClosePrice, quote.quoteStatus, quoteLayout.closeIds[quoteId]);
+			}
+			{
+				address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
+				ctUint256 memory ctFilledAmount = MpcCore.offBoardToUser(gtQuantityToClose, partyBEncryptionAddress);
+				ctUint256 memory ctClosePrice = MpcCore.offBoardToUser(gtClosePrice, partyBEncryptionAddress);
+				emit ForceClosePositionForPartyB(quoteId, quote.partyA, quote.partyB, ctFilledAmount, ctClosePrice, quote.quoteStatus, quoteLayout.closeIds[quoteId]);
+			}
 		}
 	}
 
@@ -81,21 +93,27 @@ contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceAct
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
 		
-		// Decrypt quantityToClose for event
+		// Get encrypted quantityToClose
 		gtUint256 gtQuantityToClose = LockedValuesOps.safeOnboard(quote.quantityToClose.ciphertext);
-		uint256 filledAmount = MpcCore.decrypt(gtQuantityToClose);
 		
-		(uint256 closePrice, bool isPartyBLiquidated, int256 upnlPartyB, uint256 partyBAllocatedBalance) = ForceActionsFacetImpl.forceClosePosition(
+		(gtUint256 gtClosePrice, bool isPartyBLiquidated, gtInt256 gtUpnlPartyB, gtUint256 gtPartyBAllocatedBalance) = ForceActionsFacetImpl.forceClosePosition(
 			quoteId,
 			highLowPriceSig,
 			settleSig,
 			updatedPrices
 		);
-		uint256[] memory newPartyBsAllocatedBalances = new uint256[](1);
-		newPartyBsAllocatedBalances[0] = partyBAllocatedBalance;
 		if (isPartyBLiquidated) {
+			// Decrypt for event emission
+			uint256 partyBAllocatedBalance = MpcCore.decrypt(gtPartyBAllocatedBalance);
+			int256 upnlPartyB = MpcCore.decrypt(gtUpnlPartyB);
+			uint256[] memory newPartyBsAllocatedBalances = new uint256[](1);
+			newPartyBsAllocatedBalances[0] = partyBAllocatedBalance;
 			emit LiquidatePartyB(msg.sender, quote.partyB, quote.partyA, partyBAllocatedBalance, upnlPartyB);
 		} else {
+			// Decrypt for event emission
+			uint256 partyBAllocatedBalance = MpcCore.decrypt(gtPartyBAllocatedBalance);
+			uint256[] memory newPartyBsAllocatedBalances = new uint256[](1);
+			newPartyBsAllocatedBalances[0] = partyBAllocatedBalance;
 			// Decrypt the allocated balance for the event
 			gtUint256 gtAllocatedBalance = LockedValuesOps.safeOnboard(AccountStorage.layout().allocatedBalances[msg.sender].ciphertext);
 			uint256 allocatedBalance = MpcCore.decrypt(gtAllocatedBalance);
@@ -107,8 +125,21 @@ contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceAct
 				allocatedBalance,
 				newPartyBsAllocatedBalances
 			);
-			emit ForceClosePosition(quoteId, quote.partyA, quote.partyB, filledAmount, closePrice, quote.quoteStatus, quoteLayout.closeIds[quoteId]);
-			emit ForceClosePosition(quoteId, quote.partyA, quote.partyB, filledAmount, closePrice, quote.quoteStatus); // For backward compatibility, will be removed in future
+			
+			// Emit encrypted events for both parties
+			
+			{
+				address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
+				ctUint256 memory ctFilledAmount = MpcCore.offBoardToUser(gtQuantityToClose, partyAEncryptionAddress);
+				ctUint256 memory ctClosePrice = MpcCore.offBoardToUser(gtClosePrice, partyAEncryptionAddress);
+				emit ForceClosePositionForPartyA(quoteId, quote.partyA, quote.partyB, ctFilledAmount, ctClosePrice, quote.quoteStatus, quoteLayout.closeIds[quoteId]);
+			}
+			{
+				address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
+				ctUint256 memory ctFilledAmount = MpcCore.offBoardToUser(gtQuantityToClose, partyBEncryptionAddress);
+				ctUint256 memory ctClosePrice = MpcCore.offBoardToUser(gtClosePrice, partyBEncryptionAddress);
+				emit ForceClosePositionForPartyB(quoteId, quote.partyA, quote.partyB, ctFilledAmount, ctClosePrice, quote.quoteStatus, quoteLayout.closeIds[quoteId]);
+			}
 		}
 	}
 }

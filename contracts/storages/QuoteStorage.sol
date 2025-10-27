@@ -120,6 +120,12 @@ struct PrivateOpenPositionParams {
 	itUint256 encryptedOpenedPrice;
 }
 
+// Struct to hold encrypted close position parameters
+struct PrivateClosePositionParams {
+	itUint256 encryptedFilledAmount;
+	itUint256 encryptedClosedPrice;
+}
+
 struct QuoteBasicParams {
 	address[] partyBsWhiteList;
 	uint256 symbolId;

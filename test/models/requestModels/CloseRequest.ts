@@ -18,7 +18,7 @@ const limitDefaultCloseRequest: CloseRequest = {
 	price: decimal(1n),
 	upnl: 0n,
 	orderType: OrderType.LIMIT,
-	deadline: getBlockTimestamp(500n) as Promise<bigint>,
+	deadline: getBlockTimestamp(5000n) as Promise<bigint>,
 }
 
 const marketDefaultCloseRequest: CloseRequest = {
@@ -27,7 +27,7 @@ const marketDefaultCloseRequest: CloseRequest = {
 	price: decimal(1n),
 	upnl: 0n,
 	orderType: OrderType.MARKET,
-	deadline: getBlockTimestamp(500n) as Promise<bigint>,
+	deadline: getBlockTimestamp(5000n) as Promise<bigint>,
 }
 
 export const limitCloseRequestBuilder = () => Builder(limitDefaultCloseRequest)

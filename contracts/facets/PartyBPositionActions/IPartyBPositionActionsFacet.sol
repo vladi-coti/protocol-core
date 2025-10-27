@@ -9,7 +9,7 @@ import "./IPartyBPositionActionsEvents.sol";
 interface IPartyBPositionActionsFacet is IPartyBPositionActionsEvents {
 	function openPosition(uint256 quoteId, PrivateOpenPositionParams calldata encryptedParams, PairUpnlAndPriceSig memory upnlSig) external;
 
-	function fillCloseRequest(uint256 quoteId, uint256 filledAmount, uint256 closedPrice, PairUpnlAndPriceSig memory upnlSig) external;
+	function fillCloseRequest(uint256 quoteId, PrivateClosePositionParams calldata encryptedCloseParams, PairUpnlAndPriceSig memory upnlSig) external;
 
 	function acceptCancelCloseRequest(uint256 quoteId) external;
 

@@ -22,12 +22,7 @@ library SharedEvents {
         FUNDING_FEE_OUT
     }
 
-    event BalanceChangePartyA(address indexed partyA, uint256 amount, BalanceChangeType _type);
+    event BalanceChangePartyA(address indexed partyA, ctUint256 amount, BalanceChangeType _type);
 
-    event BalanceChangePartyB(address indexed partyB, address indexed partyA, uint256 amount, BalanceChangeType _type);
-
-    // Encrypted versions for privacy
-    event BalanceChangePartyAEncrypted(address indexed partyA, ctUint256 amount, BalanceChangeType _type);
-
-    event BalanceChangePartyBEncrypted(address indexed partyB, address indexed partyA, ctUint256 amount, BalanceChangeType _type);
+    event BalanceChangePartyB(address indexed partyB, address indexed partyA, ctUint256 amount, BalanceChangeType _type);
 }

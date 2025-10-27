@@ -13,20 +13,7 @@ library LibPartyBPositionsActions {
 	using LockedValuesOps for LockedValues;
 	using LockedValuesOps for GarbledLockedValues;
 
-	/**
-	 * @notice Opens a position using private variables
-	 * @param quoteId The ID of the quote
-	 * @param filledAmount The amount to fill
-	 * @param openedPrice The price at which to open
-	 */
-	function openPositionWithPrivacy(uint256 quoteId, uint256 filledAmount, uint256 openedPrice) internal returns (uint256 currentId) {
-		// Convert uint256 to gtUint256 for encrypted operations
-		gtUint256 gtFilledAmount = MpcCore.setPublic256(filledAmount);
-		gtUint256 gtOpenedPrice = MpcCore.setPublic256(openedPrice);
-		return openPosition(quoteId, gtFilledAmount, gtOpenedPrice);
-	}
-
-	function fillCloseRequest(uint256 quoteId, uint256 filledAmount, uint256 closedPrice) internal {
+	function fillCloseRequest(uint256 quoteId, gtUint256 gtFilledAmount, gtUint256 gtClosedPrice) internal {
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
 		require(
 			quote.quoteStatus == QuoteStatus.CLOSE_PENDING || quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING,
@@ -36,24 +23,30 @@ library LibPartyBPositionsActions {
 		
 		// Decrypt requestedClosePrice for comparison
 		gtUint256 gtRequestedClosePrice = LockedValuesOps.safeOnboard(quote.requestedClosePrice.ciphertext);
-		uint256 requestedClosePrice = MpcCore.decrypt(gtRequestedClosePrice);
 		
+		// Compare closed price using encrypted comparison
 		if (quote.positionType == PositionType.LONG) {
-			require(closedPrice >= requestedClosePrice, "PartyBFacet: Closed price isn't valid");
+			gtBool gtPriceValid = gtClosedPrice.ge(gtRequestedClosePrice);
+			require(MpcCore.decrypt(gtPriceValid), "PartyBFacet: Closed price isn't valid");
 		} else {
-			require(closedPrice <= requestedClosePrice, "PartyBFacet: Closed price isn't valid");
+			gtBool gtPriceValid = gtClosedPrice.le(gtRequestedClosePrice);
+			require(MpcCore.decrypt(gtPriceValid), "PartyBFacet: Closed price isn't valid");
 		}
 		
 		// Decrypt quantityToClose for validation
 		gtUint256 gtQuantityToClose = LockedValuesOps.safeOnboard(quote.quantityToClose.ciphertext);
-		uint256 quantityToClose = MpcCore.decrypt(gtQuantityToClose);
 		
+		// Validate filled amount using encrypted comparison
 		if (quote.orderType == OrderType.LIMIT) {
-			require(quantityToClose >= filledAmount, "PartyBFacet: Invalid filledAmount");
+			gtBool gtFilledAmountValid = gtQuantityToClose.ge(gtFilledAmount);
+			require(MpcCore.decrypt(gtFilledAmountValid), "PartyBFacet: Invalid filledAmount");
 		} else {
-			require(quantityToClose == filledAmount, "PartyBFacet: Invalid filledAmount");
+			gtBool gtFilledAmountEquals = gtQuantityToClose.eq(gtFilledAmount);
+			require(MpcCore.decrypt(gtFilledAmountEquals), "PartyBFacet: Invalid filledAmount");
 		}
-		LibQuote.closeQuote(quote, filledAmount, closedPrice);
+		
+		// Call closeQuote with encrypted values
+		LibQuote.closeQuote(quote, gtFilledAmount, gtClosedPrice);
 	}
 
 	function openPosition(uint256 quoteId, gtUint256 gtFilledAmount, gtUint256 gtOpenedPrice) internal returns (uint256 currentId) {
@@ -206,7 +199,9 @@ library LibPartyBPositionsActions {
 				gtUint256 gtNewBalance = gtCurrentBalance.add(gtFeeAmount);
 				accountLayout.allocatedBalances[newQuote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(newQuote.partyA));
 				
-				emit SharedEvents.BalanceChangePartyA(newQuote.partyA, fee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
+				// Emit encrypted event
+				ctUint256 memory ctFeeAmount = MpcCore.offBoardToUser(gtFeeAmount, LibAccount.getUserEncryptionAddress(newQuote.partyA));
+				emit SharedEvents.BalanceChangePartyA(newQuote.partyA, ctFeeAmount, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 
 				// part of quote has been filled and part of it has been canceled
 				accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
