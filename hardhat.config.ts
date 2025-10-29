@@ -35,7 +35,7 @@ const beraAPIKey: string = process.env.BERA_API_KEY || ""
 const hardhatDockerUrl: string | undefined = process.env.HARDHAT_DOCKER_URL || ""
 
 const config: HardhatUserConfig = {
-	defaultNetwork: "soda-testnet",
+	defaultNetwork: "private-testnet",
 	gasReporter: {
 		currency: "USD",
 		enabled: false,
@@ -43,6 +43,16 @@ const config: HardhatUserConfig = {
 		src: "./contracts",
 	},
 	networks: {
+		"private-testnet": {
+			url: "http://40.160.5.30:8545",
+			chainId: 15151515,
+			accounts: privateKeyList,
+			gasPrice: 1000000000,
+			gasMultiplier: 1.5, // Increased multiplier
+			blockGasLimit: 30000000,
+			timeout: 120000, // Increased timeout to 2 minutes
+			initialBaseFeePerGas: 1200000000, // 1.2 gwei
+		},
 		"soda-testnet": {
 			url: "http://3.88.141.22:7000",
 			chainId: 50505050,

@@ -16,4 +16,4 @@ export const FacetNames = [
 
 export const DEPLOYMENT_LOG_FILE = "deployed.json"
 
-export const testnetChainId = 50505050n
+export const testnetChainId = 15151515n

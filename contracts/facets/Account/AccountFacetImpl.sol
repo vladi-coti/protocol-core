@@ -59,7 +59,7 @@ library AccountFacetImpl {
 		accountLayout.balances[msg.sender] -= amount;
 		
 		// Store encrypted new balance
-		accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewBalance, msg.sender);
+		accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(msg.sender));
 	}
 
 	function deallocate(uint256 amount, SingleUpnlSig memory upnlSig) internal {
@@ -83,7 +83,7 @@ library AccountFacetImpl {
 
 		// Update encrypted balance
 		gtUint256 gtNewBalance = gtCurrentBalance.sub(gtAmount);
-		accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewBalance, msg.sender);
+		accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(msg.sender));
 		accountLayout.balances[msg.sender] += amount;
 		accountLayout.withdrawCooldown[msg.sender] = block.timestamp;
 	}
@@ -117,8 +117,8 @@ library AccountFacetImpl {
 		gtUint256 gtRecipientBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[msg.sender][recipient].ciphertext);
 		gtUint256 gtNewRecipientBalance = gtRecipientBalance.add(gtAmount);
 		
-		accountLayout.partyBAllocatedBalances[msg.sender][origin] = MpcCore.offBoardCombined(gtNewOriginBalance, msg.sender);
-		accountLayout.partyBAllocatedBalances[msg.sender][recipient] = MpcCore.offBoardCombined(gtNewRecipientBalance, msg.sender);
+		accountLayout.partyBAllocatedBalances[msg.sender][origin] = MpcCore.offBoardCombined(gtNewOriginBalance, LibAccount.getUserEncryptionAddress(msg.sender));
+		accountLayout.partyBAllocatedBalances[msg.sender][recipient] = MpcCore.offBoardCombined(gtNewRecipientBalance, LibAccount.getUserEncryptionAddress(msg.sender));
 	}
 
 	function internalTransfer(address user, uint256 amount) internal {
@@ -137,7 +137,7 @@ library AccountFacetImpl {
 		accountLayout.balances[msg.sender] -= amount;
 		
 		// Store encrypted new balance
-		accountLayout.allocatedBalances[user] = MpcCore.offBoardCombined(gtNewBalance, user);
+		accountLayout.allocatedBalances[user] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(user));
 	}
 
 	function allocateForPartyB(uint256 amount, address partyA) internal {
@@ -154,7 +154,7 @@ library AccountFacetImpl {
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[msg.sender][partyA].ciphertext);
 		gtUint256 gtAmount = MpcCore.setPublic256(amount);
 		gtUint256 gtNewBalance = gtCurrentBalance.add(gtAmount);
-		accountLayout.partyBAllocatedBalances[msg.sender][partyA] = MpcCore.offBoardCombined(gtNewBalance, msg.sender);
+		accountLayout.partyBAllocatedBalances[msg.sender][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(msg.sender));
 	}
 
 	function deallocateForPartyB(uint256 amount, address partyA, SingleUpnlSig memory upnlSig) internal {
@@ -174,7 +174,7 @@ library AccountFacetImpl {
 
 		// Update encrypted balance
 		gtUint256 gtNewBalance = gtCurrentBalance.sub(gtAmount);
-		accountLayout.partyBAllocatedBalances[msg.sender][partyA] = MpcCore.offBoardCombined(gtNewBalance, msg.sender);
+		accountLayout.partyBAllocatedBalances[msg.sender][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(msg.sender));
 		accountLayout.balances[msg.sender] += amount;
 		accountLayout.withdrawCooldown[msg.sender] = block.timestamp;
 	}

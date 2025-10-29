@@ -14,7 +14,7 @@ library LibMuon {
 	function getChainId() internal view returns (uint256 id) {
 		// id = block.chainid;
 		// FIXME: temporary until chainid is fixed
-		id = 50505050;
+		id = 15151515;
 	}
 
 	// CONTEXT for commented out lines
