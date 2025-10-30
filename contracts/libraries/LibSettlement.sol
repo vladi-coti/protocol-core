@@ -90,7 +90,7 @@ library LibSettlement {
 			
 			// Update openedPrice with new encrypted value
 			gtUint256 gtUpdatedPrice = MpcCore.setPublic256(updatedPrices[i]);
-			quote.openedPrice = MpcCore.offBoardCombined(gtUpdatedPrice, quote.partyA);
+			quote.openedPrice = MpcCore.offBoardCombined(gtUpdatedPrice, LibAccount.getUserEncryptionAddress(quote.partyA));
 		}
 
 		int256 totalSettlementAmount;

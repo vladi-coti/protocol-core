@@ -173,4 +173,24 @@ contract AccountFacet is Accessibility, Pausable, IAccountFacet {
 		AccountFacetImpl.withdrawFromReserveVault(amount);
 		emit WithdrawFromReserveVault(msg.sender, amount);
 	}
+
+	/**
+	 * @notice Sets the encryption address to be used for the caller and re-encrypts existing state.
+	 * @dev This function sets `AccountStorage.userEncryptionAddress[msg.sender] = newEncryptionAddress` and
+	 *      re-encrypts stored values that are tied to the caller across AccountStorage and Quotes where
+	 *      the caller is the party of record. Iteration over mappings without indices is not feasible on-chain,
+	 *      so this function re-encrypts:
+	 *        - AccountStorage.allocatedBalances[msg.sender]
+	 *        - AccountStorage.lockedBalances[msg.sender]
+	 *        - AccountStorage.pendingLockedBalances[msg.sender]
+	 *        - All QuoteStorage.quotes where quote.partyA == msg.sender (including ut fields and LockedValues)
+	 * @param newEncryptionAddress The address whose keys should be used for encrypting the caller's data.
+	 */
+	function setEncryptionAddress(address newEncryptionAddress) external {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		address currentMapped = accountLayout.userEncryptionAddress[msg.sender];
+		address fromAddress = currentMapped == address(0) ? msg.sender : currentMapped;
+		AccountFacetImpl.setEncryptionAddress(msg.sender, newEncryptionAddress);
+		emit EncryptionAddressChanged(msg.sender, fromAddress, newEncryptionAddress);
+	}
 }

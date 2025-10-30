@@ -194,4 +194,49 @@ library AccountFacetImpl {
 		accountLayout.balances[msg.sender] += amount;
 		accountLayout.withdrawCooldown[msg.sender] = block.timestamp;
 	}
+
+	function setEncryptionAddress(address user, address newEncryptionAddress) internal {
+        AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+        address currentMapped = accountLayout.userEncryptionAddress[user];
+        address effectiveCurrent = currentMapped == address(0) ? user : currentMapped;
+        require(newEncryptionAddress != address(0), "AccountFacet: zero encryption address");
+        require(newEncryptionAddress != effectiveCurrent, "AccountFacet: encryption address unchanged");
+
+        accountLayout.userEncryptionAddress[user] = newEncryptionAddress;
+
+        // Re-encrypt AccountStorage values owned by user
+        accountLayout.allocatedBalances[user] = MpcCore.offBoardCombined(
+            LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[user].ciphertext),
+            newEncryptionAddress
+        );
+
+        GarbledLockedValues memory gtLocked = LockedValuesOps.onBoard(accountLayout.lockedBalances[user]);
+        accountLayout.lockedBalances[user] = LockedValuesOps.offBoard(gtLocked, newEncryptionAddress);
+        GarbledLockedValues memory gtPendingLocked = LockedValuesOps.onBoard(accountLayout.pendingLockedBalances[user]);
+        accountLayout.pendingLockedBalances[user] = LockedValuesOps.offBoard(gtPendingLocked, newEncryptionAddress);
+
+        // Re-encrypt all quotes owned by user
+        QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+        uint256[] storage ids = quoteLayout.quoteIdsOf[user];
+        for (uint256 i = 0; i < ids.length; i++) {
+            Quote storage q = quoteLayout.quotes[ids[i]];
+            if (q.partyA != user) continue;
+
+            q.openedPrice = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.openedPrice.ciphertext), newEncryptionAddress);
+            q.initialOpenedPrice = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.initialOpenedPrice.ciphertext), newEncryptionAddress);
+            q.requestedOpenPrice = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.requestedOpenPrice.ciphertext), newEncryptionAddress);
+            q.marketPrice = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.marketPrice.ciphertext), newEncryptionAddress);
+            q.quantity = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.quantity.ciphertext), newEncryptionAddress);
+            q.closedAmount = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.closedAmount.ciphertext), newEncryptionAddress);
+            q.avgClosedPrice = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.avgClosedPrice.ciphertext), newEncryptionAddress);
+            q.requestedClosePrice = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.requestedClosePrice.ciphertext), newEncryptionAddress);
+            q.quantityToClose = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.quantityToClose.ciphertext), newEncryptionAddress);
+            q.tradingFee = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.tradingFee.ciphertext), newEncryptionAddress);
+
+            GarbledLockedValues memory gtInit = LockedValuesOps.onBoard(q.initialLockedValues);
+            q.initialLockedValues = LockedValuesOps.offBoard(gtInit, newEncryptionAddress);
+            GarbledLockedValues memory gtCurr = LockedValuesOps.onBoard(q.lockedValues);
+            q.lockedValues = LockedValuesOps.offBoard(gtCurr, newEncryptionAddress);
+        }
+    }
 }

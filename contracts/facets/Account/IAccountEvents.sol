@@ -23,4 +23,5 @@ interface IAccountEvents {
 	);
 	event DepositToReserveVault(address sender, address partyB, uint256 amount);
 	event WithdrawFromReserveVault(address partyB, uint256 amount);
+    event EncryptionAddressChanged(address user, address fromAddress, address toAddress);
 }
