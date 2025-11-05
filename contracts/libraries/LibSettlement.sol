@@ -120,7 +120,7 @@ library LibSettlement {
 				gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
 				gtUint256 gtAmount = MpcCore.setPublic256(uint256(settlementAmount));
 				gtUint256 gtNewBalance = gtPartyBBalance.sub(gtAmount);
-				accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyA));
+				accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyB));
 				
 				// Emit encrypted event
 				address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
@@ -131,7 +131,7 @@ library LibSettlement {
 				gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
 				gtUint256 gtAmount = MpcCore.setPublic256(uint256(-settlementAmount));
 				gtUint256 gtNewBalance = gtPartyBBalance.add(gtAmount);
-				accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyA));
+				accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyB));
 				
 				// Emit encrypted event
 				address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);

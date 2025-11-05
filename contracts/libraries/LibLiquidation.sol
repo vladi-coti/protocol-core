@@ -117,7 +117,7 @@ library LibLiquidation {
 		);
 		
 		// Reset PartyB balance to zero
-		accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(MpcCore.setPublic256(uint256(0)), LibAccount.getUserEncryptionAddress(partyA));
+		accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(MpcCore.setPublic256(uint256(0)), LibAccount.getUserEncryptionAddress(partyB));
 		
 		// Set locked balances to zero (encrypted)
 		GarbledLockedValues memory gtZeroLocked = LockedValuesOps.makeZero();

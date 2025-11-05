@@ -1,5 +1,5 @@
 import {setBalance} from "@nomicfoundation/hardhat-network-helpers"
-import {BigNumberish, ethers} from "ethers"
+import {BigNumberish, ethers, EventLog} from "ethers"
 
 import {decimal, serializeToJson, unDecimal} from "../utils/Common"
 import {logger} from "../utils/LoggerUtils"
@@ -128,8 +128,9 @@ export class Hedger {
 		)
 		
 		// Encrypt the parameters for privacy
-		const contractAddress = await this.context.partyBPositionActionsFacet.getAddress()
+		const contractAddress = this.context.diamond
 		const selector = this.context.partyBPositionActionsFacet.interface.getFunction("openPosition").selector
+
 		const encryptedFilledAmount = await this.signer.encryptUint256(BigInt(request.filledAmount), contractAddress, selector)
 		const encryptedOpenedPrice = await this.signer.encryptUint256(BigInt(request.openPrice), contractAddress, selector)
 		
@@ -207,8 +208,9 @@ export class Hedger {
 		)
 		
 		// Encrypt the parameters for privacy
-		const contractAddress = await this.context.partyBPositionActionsFacet.getAddress()
+		const contractAddress = this.context.diamond
 		const selector = this.context.partyBPositionActionsFacet.interface.getFunction("fillCloseRequest").selector
+
 		const encryptedFilledAmount = await this.signer.encryptUint256(BigInt(request.filledAmount), contractAddress, selector)
 		const encryptedClosedPrice = await this.signer.encryptUint256(BigInt(request.closedPrice), contractAddress, selector)
 		
@@ -217,16 +219,21 @@ export class Hedger {
 			encryptedClosedPrice
 		}
 		
-		await runTx(
-			this.context.partyBPositionActionsFacet
+		const tx = await this.context.partyBPositionActionsFacet
 				.connect(this.signer)
 				.fillCloseRequest(
 					id,
 					encryptedCloseParams,
 					await getDummyPairUpnlAndPriceSig(BigInt(request.price), BigInt(request.upnlPartyA), BigInt(request.upnlPartyB))
 				)
-		)
-		logger.info(`Hedger::FillCloseRequest: ${id}`)
+
+		console.log("Hedger::FillCloseRequest: tx: ", tx)
+		const receipt = await tx.wait()
+		if (!receipt) {
+			throw new Error("FillCloseRequest failed")
+		}
+		
+		logger.info(`Hedger::FillCloseRequest: ${id}, gas used: ${receipt.gasUsed.toString()}`)
 	}
 
 	public async chargeFundingRate(partyA: string, quoteIds: BigNumberish[], rates: BigNumberish[], signature: PairUpnlSigStructOutput) {

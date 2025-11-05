@@ -369,7 +369,7 @@ library LiquidationFacetImpl {
             gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
             gtUint256 gtCva = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][partyB].cva.ciphertext);
             gtUint256 gtNewBalance = gtCurrentBalance.add(gtCva);
-            accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyA));
+            accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyB));
             
             // Emit encrypted event
             ctUint256 memory ctCva = MpcCore.offBoardToUser(gtCva, LibAccount.getUserEncryptionAddress(partyA));
@@ -385,7 +385,7 @@ library LiquidationFacetImpl {
                 gtUint256 gtCurrentBalance2 = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
                 gtUint256 gtSettleAmount = MpcCore.setPublic256(uint256(-settleAmount));
                 gtUint256 gtNewBalance2 = gtCurrentBalance2.add(gtSettleAmount);
-                accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance2, LibAccount.getUserEncryptionAddress(partyA));
+                accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance2, LibAccount.getUserEncryptionAddress(partyB));
                 
                 // Emit encrypted event
                 ctUint256 memory ctSettleAmount = MpcCore.offBoardToUser(gtSettleAmount, LibAccount.getUserEncryptionAddress(partyA));
@@ -398,7 +398,7 @@ library LiquidationFacetImpl {
                 if (currentBalance >= uint256(settleAmount)) {
                     gtUint256 gtSettleAmount = MpcCore.setPublic256(uint256(settleAmount));
                     gtUint256 gtNewBalance3 = gtCurrentBalance3.sub(gtSettleAmount);
-                    accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance3, LibAccount.getUserEncryptionAddress(partyA));
+                    accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance3, LibAccount.getUserEncryptionAddress(partyB));
                     
                     settleAmounts[i] = settleAmount;
                     // Emit encrypted event
@@ -407,7 +407,7 @@ library LiquidationFacetImpl {
                 } else {
                     settleAmounts[i] = int256(currentBalance);
                     gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
-                    accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtZero, LibAccount.getUserEncryptionAddress(partyA));
+                    accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtZero, LibAccount.getUserEncryptionAddress(partyB));
                     
                     // Emit encrypted event
                     gtUint256 gtSettleAmountsI = MpcCore.setPublic256(uint256(settleAmounts[i]));

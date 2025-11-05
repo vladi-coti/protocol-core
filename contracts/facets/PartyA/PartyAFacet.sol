@@ -75,10 +75,10 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 				price: MpcCore.offBoardToUser(gtPrice, partyBEncryptionAddress),
 				marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.price), partyBEncryptionAddress),
 				quantity: MpcCore.offBoardToUser(gtQuantity, partyBEncryptionAddress),
-				cva: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.cva.ciphertext), partyBEncryptionAddress),
-				lf: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.lf.ciphertext), partyBEncryptionAddress),
-				partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyAmm.ciphertext), partyBEncryptionAddress),
-				partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(quote.lockedValues.partyBmm.ciphertext), partyBEncryptionAddress),
+				cva: MpcCore.offBoardToUser(gtCva, partyBEncryptionAddress),
+				lf: MpcCore.offBoardToUser(gtLf, partyBEncryptionAddress),
+				partyAmm: MpcCore.offBoardToUser(gtPartyAmm, partyBEncryptionAddress),
+				partyBmm: MpcCore.offBoardToUser(gtPartyBmm, partyBEncryptionAddress),
 				tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[basicParams.symbolId].tradingFee), partyBEncryptionAddress)
 			});
 			emit SendQuoteForPartyB(
