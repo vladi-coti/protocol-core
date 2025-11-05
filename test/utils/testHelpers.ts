@@ -33,7 +33,7 @@ export async function getNetworkGasOptions() {
 	if (network.chainId === testnetChainId) {
 		// COTI testnet
 		return {
-			gasLimit: 30000000,
+			gasLimit: 60000000,
 			gasPrice: 1000000000,
 		}
 	}

@@ -105,7 +105,15 @@ export class User {
 				const id = SendQuoteForPartyA.args.quoteId
 				console.log("User::::SendQuote: " + id)
 				quoteId = id
+				const args = SendQuoteForPartyA.args as any[]
+				const values = this.formatEncryptedQuoteValues(args[6]) as SendQuoteForPartyBEvent.OutputObject["values"]
+				console.log("User::::SendQuote openedPrice: ", await this.decryptUint256(values.price))
+				console.log("User::::SendQuote quantity: ", await this.decryptUint256(values.quantity))
 			}
+
+			const quote = await this.context.viewFacet.getQuote(quoteId)
+			console.log("User::::Quote: openedPrice: ", await this.decryptUint256(quote.openedPrice.userCiphertext))
+			console.log("User::::Quote: quantity: ", await this.decryptUint256(quote.quantity.userCiphertext))
 
 			const SendQuoteForPartyB = receipt.logs.find((log: any): log is EventLog => {
 				return (log as EventLog).eventName === "SendQuoteForPartyB"

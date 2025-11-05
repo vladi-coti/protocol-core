@@ -21,29 +21,16 @@ library LibPartyBPositionsActions {
 		);
 		require(block.timestamp <= quote.deadline, "PartyBFacet: Quote is expired");
 		
-		// Decrypt requestedClosePrice for comparison
 		gtUint256 gtRequestedClosePrice = LockedValuesOps.safeOnboard(quote.requestedClosePrice.ciphertext);
-		
-		// Compare closed price using encrypted comparison
-		if (quote.positionType == PositionType.LONG) {
-			gtBool gtPriceValid = gtClosedPrice.ge(gtRequestedClosePrice);
-			require(MpcCore.decrypt(gtPriceValid), "PartyBFacet: Closed price isn't valid");
-		} else {
-			gtBool gtPriceValid = gtClosedPrice.le(gtRequestedClosePrice);
-			require(MpcCore.decrypt(gtPriceValid), "PartyBFacet: Closed price isn't valid");
-		}
-		
-		// Decrypt quantityToClose for validation
+		gtBool gtPriceValid = quote.positionType == PositionType.LONG 
+			? gtClosedPrice.ge(gtRequestedClosePrice)
+			: gtClosedPrice.le(gtRequestedClosePrice);
+		require(MpcCore.decrypt(gtPriceValid), "PartyBFacet: Closed price isn't valid");
 		gtUint256 gtQuantityToClose = LockedValuesOps.safeOnboard(quote.quantityToClose.ciphertext);
-		
-		// Validate filled amount using encrypted comparison
-		if (quote.orderType == OrderType.LIMIT) {
-			gtBool gtFilledAmountValid = gtQuantityToClose.ge(gtFilledAmount);
-			require(MpcCore.decrypt(gtFilledAmountValid), "PartyBFacet: Invalid filledAmount");
-		} else {
-			gtBool gtFilledAmountEquals = gtQuantityToClose.eq(gtFilledAmount);
-			require(MpcCore.decrypt(gtFilledAmountEquals), "PartyBFacet: Invalid filledAmount");
-		}
+		gtBool gtFilledAmountValid = quote.orderType == OrderType.LIMIT
+			? gtQuantityToClose.ge(gtFilledAmount)
+			: gtQuantityToClose.eq(gtFilledAmount);
+		require(MpcCore.decrypt(gtFilledAmountValid), "PartyBFacet: Invalid filledAmount");
 		
 		// Call closeQuote with encrypted values
 		LibQuote.closeQuote(quote, gtFilledAmount, gtClosedPrice);
@@ -59,9 +46,9 @@ library LibPartyBPositionsActions {
 		require(quote.quoteStatus == QuoteStatus.LOCKED || quote.quoteStatus == QuoteStatus.CANCEL_PENDING, "PartyBFacet: Invalid state");
 		require(block.timestamp <= quote.deadline, "PartyBFacet: Quote is expired");
 
-		address feeCollector = appLayout.affiliateFeeCollector[quote.affiliate] == address(0)
-			? appLayout.defaultFeeCollector
-			: appLayout.affiliateFeeCollector[quote.affiliate];
+		address feeCollector = appLayout.affiliateFeeCollector[quote.affiliate] != address(0)
+			? appLayout.affiliateFeeCollector[quote.affiliate]
+			: appLayout.defaultFeeCollector;
 
 		// Decrypt quantity for validation
 		gtUint256 gtQuantity = LockedValuesOps.safeOnboard(quote.quantity.ciphertext);
@@ -72,49 +59,33 @@ library LibPartyBPositionsActions {
 		gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e36));
 		gtUint256 gtRequestedOpenPrice = LockedValuesOps.safeOnboard(quote.requestedOpenPrice.ciphertext);
 		
+		gtUint256 gtFee;
 		if (quote.orderType == OrderType.LIMIT) {
-			// Validate filledAmount using encrypted comparison
-			gtBool gtFilledAmountValid = gtQuantity.ge(gtFilledAmount).and(gtFilledAmount.gt(MpcCore.setPublic256(uint256(0))));
-			require(MpcCore.decrypt(gtFilledAmountValid), "PartyBFacet: Invalid filledAmount");
-			
-			// Compute fee AMOUNT at open using stored rate
-			gtUint256 gtFee = gtFilledAmount.mul(gtRequestedOpenPrice).mul(gtTradingFeeRate).div(gtScaleFactor);
-			accountLayout.balances[feeCollector] += MpcCore.decrypt(gtFee);
+			require(MpcCore.decrypt(gtQuantity.ge(gtFilledAmount).and(gtFilledAmount.gt(MpcCore.setPublic256(uint256(0))))), "PartyBFacet: Invalid filledAmount");
+			gtFee = gtFilledAmount.mul(gtRequestedOpenPrice).mul(gtTradingFeeRate).div(gtScaleFactor);
 		} else {
-			// Validate filledAmount equals quantity using encrypted comparison
-			gtBool gtFilledAmountEqualsQuantity = gtQuantity.eq(gtFilledAmount);
-			require(MpcCore.decrypt(gtFilledAmountEqualsQuantity), "PartyBFacet: Invalid filledAmount");
-			
-			gtUint256 gtMarketPrice = LockedValuesOps.safeOnboard(quote.marketPrice.ciphertext);
-			// Compute fee AMOUNT at open using stored rate
-			gtUint256 gtFee = gtFilledAmount.mul(gtMarketPrice).mul(gtTradingFeeRate).div(gtScaleFactor);
-			accountLayout.balances[feeCollector] += MpcCore.decrypt(gtFee);
+			require(MpcCore.decrypt(gtQuantity.eq(gtFilledAmount)), "PartyBFacet: Invalid filledAmount");
+			gtFee = gtFilledAmount.mul(LockedValuesOps.safeOnboard(quote.marketPrice.ciphertext)).mul(gtTradingFeeRate).div(gtScaleFactor);
 		}
+		accountLayout.balances[feeCollector] += MpcCore.decrypt(gtFee);
 		
-		// Validate openedPrice using encrypted comparison
-		if (quote.positionType == PositionType.LONG) {
-			gtBool gtOpenedPriceValid = gtOpenedPrice.le(gtRequestedOpenPrice);
-			require(MpcCore.decrypt(gtOpenedPriceValid), "PartyBFacet: Opened price isn't valid");
-		} else {
-			gtBool gtOpenedPriceValid = gtOpenedPrice.ge(gtRequestedOpenPrice);
-			require(MpcCore.decrypt(gtOpenedPriceValid), "PartyBFacet: Opened price isn't valid");
-		}
+		gtBool gtOpenedPriceValid = quote.positionType == PositionType.LONG
+			? gtOpenedPrice.le(gtRequestedOpenPrice)
+			: gtOpenedPrice.ge(gtRequestedOpenPrice);
+		require(MpcCore.decrypt(gtOpenedPriceValid), "PartyBFacet: Opened price isn't valid");
 
-		// Store encrypted openedPrice
-		quote.openedPrice = gtOpenedPrice.offBoardCombined(LibAccount.getUserEncryptionAddress(quote.partyA));
-		quote.initialOpenedPrice = gtOpenedPrice.offBoardCombined(LibAccount.getUserEncryptionAddress(quote.partyA));
+		address partyAAddr = LibAccount.getUserEncryptionAddress(quote.partyA);
+		address partyBAddr = LibAccount.getUserEncryptionAddress(quote.partyB);
+		quote.openedPrice = gtOpenedPrice.offBoardCombined(partyAAddr);
+		quote.initialOpenedPrice = gtOpenedPrice.offBoardCombined(partyAAddr);
 		quote.statusModifyTimestamp = block.timestamp;
-
 		LibQuote.removeFromPendingQuotes(quote);
-
 		if (quoteQuantity == MpcCore.decrypt(gtFilledAmount)) {
-			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
-			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
-			
-			// Scale locked values by price ratio: lockedValues * openedPrice / requestedOpenPrice
+			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, partyAAddr);
+			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, partyBAddr);
 			GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
 			gtLockedValues = gtLockedValues.mul(gtOpenedPrice).div(gtRequestedOpenPrice);
-			quote.lockedValues = gtLockedValues.offBoard(LibAccount.getUserEncryptionAddress(quote.partyA));
+			quote.lockedValues = gtLockedValues.offBoard(partyAAddr);
 
 			// check locked values
 			gtUint256 gtTotalForPartyA = gtLockedValues.totalForPartyA();
@@ -150,34 +121,32 @@ library LibPartyBPositionsActions {
 				require(MpcCore.decrypt(gtRemainingTotal.ge(gtMinValue)), "PartyBFacet: Quote value is low");
 			}
 			
-			// Create encrypted zero values
 			gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
 			GarbledLockedValues memory gtZeroLocked = LockedValuesOps.makeZero();
-
 			Quote memory q = Quote({
 				id: currentId,
 				partyBsWhiteList: quote.partyBsWhiteList,
 				symbolId: quote.symbolId,
 				positionType: quote.positionType,
 				orderType: quote.orderType,
-				openedPrice: gtZero.offBoardCombined(quote.partyA),
-				initialOpenedPrice: gtZero.offBoardCombined(quote.partyA),
+				openedPrice: gtZero.offBoardCombined(partyAAddr),
+				initialOpenedPrice: gtZero.offBoardCombined(partyAAddr),
 				requestedOpenPrice: quote.requestedOpenPrice,
 				marketPrice: quote.marketPrice,
-				quantity: gtQuantity.sub(gtFilledAmount).offBoardCombined(quote.partyA),
-				closedAmount: gtZero.offBoardCombined(quote.partyA),
-				lockedValues: gtZeroLocked.offBoard(LibAccount.getUserEncryptionAddress(quote.partyA)),
-				initialLockedValues: gtZeroLocked.offBoard(LibAccount.getUserEncryptionAddress(quote.partyA)),
+				quantity: gtQuantity.sub(gtFilledAmount).offBoardCombined(partyAAddr),
+				closedAmount: gtZero.offBoardCombined(partyAAddr),
+				lockedValues: gtZeroLocked.offBoard(partyAAddr),
+				initialLockedValues: gtZeroLocked.offBoard(partyAAddr),
 				maxFundingRate: quote.maxFundingRate,
 				partyA: quote.partyA,
 				partyB: address(0),
 				quoteStatus: newStatus,
-				avgClosedPrice: gtZero.offBoardCombined(quote.partyA),
-				requestedClosePrice: gtZero.offBoardCombined(quote.partyA),
+				avgClosedPrice: gtZero.offBoardCombined(partyAAddr),
+				requestedClosePrice: gtZero.offBoardCombined(partyAAddr),
 				parentId: quote.id,
 				createTimestamp: quote.createTimestamp,
 				statusModifyTimestamp: block.timestamp,
-				quantityToClose: gtZero.offBoardCombined(quote.partyA),
+				quantityToClose: gtZero.offBoardCombined(partyAAddr),
 				lastFundingPaymentTimestamp: 0,
 				deadline: quote.deadline,
 				tradingFee: quote.tradingFee,
@@ -193,42 +162,25 @@ library LibPartyBPositionsActions {
 				gtUint256 gtFee = LibQuote.getTradingFee(newQuote.id);
 				uint256 fee = MpcCore.decrypt(gtFee);
 				
-				// Update allocated balance with encrypted operations
+				address newQuotePartyAAddr = LibAccount.getUserEncryptionAddress(newQuote.partyA);
 				gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[newQuote.partyA].ciphertext);
 				gtUint256 gtFeeAmount = MpcCore.setPublic256(fee);
-				gtUint256 gtNewBalance = gtCurrentBalance.add(gtFeeAmount);
-				accountLayout.allocatedBalances[newQuote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(newQuote.partyA));
-				
-				// Emit encrypted event
-				ctUint256 memory ctFeeAmount = MpcCore.offBoardToUser(gtFeeAmount, LibAccount.getUserEncryptionAddress(newQuote.partyA));
-				emit SharedEvents.BalanceChangePartyA(newQuote.partyA, ctFeeAmount, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
-
-				// part of quote has been filled and part of it has been canceled
-				accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
-				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
+				accountLayout.allocatedBalances[newQuote.partyA] = MpcCore.offBoardCombined(gtCurrentBalance.add(gtFeeAmount), newQuotePartyAAddr);
+				emit SharedEvents.BalanceChangePartyA(newQuote.partyA, MpcCore.offBoardToUser(gtFeeAmount, newQuotePartyAAddr), SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
+				accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, partyAAddr);
+				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, partyBAddr);
 			} else {
-				// Subtract filled locked values from pending balances
-				GarbledLockedValues memory gtPendingA = accountLayout.pendingLockedBalances[quote.partyA].onBoard();
-				GarbledLockedValues memory gtResultA = gtPendingA.sub(gtFilledLockedValues);
-				accountLayout.pendingLockedBalances[quote.partyA] = gtResultA.offBoard(LibAccount.getUserEncryptionAddress(quote.partyA));
-				
-				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
+				accountLayout.pendingLockedBalances[quote.partyA] = accountLayout.pendingLockedBalances[quote.partyA].onBoard().sub(gtFilledLockedValues).offBoard(partyAAddr);
+				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, partyBAddr);
 			}
-			
-			// Calculate remaining locked values for the new quote
 			GarbledLockedValues memory gtRemainingLocked = gtQuoteLockedValues.sub(gtFilledLockedValues);
-			newQuote.lockedValues = gtRemainingLocked.offBoard(LibAccount.getUserEncryptionAddress(quote.partyA));
+			newQuote.lockedValues = gtRemainingLocked.offBoard(partyAAddr);
 			newQuote.initialLockedValues = newQuote.lockedValues;
-
-			// Update quote quantity with encrypted value
-			quote.quantity = gtFilledAmount.offBoardCombined(quote.partyA);
-
-			// Update quote locked values with applied (price-adjusted) values
-			quote.lockedValues = gtAppliedFilledLockedValues.offBoard(LibAccount.getUserEncryptionAddress(quote.partyA));
+			quote.quantity = gtFilledAmount.offBoardCombined(partyAAddr);
+			quote.lockedValues = gtAppliedFilledLockedValues.offBoard(partyAAddr);
 		}
-		// lock with amount of filledAmount
-		accountLayout.lockedBalances[quote.partyA].addQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
-		accountLayout.partyBLockedBalances[quote.partyB][quote.partyA].addQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
+		accountLayout.lockedBalances[quote.partyA].addQuote(quote, partyAAddr);
+		accountLayout.partyBLockedBalances[quote.partyB][quote.partyA].addQuote(quote, partyBAddr);
 
 		// check leverage (is in 18 decimals): (quantity * openedPrice) / totalForPartyA <= maxLeverage
 		gtUint256 gtFinalQuantity = LockedValuesOps.safeOnboard(quote.quantity.ciphertext);

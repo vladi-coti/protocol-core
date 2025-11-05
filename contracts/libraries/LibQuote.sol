@@ -139,22 +139,12 @@ library LibQuote {
 	) internal returns (bool hasMadeProfit, gtUint256 pnl) {
 		gtUint256 gtOpenedPrice = LockedValuesOps.safeOnboard(quote.openedPrice.ciphertext);
 		gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e18));
-		
-		if(MpcCore.decrypt(gtCurrentPrice.gt(gtOpenedPrice))) {
-			if (quote.positionType == PositionType.LONG) { 
-				hasMadeProfit = true; 
-			} else { 
-				hasMadeProfit = false; 
-			}
-			pnl = gtCurrentPrice.sub(gtOpenedPrice).mul(gtFilledAmount).div(gtScaleFactor);
-		} else {
-			if (quote.positionType == PositionType.LONG) { 
-				hasMadeProfit = false; 
-			} else { 
-				hasMadeProfit = true; 
-			}
-			pnl = gtOpenedPrice.sub(gtCurrentPrice).mul(gtFilledAmount).div(gtScaleFactor);
-		}
+		bool isCurrentGreater = MpcCore.decrypt(gtCurrentPrice.gt(gtOpenedPrice));
+		bool isLong = quote.positionType == PositionType.LONG;
+		hasMadeProfit = isLong ? isCurrentGreater : !isCurrentGreater;
+		pnl = isCurrentGreater 
+			? gtCurrentPrice.sub(gtOpenedPrice).mul(gtFilledAmount).div(gtScaleFactor)
+			: gtOpenedPrice.sub(gtCurrentPrice).mul(gtFilledAmount).div(gtScaleFactor);
 	}
 
 	/**

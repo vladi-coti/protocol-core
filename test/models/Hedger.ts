@@ -232,6 +232,25 @@ export class Hedger {
 		if (!receipt) {
 			throw new Error("FillCloseRequest failed")
 		}
+		const DebugCloseQuotePnl = receipt.logs.find((log: any): log is EventLog => {
+			return (log as EventLog).eventName === "DebugCloseQuotePnl"
+		})
+
+		if (DebugCloseQuotePnl && DebugCloseQuotePnl.args) {
+			const args = DebugCloseQuotePnl.args as any[]
+			const quoteId = args[0]
+			const partyA = args[1]
+			const partyB = args[2]
+			const hasMadeProfit = args[3]
+			const pnl = args[4]
+			const partyBBalance = args[5]
+			console.log("Hedger::DebugCloseQuotePnl: quoteId: ", quoteId)
+			console.log("Hedger::DebugCloseQuotePnl: partyA: ", partyA)
+			console.log("Hedger::DebugCloseQuotePnl: partyB: ", partyB)
+			console.log("Hedger::DebugCloseQuotePnl: hasMadeProfit: ", hasMadeProfit)
+			console.log("Hedger::DebugCloseQuotePnl: pnl: ", pnl)
+			console.log("Hedger::DebugCloseQuotePnl: partyBBalance: ", partyBBalance.toString())
+		}
 		
 		logger.info(`Hedger::FillCloseRequest: ${id}, gas used: ${receipt.gasUsed.toString()}`)
 	}
