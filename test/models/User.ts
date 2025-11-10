@@ -112,7 +112,7 @@ export class User {
 			}
 
 			const quote = await this.context.viewFacet.getQuote(quoteId)
-			console.log("User::::Quote: openedPrice: ", await this.decryptUint256(quote.openedPrice.userCiphertext))
+			console.log("User::::Quote: requestedOpenPrice: ", await this.decryptUint256(quote.requestedOpenPrice.userCiphertext))
 			console.log("User::::Quote: quantity: ", await this.decryptUint256(quote.quantity.userCiphertext))
 
 			const SendQuoteForPartyB = receipt.logs.find((log: any): log is EventLog => {

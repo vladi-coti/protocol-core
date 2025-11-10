@@ -26,9 +26,8 @@ contract SettlementFacet is Accessibility, Pausable, ISettlementFacet {
 	) external whenNotPartyBActionsPaused onlyPartyB notLiquidatedPartyA(partyA) {
 		utUint256[] memory newPartyBsAllocatedBalances = SettlementFacetImpl.settleUpnl(settlementSig, updatedPrices, partyA);
 		
-		// Decrypt the allocated balance for the event
-		gtUint256 gtAllocatedBalance = LockedValuesOps.safeOnboard(AccountStorage.layout().allocatedBalances[partyA].ciphertext);
-		uint256 allocatedBalance = MpcCore.decrypt(gtAllocatedBalance);
+		// Prepare encrypted allocated balance for the event
+		ctUint256 memory ctAllocatedBalance = AccountStorage.layout().allocatedBalances[partyA].userCiphertext;
 		
 		// Convert utUint256[] to uint256[] for the event
 		uint256[] memory decryptedBalances = new uint256[](newPartyBsAllocatedBalances.length);
@@ -41,7 +40,7 @@ contract SettlementFacet is Accessibility, Pausable, ISettlementFacet {
 			settlementSig.quotesSettlementsData,
 			updatedPrices,
 			partyA,
-			allocatedBalance,
+			ctAllocatedBalance,
 			decryptedBalances
 		);
 	}

@@ -5,13 +5,14 @@
 pragma solidity >=0.8.18;
 
 import "../../storages/MuonStorage.sol";
+import { ctUint256 } from "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
 interface SettlementFacetEvents {
 	event SettleUpnl(
 		QuoteSettlementData[] settlementData,
 		uint256[] updatedPrices,
 		address partyA,
-		uint256 newPartyAAllocatedBalance,
+		ctUint256 newPartyAAllocatedBalance,
 		uint256[] newPartyBsAllocatedBalances
 	);
 }

@@ -22,25 +22,16 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		LiquidationSig memory liquidationSig
 	) external whenNotLiquidationPaused notLiquidatedPartyA(partyA) onlyRole(LibAccessibility.LIQUIDATOR_ROLE) {
 		LiquidationFacetImpl.liquidatePartyA(partyA, liquidationSig);
-		// Decrypt the allocated balance for the event
-		gtUint256 gtAllocatedBalance = LockedValuesOps.safeOnboard(AccountStorage.layout().allocatedBalances[partyA].ciphertext);
-		uint256 allocatedBalance = MpcCore.decrypt(gtAllocatedBalance);
-		
-		emit LiquidatePartyA(
-			msg.sender,
-			partyA,
-			allocatedBalance,
-			liquidationSig.upnl,
-			liquidationSig.totalUnrealizedLoss,
-			liquidationSig.liquidationId
-		);
-		emit LiquidatePartyA(
-			msg.sender,
-			partyA,
-			allocatedBalance,
-			liquidationSig.upnl,
-			liquidationSig.totalUnrealizedLoss
-		); // For backward compatibility, will be removed in future
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		ctUint256 memory ctAllocatedBalance = accountLayout.allocatedBalances[partyA].userCiphertext;
+		address encryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
+
+		gtInt256 gtUpnl = MpcCore.setPublic256(liquidationSig.upnl);
+		gtInt256 gtTotalUnrealizedLoss = MpcCore.setPublic256(liquidationSig.totalUnrealizedLoss);
+		ctInt256 memory ctUpnl = MpcCore.offBoardToUser(gtUpnl, encryptionAddress);
+		ctInt256 memory ctTotalUnrealizedLoss = MpcCore.offBoardToUser(gtTotalUnrealizedLoss, encryptionAddress);
+
+		emit LiquidatePartyA(msg.sender, partyA, ctAllocatedBalance, ctUpnl, ctTotalUnrealizedLoss, liquidationSig.liquidationId);
 	}
 
 	/**
@@ -54,8 +45,13 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		LiquidationSig memory liquidationSig
 	) external whenNotLiquidationPaused onlyRole(LibAccessibility.LIQUIDATOR_ROLE) {
 		LiquidationFacetImpl.setSymbolsPrice(partyA, liquidationSig);
-		emit SetSymbolsPrices(msg.sender, partyA, liquidationSig.symbolIds, liquidationSig.prices, liquidationSig.liquidationId);
-		emit SetSymbolsPrices(msg.sender, partyA, liquidationSig.symbolIds, liquidationSig.prices); // For backward compatibility, will be removed in future
+		address encryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
+		ctUint256[] memory encryptedPrices = new ctUint256[](liquidationSig.prices.length);
+		for (uint256 i = 0; i < liquidationSig.prices.length; i++) {
+			gtUint256 gtPrice = MpcCore.setPublic256(liquidationSig.prices[i]);
+			encryptedPrices[i] = MpcCore.offBoardToUser(gtPrice, encryptionAddress);
+		}
+		emit SetSymbolsPrices(msg.sender, partyA, liquidationSig.symbolIds, encryptedPrices, liquidationSig.liquidationId);
 	}
 
 	/**
@@ -68,20 +64,30 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		DeferredLiquidationSig memory liquidationSig
 	) external whenNotLiquidationPaused notLiquidatedPartyA(partyA) onlyRole(LibAccessibility.LIQUIDATOR_ROLE) {
 		DeferredLiquidationFacetImpl.deferredLiquidatePartyA(partyA, liquidationSig);
-		// Decrypt the allocated balance for the event
-		gtUint256 gtAllocatedBalance = LockedValuesOps.safeOnboard(AccountStorage.layout().allocatedBalances[partyA].ciphertext);
-		uint256 allocatedBalance = MpcCore.decrypt(gtAllocatedBalance);
-		
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		ctUint256 memory ctAllocatedBalance = accountLayout.allocatedBalances[partyA].userCiphertext;
+		address encryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
+
+		ctInt256 memory ctUpnl = MpcCore.offBoardToUser(MpcCore.setPublic256(liquidationSig.upnl), encryptionAddress);
+		ctInt256 memory ctTotalUnrealizedLoss = MpcCore.offBoardToUser(
+			MpcCore.setPublic256(liquidationSig.totalUnrealizedLoss),
+			encryptionAddress
+		);
+		ctUint256 memory ctLiquidationAllocatedBalance = MpcCore.offBoardToUser(
+			MpcCore.setPublic256(liquidationSig.liquidationAllocatedBalance),
+			encryptionAddress
+		);
+
 		emit DeferredLiquidatePartyA(
 			msg.sender,
 			partyA,
-			allocatedBalance,
-			liquidationSig.upnl,
-			liquidationSig.totalUnrealizedLoss,
+			ctAllocatedBalance,
+			ctUpnl,
+			ctTotalUnrealizedLoss,
 			liquidationSig.liquidationId,
 			liquidationSig.liquidationBlockNumber,
 			liquidationSig.liquidationTimestamp,
-			liquidationSig.liquidationAllocatedBalance
+			ctLiquidationAllocatedBalance
 		);
 	}
 
@@ -96,8 +102,13 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		DeferredLiquidationSig memory liquidationSig
 	) external whenNotLiquidationPaused onlyRole(LibAccessibility.LIQUIDATOR_ROLE) {
 		DeferredLiquidationFacetImpl.deferredSetSymbolsPrice(partyA, liquidationSig);
-		emit SetSymbolsPrices(msg.sender, partyA, liquidationSig.symbolIds, liquidationSig.prices, liquidationSig.liquidationId);
-		emit SetSymbolsPrices(msg.sender, partyA, liquidationSig.symbolIds, liquidationSig.prices); // For backward compatibility, will be removed in future
+		address encryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
+		ctUint256[] memory encryptedPrices = new ctUint256[](liquidationSig.prices.length);
+		for (uint256 i = 0; i < liquidationSig.prices.length; i++) {
+			gtUint256 gtPrice = MpcCore.setPublic256(liquidationSig.prices[i]);
+			encryptedPrices[i] = MpcCore.offBoardToUser(gtPrice, encryptionAddress);
+		}
+		emit SetSymbolsPrices(msg.sender, partyA, liquidationSig.symbolIds, encryptedPrices, liquidationSig.liquidationId);
 	}
 
 	/**
@@ -107,9 +118,8 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 	function liquidatePendingPositionsPartyA(address partyA) external whenNotLiquidationPaused onlyRole(LibAccessibility.LIQUIDATOR_ROLE) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		uint256[] memory pendingQuotes = quoteLayout.partyAPendingQuotes[partyA];
-		(uint256[] memory liquidatedAmounts, bytes memory liquidationId) = LiquidationFacetImpl.liquidatePendingPositionsPartyA(partyA);
+		(ctUint256[] memory liquidatedAmounts, bytes memory liquidationId) = LiquidationFacetImpl.liquidatePendingPositionsPartyA(partyA);
 		emit LiquidatePendingPositionsPartyA(msg.sender, partyA, pendingQuotes, liquidatedAmounts, liquidationId);
-		emit LiquidatePendingPositionsPartyA(msg.sender, partyA); // For backward compatibility, will be removed in future
 	}
 
 	/**
@@ -121,13 +131,11 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		address partyA,
 		uint256[] memory quoteIds
 	) external whenNotLiquidationPaused onlyRole(LibAccessibility.LIQUIDATOR_ROLE) {
-		(bool disputed, uint256[] memory liquidatedAmounts, uint256[] memory closeIds, bytes memory liquidationId) = LiquidationFacetImpl
+		(bool disputed, ctUint256[] memory liquidatedAmounts, uint256[] memory closeIds, bytes memory liquidationId) = LiquidationFacetImpl
 			.liquidatePositionsPartyA(partyA, quoteIds);
 		emit LiquidatePositionsPartyA(msg.sender, partyA, quoteIds, liquidatedAmounts, closeIds, liquidationId);
-		emit LiquidatePositionsPartyA(msg.sender, partyA, quoteIds); // For backward compatibility, will be removed in future
 		if (disputed) {
 			emit LiquidationDisputed(partyA, liquidationId);
-			emit LiquidationDisputed(partyA); // For backward compatibility, will be removed in future
 		}
 	}
 
@@ -140,11 +148,15 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		// FIXME: commented out because it's pushes the contract size over the limit
 		
 		// (int256[] memory settleAmounts, bytes memory liquidationId) = LiquidationFacetImpl.settlePartyALiquidation(partyA, partyBs);
-		// emit SettlePartyALiquidation(partyA, partyBs, settleAmounts, liquidationId);
-		// emit SettlePartyALiquidation(partyA, partyBs, settleAmounts); // For backward compatibility, will be removed in future
-		// if (MAStorage.layout().liquidationStatus[partyA] == false) {
+		// address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
+		// ctInt256[] memory encryptedSettleAmounts = new ctInt256[](settleAmounts.length);
+		// for (uint256 i = 0; i < settleAmounts.length; i++) {
+		// 	gtInt256 gtSettleAmount = MpcCore.setPublic256(settleAmounts[i]);
+		// 	encryptedSettleAmounts[i] = MpcCore.offBoardToUser(gtSettleAmount, partyAEncryptionAddress);
+		// }
+		// emit SettlePartyALiquidation(partyA, partyBs, encryptedSettleAmounts, liquidationId);
+		// if (!MAStorage.layout().liquidationStatus[partyA]) {
 		// 	emit FullyLiquidatedPartyA(partyA, liquidationId);
-		// 	emit FullyLiquidatedPartyA(partyA); // For backward compatibility, will be removed in future
 		// }
 	}
 
@@ -164,8 +176,13 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		// FIXME: commented out because it's pushes the contract size over the limit
 
 		// bytes memory liquidationId = LiquidationFacetImpl.resolveLiquidationDispute(partyA, partyBs, amounts, disputed);
-		// emit ResolveLiquidationDispute(partyA, partyBs, amounts, disputed, liquidationId);
-		// emit ResolveLiquidationDispute(partyA, partyBs, amounts, disputed); // For backward compatibility, will be removed in future
+		// address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
+		// ctInt256[] memory encryptedAmounts = new ctInt256[](amounts.length);
+		// for (uint256 i = 0; i < amounts.length; i++) {
+		// 	gtInt256 gtAmount = MpcCore.setPublic256(amounts[i]);
+		// 	encryptedAmounts[i] = MpcCore.offBoardToUser(gtAmount, partyAEncryptionAddress);
+		// }
+		// emit ResolveLiquidationDispute(partyA, partyBs, encryptedAmounts, disputed, liquidationId);
 	}
 
 	/**
@@ -179,11 +196,12 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		address partyA,
 		SingleUpnlSig memory upnlSig
 	) external whenNotLiquidationPaused notLiquidatedPartyB(partyB, partyA) notLiquidatedPartyA(partyA) onlyRole(LibAccessibility.LIQUIDATOR_ROLE) {
-		// Decrypt the PartyB allocated balance for the event
-		gtUint256 gtPartyBAllocatedBalance = LockedValuesOps.safeOnboard(AccountStorage.layout().partyBAllocatedBalances[partyB][partyA].ciphertext);
-		uint256 partyBAllocatedBalance = MpcCore.decrypt(gtPartyBAllocatedBalance);
-		
-		emit LiquidatePartyB(msg.sender, partyB, partyA, partyBAllocatedBalance, upnlSig.upnl);
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		ctUint256 memory ctPartyBAllocatedBalance = accountLayout.partyBAllocatedBalances[partyB][partyA].userCiphertext;
+		address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
+		ctInt256 memory ctUpnl = MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.upnl), partyBEncryptionAddress);
+
+		emit LiquidatePartyB(msg.sender, partyB, partyA, ctPartyBAllocatedBalance, ctUpnl);
 		LiquidationFacetImpl.liquidatePartyB(partyB, partyA, upnlSig);
 	}
 
@@ -198,9 +216,8 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		address partyA,
 		QuotePriceSig memory priceSig
 	) external whenNotLiquidationPaused onlyRole(LibAccessibility.LIQUIDATOR_ROLE) {
-		(uint256[] memory liquidatedAmounts, uint256[] memory closeIds) = LiquidationFacetImpl.liquidatePositionsPartyB(partyB, partyA, priceSig);
+		(ctUint256[] memory liquidatedAmounts, uint256[] memory closeIds) = LiquidationFacetImpl.liquidatePositionsPartyB(partyB, partyA, priceSig);
 		emit LiquidatePositionsPartyB(msg.sender, partyB, partyA, priceSig.quoteIds, liquidatedAmounts, closeIds);
-		emit LiquidatePositionsPartyB(msg.sender, partyB, partyA, priceSig.quoteIds); // For backward compatibility, will be removed in future
 		if (QuoteStorage.layout().partyBPositionsCount[partyB][partyA] == 0) {
 			emit FullyLiquidatedPartyB(partyB, partyA);
 		}

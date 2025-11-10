@@ -56,11 +56,12 @@ contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceAct
 			settleSig,
 			new uint256[](0)
 		);
+		address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
+
 		if (isPartyBLiquidated) {
-			// Decrypt for event emission
-			uint256 partyBAllocatedBalance = MpcCore.decrypt(gtPartyBAllocatedBalance);
-			int256 upnlPartyB = MpcCore.decrypt(gtUpnlPartyB);
-			emit LiquidatePartyB(msg.sender, quote.partyB, quote.partyA, partyBAllocatedBalance, upnlPartyB);
+			ctUint256 memory ctPartyBAllocatedBalance = MpcCore.offBoardToUser(gtPartyBAllocatedBalance, partyBEncryptionAddress);
+			ctInt256 memory ctUpnlPartyB = MpcCore.offBoardToUser(gtUpnlPartyB, partyBEncryptionAddress);
+			emit LiquidatePartyB(msg.sender, quote.partyB, quote.partyA, ctPartyBAllocatedBalance, ctUpnlPartyB);
 		} else {
 			{
 				address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
@@ -69,7 +70,6 @@ contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceAct
 				emit ForceClosePositionForPartyA(quoteId, quote.partyA, quote.partyB, ctFilledAmount, ctClosePrice, quote.quoteStatus, quoteLayout.closeIds[quoteId]);
 			}
 			{
-				address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
 				ctUint256 memory ctFilledAmount = MpcCore.offBoardToUser(gtQuantityToClose, partyBEncryptionAddress);
 				ctUint256 memory ctClosePrice = MpcCore.offBoardToUser(gtClosePrice, partyBEncryptionAddress);
 				emit ForceClosePositionForPartyB(quoteId, quote.partyA, quote.partyB, ctFilledAmount, ctClosePrice, quote.quoteStatus, quoteLayout.closeIds[quoteId]);
@@ -102,27 +102,25 @@ contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceAct
 			settleSig,
 			updatedPrices
 		);
+		address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
+
 		if (isPartyBLiquidated) {
-			// Decrypt for event emission
-			uint256 partyBAllocatedBalance = MpcCore.decrypt(gtPartyBAllocatedBalance);
-			int256 upnlPartyB = MpcCore.decrypt(gtUpnlPartyB);
-			uint256[] memory newPartyBsAllocatedBalances = new uint256[](1);
-			newPartyBsAllocatedBalances[0] = partyBAllocatedBalance;
-			emit LiquidatePartyB(msg.sender, quote.partyB, quote.partyA, partyBAllocatedBalance, upnlPartyB);
+			ctUint256 memory ctPartyBAllocatedBalance = MpcCore.offBoardToUser(gtPartyBAllocatedBalance, partyBEncryptionAddress);
+			ctInt256 memory ctUpnlPartyB = MpcCore.offBoardToUser(gtUpnlPartyB, partyBEncryptionAddress);
+			emit LiquidatePartyB(msg.sender, quote.partyB, quote.partyA, ctPartyBAllocatedBalance, ctUpnlPartyB);
 		} else {
 			// Decrypt for event emission
 			uint256 partyBAllocatedBalance = MpcCore.decrypt(gtPartyBAllocatedBalance);
 			uint256[] memory newPartyBsAllocatedBalances = new uint256[](1);
 			newPartyBsAllocatedBalances[0] = partyBAllocatedBalance;
-			// Decrypt the allocated balance for the event
-			gtUint256 gtAllocatedBalance = LockedValuesOps.safeOnboard(AccountStorage.layout().allocatedBalances[msg.sender].ciphertext);
-			uint256 allocatedBalance = MpcCore.decrypt(gtAllocatedBalance);
+			// Prepare encrypted allocated balance for the event
+			ctUint256 memory ctAllocatedBalance = AccountStorage.layout().allocatedBalances[msg.sender].userCiphertext;
 			
 			emit SettleUpnl(
 				settleSig.quotesSettlementsData,
 				updatedPrices,
 				msg.sender,
-				allocatedBalance,
+				ctAllocatedBalance,
 				newPartyBsAllocatedBalances
 			);
 			
@@ -135,7 +133,6 @@ contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceAct
 				emit ForceClosePositionForPartyA(quoteId, quote.partyA, quote.partyB, ctFilledAmount, ctClosePrice, quote.quoteStatus, quoteLayout.closeIds[quoteId]);
 			}
 			{
-				address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
 				ctUint256 memory ctFilledAmount = MpcCore.offBoardToUser(gtQuantityToClose, partyBEncryptionAddress);
 				ctUint256 memory ctClosePrice = MpcCore.offBoardToUser(gtClosePrice, partyBEncryptionAddress);
 				emit ForceClosePositionForPartyB(quoteId, quote.partyA, quote.partyB, ctFilledAmount, ctClosePrice, quote.quoteStatus, quoteLayout.closeIds[quoteId]);

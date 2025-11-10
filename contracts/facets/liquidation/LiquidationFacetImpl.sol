@@ -33,8 +33,8 @@ library LiquidationFacetImpl {
             liquidationSig.upnl,
             partyA
         );
-        int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
-        require(availableBalance < 0, "LiquidationFacet: PartyA is solvent");
+        gtBool isInsolvent = MpcCore.lt(gtAvailableBalance, MpcCore.setPublic256(int256(0)));
+        require(MpcCore.decrypt(isInsolvent), "LiquidationFacet: PartyA is solvent");
         maLayout.liquidationStatus[partyA] = true;
         accountLayout.liquidationDetails[partyA] = LiquidationDetail({
             liquidationId: liquidationSig.liquidationId,
@@ -99,13 +99,14 @@ library LiquidationFacetImpl {
         }
     }
 
-    function liquidatePendingPositionsPartyA(address partyA) internal returns (uint256[] memory liquidatedAmounts, bytes memory liquidationId) {
+    function liquidatePendingPositionsPartyA(address partyA) internal returns (ctUint256[] memory liquidatedAmounts, bytes memory liquidationId) {
         QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
         AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 
         require(MAStorage.layout().liquidationStatus[partyA], "LiquidationFacet: PartyA is solvent");
-        liquidatedAmounts = new uint256[](quoteLayout.partyAPendingQuotes[partyA].length);
+        liquidatedAmounts = new ctUint256[](quoteLayout.partyAPendingQuotes[partyA].length);
         liquidationId = accountLayout.liquidationDetails[partyA].liquidationId;
+        address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
         for (uint256 index = 0; index < quoteLayout.partyAPendingQuotes[partyA].length; index++) {
             Quote storage quote = quoteLayout.quotes[quoteLayout.partyAPendingQuotes[partyA][index]];
             if (
@@ -126,9 +127,9 @@ library LiquidationFacetImpl {
             quote.quoteStatus = QuoteStatus.LIQUIDATED_PENDING;
             quote.statusModifyTimestamp = block.timestamp;
             
-            // Decrypt quantity for return array
+            // Onboard quantity for return array
             gtUint256 gtQuantityPending = LockedValuesOps.safeOnboard(quote.quantity.ciphertext);
-            liquidatedAmounts[index] = MpcCore.decrypt(gtQuantityPending);
+            liquidatedAmounts[index] = MpcCore.offBoardToUser(gtQuantityPending, partyAEncryptionAddress);
         }
         
         // Set pending locked balances to zero
@@ -140,14 +141,15 @@ library LiquidationFacetImpl {
     function liquidatePositionsPartyA(
         address partyA,
         uint256[] memory quoteIds
-    ) internal returns (bool, uint256[] memory liquidatedAmounts, uint256[] memory closeIds, bytes memory liquidationId) {
+    ) internal returns (bool, ctUint256[] memory liquidatedAmounts, uint256[] memory closeIds, bytes memory liquidationId) {
         AccountStorage.Layout storage accountLayout = AccountStorage.layout();
         MAStorage.Layout storage maLayout = MAStorage.layout();
         QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 
-        liquidatedAmounts = new uint256[](quoteIds.length);
+        liquidatedAmounts = new ctUint256[](quoteIds.length);
         closeIds = new uint256[](quoteIds.length);
         liquidationId = accountLayout.liquidationDetails[partyA].liquidationId;
+        address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
 
         require(maLayout.liquidationStatus[partyA], "LiquidationFacet: PartyA is solvent");
         for (uint256 index = 0; index < quoteIds.length; index++) {
@@ -165,10 +167,11 @@ library LiquidationFacetImpl {
                 "LiquidationFacet: Price should be set"
             );
             
-            // Decrypt quantity and closedAmount for liquidatedAmounts calculation
+            // Onboard quantity and closedAmount for liquidatedAmounts calculation
             gtUint256 gtQuantity = LockedValuesOps.safeOnboard(quote.quantity.ciphertext);
             gtUint256 gtClosedAmount = LockedValuesOps.safeOnboard(quote.closedAmount.ciphertext);
-            liquidatedAmounts[index] = MpcCore.decrypt(gtQuantity.sub(gtClosedAmount));
+            ctUint256 memory ctLiquidatedAmount = MpcCore.offBoardToUser(gtQuantity.sub(gtClosedAmount), partyAEncryptionAddress);
+            liquidatedAmounts[index] = ctLiquidatedAmount;
             
             closeIds[index] = quoteLayout.closeIds[quote.id];
             quote.quoteStatus = QuoteStatus.LIQUIDATED;
@@ -186,7 +189,6 @@ library LiquidationFacetImpl {
                 quote
             );
             uint256 amount = MpcCore.decrypt(gtAmount);
-            uint256 openAmount = MpcCore.decrypt(gtOpenAmount);
 
             if (!accountLayout.settlementStates[partyA][quote.partyB].pending) {
                 accountLayout.settlementStates[partyA][quote.partyB].pending = true;
@@ -418,9 +420,8 @@ library LiquidationFacetImpl {
             delete accountLayout.settlementStates[partyA][partyB];
         }
         if (accountLayout.liquidationDetails[partyA].involvedPartyBCounts == 0) {
-            // Decrypt allocated balance for event emission
+            // Prepare allocated balance for event emission
             gtUint256 gtAllocatedBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
-            uint256 allocatedBalance = MpcCore.decrypt(gtAllocatedBalance);
             
             // Emit encrypted event
             ctUint256 memory ctAllocatedBalance = MpcCore.offBoardToUser(gtAllocatedBalance, LibAccount.getUserEncryptionAddress(partyA));
@@ -469,7 +470,7 @@ library LiquidationFacetImpl {
         address partyB,
         address partyA,
         QuotePriceSig memory priceSig
-    ) internal returns (uint256[] memory liquidatedAmounts, uint256[] memory closeIds) {
+    ) internal returns (ctUint256[] memory liquidatedAmounts, uint256[] memory closeIds) {
         AccountStorage.Layout storage accountLayout = AccountStorage.layout();
         MAStorage.Layout storage maLayout = MAStorage.layout();
         QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
@@ -482,8 +483,9 @@ library LiquidationFacetImpl {
         require(maLayout.partyBLiquidationStatus[partyB][partyA], "LiquidationFacet: PartyB is solvent");
         require(maLayout.partyBLiquidationTimestamp[partyB][partyA] <= priceSig.timestamp, "LiquidationFacet: Expired signature");
 
-        liquidatedAmounts = new uint256[](priceSig.quoteIds.length);
+        liquidatedAmounts = new ctUint256[](priceSig.quoteIds.length);
         closeIds = new uint256[](priceSig.quoteIds.length);
+        address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
 
         for (uint256 index = 0; index < priceSig.quoteIds.length; index++) {
             Quote storage quote = quoteLayout.quotes[priceSig.quoteIds[index]];
@@ -495,10 +497,10 @@ library LiquidationFacetImpl {
             );
             require(quote.partyA == partyA && quote.partyB == partyB, "LiquidationFacet: Invalid party");
 
-            // Decrypt quantity and closedAmount for liquidatedAmounts calculation
+            // Onboard quantity and closedAmount for liquidatedAmounts calculation
             gtUint256 gtQuantity = LockedValuesOps.safeOnboard(quote.quantity.ciphertext);
             gtUint256 gtClosedAmount = LockedValuesOps.safeOnboard(quote.closedAmount.ciphertext);
-            liquidatedAmounts[index] = MpcCore.decrypt(gtQuantity.sub(gtClosedAmount));
+            liquidatedAmounts[index] = MpcCore.offBoardToUser(gtQuantity.sub(gtClosedAmount), partyAEncryptionAddress);
             
             closeIds[index] = quoteLayout.closeIds[quote.id];
             quote.quoteStatus = QuoteStatus.LIQUIDATED;

@@ -70,7 +70,6 @@ library LibLiquidation {
 				
 				// Get encrypted trading fee and update balance with encrypted operations
 				gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
-				uint256 fee = MpcCore.decrypt(gtFee);
 				
 				// Update PartyA balance with encrypted operations
 				gtUint256 gtPartyABalanceFee = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);

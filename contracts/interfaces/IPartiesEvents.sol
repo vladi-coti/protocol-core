@@ -68,5 +68,5 @@ interface IPartiesEvents {
 		uint256 closeId
 	);
 
-	event LiquidatePartyB(address liquidator, address partyB, address partyA, uint256 partyBAllocatedBalance, int256 upnl);
+	event LiquidatePartyB(address liquidator, address partyB, address partyA, ctUint256 partyBAllocatedBalance, ctInt256 upnl);
 }
