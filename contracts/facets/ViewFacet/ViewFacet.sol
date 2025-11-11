@@ -100,7 +100,7 @@ contract ViewFacet is IViewFacet {
 	}
 
 	/**
-	 * @notice Returns balance information of Party B for a specific Party A (encrypted for the user).
+	 * @notice Returns balance information of Party B for a specific Party A (encrypted for partyB).
 	 * @param partyB The address of Party B.
 	 * @param partyA The address of Party A.
 	 * @return allocatedBalances The allocated balances of Party B for Party A.

@@ -29,6 +29,8 @@ library LibLiquidation {
 		MAStorage.Layout storage maLayout = MAStorage.layout();
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 
+		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
+		address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
 		// Calculate available balance for liquidation (returns encrypted)
 		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
 		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
@@ -66,7 +68,7 @@ library LibLiquidation {
 		for (uint256 index = 0; index < pendingQuotes.length; ) {
 			Quote storage quote = quoteLayout.quotes[pendingQuotes[index]];
 			if (quote.partyB == partyB && (quote.quoteStatus == QuoteStatus.LOCKED || quote.quoteStatus == QuoteStatus.CANCEL_PENDING)) {
-				accountLayout.pendingLockedBalances[partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(partyA));
+				accountLayout.pendingLockedBalances[partyA].subQuote(quote, partyAEncryptionAddress);
 				
 				// Get encrypted trading fee and update balance with encrypted operations
 				gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
@@ -74,10 +76,10 @@ library LibLiquidation {
 				// Update PartyA balance with encrypted operations
 				gtUint256 gtPartyABalanceFee = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
 				gtUint256 gtNewBalance = gtPartyABalanceFee.add(gtFee);
-				accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyA));
+				accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, partyAEncryptionAddress);
 				
 				// Emit encrypted event
-				ctUint256 memory ctFee = MpcCore.offBoardToUser(gtFee, LibAccount.getUserEncryptionAddress(partyA));
+				ctUint256 memory ctFee = MpcCore.offBoardToUser(gtFee, partyAEncryptionAddress);
 				emit SharedEvents.BalanceChangePartyA(partyA, ctFee, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 				
 				pendingQuotes[index] = pendingQuotes[pendingQuotes.length - 1];
@@ -97,17 +99,17 @@ library LibLiquidation {
 		// Update PartyA balance
 		gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
 		gtUint256 gtNewPartyABalance = gtPartyABalance.add(gtValue);
-		accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, LibAccount.getUserEncryptionAddress(partyA));
+		accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, partyAEncryptionAddress);
 		
 		// Emit encrypted event for PartyA
-		ctUint256 memory ctValue = MpcCore.offBoardToUser(gtValue, LibAccount.getUserEncryptionAddress(partyA));
+		ctUint256 memory ctValue = MpcCore.offBoardToUser(gtValue, partyAEncryptionAddress);
 		emit SharedEvents.BalanceChangePartyA(partyA, ctValue, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
 
 		// Clear pending quotes and reset balances for Party B
 		delete quoteLayout.partyBPendingQuotes[partyB][partyA];
 		
 		// Emit encrypted event for PartyB
-		ctUint256 memory ctPartyBBalance = MpcCore.offBoardToUser(gtPartyBBalance, LibAccount.getUserEncryptionAddress(partyA));
+		ctUint256 memory ctPartyBBalance = MpcCore.offBoardToUser(gtPartyBBalance, partyBEncryptionAddress);
 		emit SharedEvents.BalanceChangePartyB(
 			partyB,
 			partyA,
@@ -116,25 +118,26 @@ library LibLiquidation {
 		);
 		
 		// Reset PartyB balance to zero
-		accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(MpcCore.setPublic256(uint256(0)), LibAccount.getUserEncryptionAddress(partyB));
+		accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(MpcCore.setPublic256(uint256(0)), partyBEncryptionAddress);
 		
 		// Set locked balances to zero (encrypted)
 		GarbledLockedValues memory gtZeroLocked = LockedValuesOps.makeZero();
-		accountLayout.partyBLockedBalances[partyB][partyA] = gtZeroLocked.offBoard(partyA);
-		accountLayout.partyBPendingLockedBalances[partyB][partyA] = gtZeroLocked.offBoard(partyA);
+		accountLayout.partyBLockedBalances[partyB][partyA] = gtZeroLocked.offBoardCombined(partyBEncryptionAddress);
+		accountLayout.partyBPendingLockedBalances[partyB][partyA] = gtZeroLocked.offBoardCombined(partyBEncryptionAddress);
 		
 		accountLayout.partyANonces[partyA] += 1;
 
 		// Transfer liquidator share to the liquidator
 		if (liquidatorShare > 0) {
+			address liquidatorEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
 			// Update liquidator balance with encrypted operations
 			gtUint256 gtLiquidatorBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
 			gtUint256 gtLiquidatorShare = MpcCore.setPublic256(liquidatorShare);
 			gtUint256 gtNewLiquidatorBalance = gtLiquidatorBalance.add(gtLiquidatorShare);
-			accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewLiquidatorBalance, LibAccount.getUserEncryptionAddress(msg.sender));
+			accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewLiquidatorBalance, liquidatorEncryptionAddress);
 			
 			// Emit encrypted event
-			ctUint256 memory ctLiquidatorShare = MpcCore.offBoardToUser(gtLiquidatorShare, LibAccount.getUserEncryptionAddress(msg.sender));
+			ctUint256 memory ctLiquidatorShare = MpcCore.offBoardToUser(gtLiquidatorShare, liquidatorEncryptionAddress);
 			emit SharedEvents.BalanceChangePartyA(msg.sender, ctLiquidatorShare, SharedEvents.BalanceChangeType.LF_IN);
 		}
 	}
