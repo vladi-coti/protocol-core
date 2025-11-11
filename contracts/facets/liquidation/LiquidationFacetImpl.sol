@@ -107,16 +107,16 @@ library LiquidationFacetImpl {
         liquidatedAmounts = new ctUint256[](quoteLayout.partyAPendingQuotes[partyA].length);
         liquidationId = accountLayout.liquidationDetails[partyA].liquidationId;
         address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
-        address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
         for (uint256 index = 0; index < quoteLayout.partyAPendingQuotes[partyA].length; index++) {
             Quote storage quote = quoteLayout.quotes[quoteLayout.partyAPendingQuotes[partyA][index]];
+            address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
             if (
                 (quote.quoteStatus == QuoteStatus.LOCKED || quote.quoteStatus == QuoteStatus.CANCEL_PENDING) &&
                 quoteLayout.partyBPendingQuotes[quote.partyB][partyA].length > 0
             ) {
                 delete quoteLayout.partyBPendingQuotes[quote.partyB][partyA];
                 GarbledLockedValues memory gtZeroLockedB = LockedValuesOps.makeZero();
-                accountLayout.partyBPendingLockedBalances[quote.partyB][partyA] = gtZeroLockedB.offBoardCombined(partyBEncryptionAddress);
+                accountLayout.partyBPendingLockedBalances[quote.partyB][partyA] = gtZeroLockedB.offBoard(partyBEncryptionAddress);
             }
             gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
             uint256 fee = MpcCore.decrypt(gtFee);
@@ -135,7 +135,7 @@ library LiquidationFacetImpl {
         
         // Set pending locked balances to zero
         GarbledLockedValues memory gtZeroLockedA = LockedValuesOps.makeZero();
-        accountLayout.pendingLockedBalances[partyA] = gtZeroLockedA.offBoardCombined(partyAEncryptionAddress);
+        accountLayout.pendingLockedBalances[partyA] = gtZeroLockedA.offBoard(partyAEncryptionAddress);
         delete quoteLayout.partyAPendingQuotes[partyA];
     }
 
@@ -151,11 +151,11 @@ library LiquidationFacetImpl {
         closeIds = new uint256[](quoteIds.length);
         liquidationId = accountLayout.liquidationDetails[partyA].liquidationId;
         address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
-        address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
 
         require(maLayout.liquidationStatus[partyA], "LiquidationFacet: PartyA is solvent");
         for (uint256 index = 0; index < quoteIds.length; index++) {
             Quote storage quote = quoteLayout.quotes[quoteIds[index]];
+            address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
             require(
                 quote.quoteStatus == QuoteStatus.OPENED ||
                 quote.quoteStatus == QuoteStatus.CLOSE_PENDING ||
@@ -359,9 +359,11 @@ library LiquidationFacetImpl {
         require(MAStorage.layout().liquidationStatus[partyA], "LiquidationFacet: PartyA is solvent");
         require(!accountLayout.liquidationDetails[partyA].disputed, "LiquidationFacet: PartyA liquidation process get disputed");
         liquidationId = accountLayout.liquidationDetails[partyA].liquidationId;
+        address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
         settleAmounts = new int256[](partyBs.length);
         for (uint256 i = 0; i < partyBs.length; i++) {
             address partyB = partyBs[i];
+            address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
             require(accountLayout.settlementStates[partyA][partyB].pending, "LiquidationFacet: PartyB is not in settlement");
             accountLayout.settlementStates[partyA][partyB].pending = false;
             accountLayout.liquidationDetails[partyA].involvedPartyBCounts -= 1;
@@ -436,7 +438,7 @@ library LiquidationFacetImpl {
             accountLayout.partyAReimbursement[partyA] = 0;
             // Set locked balances to zero
             GarbledLockedValues memory gtZeroLocked = LockedValuesOps.makeZero();
-            accountLayout.lockedBalances[partyA] = gtZeroLocked.offBoardCombined(partyAEncryptionAddress);
+            accountLayout.lockedBalances[partyA] = gtZeroLocked.offBoard(partyAEncryptionAddress);
 
             uint256 lf = accountLayout.liquidationDetails[partyA].liquidationFee;
             if (lf > 0) {

@@ -122,8 +122,8 @@ library LibLiquidation {
 		
 		// Set locked balances to zero (encrypted)
 		GarbledLockedValues memory gtZeroLocked = LockedValuesOps.makeZero();
-		accountLayout.partyBLockedBalances[partyB][partyA] = gtZeroLocked.offBoardCombined(partyBEncryptionAddress);
-		accountLayout.partyBPendingLockedBalances[partyB][partyA] = gtZeroLocked.offBoardCombined(partyBEncryptionAddress);
+		accountLayout.partyBLockedBalances[partyB][partyA] = gtZeroLocked.offBoard(partyBEncryptionAddress);
+		accountLayout.partyBPendingLockedBalances[partyB][partyA] = gtZeroLocked.offBoard(partyBEncryptionAddress);
 		
 		accountLayout.partyANonces[partyA] += 1;
 
