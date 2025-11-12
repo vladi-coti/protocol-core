@@ -159,12 +159,10 @@ library LibPartyBPositionsActions {
 
 			if (newStatus == QuoteStatus.CANCELED) {
 				// send trading Fee back to partyA
-				gtUint256 gtFee = LibQuote.getTradingFee(newQuote.id);
-				uint256 fee = MpcCore.decrypt(gtFee);
+				gtUint256 gtFeeAmount = LibQuote.getTradingFee(newQuote.id);
 				
 				address newQuotePartyAAddr = LibAccount.getUserEncryptionAddress(newQuote.partyA);
 				gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[newQuote.partyA].ciphertext);
-				gtUint256 gtFeeAmount = MpcCore.setPublic256(fee);
 				accountLayout.allocatedBalances[newQuote.partyA] = MpcCore.offBoardCombined(gtCurrentBalance.add(gtFeeAmount), newQuotePartyAAddr);
 				emit SharedEvents.BalanceChangePartyA(newQuote.partyA, MpcCore.offBoardToUser(gtFeeAmount, newQuotePartyAAddr), SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 				accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, partyAAddr);

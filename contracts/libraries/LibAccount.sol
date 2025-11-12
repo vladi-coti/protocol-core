@@ -251,12 +251,12 @@ library LibAccount {
 		// Initialize Party B locked balances for this Party A if uninitialized
 		LockedValues storage lockedBalances = accountLayout.partyBLockedBalances[partyB][partyA];
 		LockedValues storage pendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA];
+		SettlementState storage settlementState = accountLayout.settlementStates[partyA][partyB];
 		
 		if (lockedBalances.isUninitialized()) {
 			lockedBalances.initializeToZeros(encryptionAddress);
-		}
-		if (pendingLockedBalances.isUninitialized()) {
 			pendingLockedBalances.initializeToZeros(encryptionAddress);
+			initializeToZeros(settlementState, getUserEncryptionAddress(partyA));
 		}
 		
 		// Initialize Party B allocated balance for this Party A if uninitialized (contains zeros)
@@ -265,5 +265,19 @@ library LibAccount {
 			gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
 			accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtZero, encryptionAddress);
 		}
+	}
+
+	/**
+	 * @notice Initializes SettlementState storage to encrypted zeros for a user.
+	 * @param self The SettlementState storage struct to initialize.
+	 * @param encryptionAddress The encryption address of the party.
+	 */
+	function initializeToZeros(SettlementState storage self, address encryptionAddress) internal {
+		gtInt256 gtZeroInt = MpcCore.setPublic256(int256(0));
+		gtUint256 gtZeroUint = MpcCore.setPublic256(uint256(0));
+		self.actualAmount = MpcCore.offBoardCombined(gtZeroInt, encryptionAddress);
+		self.expectedAmount = MpcCore.offBoardCombined(gtZeroInt, encryptionAddress);
+		self.cva = MpcCore.offBoardCombined(gtZeroUint, encryptionAddress);
+		self.pending = false;
 	}
 }

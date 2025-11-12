@@ -12,9 +12,9 @@ library LibMuon {
 	using ECDSA for bytes32;
 
 	function getChainId() internal view returns (uint256 id) {
-		// id = block.chainid;
+		id = block.chainid;
 		// FIXME: temporary until chainid is fixed
-		id = 15151515;
+		// id = 15151515;
 	}
 
 	// CONTEXT for commented out lines

@@ -381,7 +381,19 @@ export class User {
 
 	public async liquidatePositions(positions: BigNumberish[] = [], liquidator: Wallet = this.context.signers.liquidator) {
 		if (positions.length == 0) positions = (await this.getOpenPositions()).map(value => value.id)
-		await this.context.liquidationFacet.connect(liquidator).liquidatePositionsPartyA(this.getAddress(), positions)
+		const tx = await this.context.liquidationFacet.connect(liquidator).liquidatePositionsPartyA(this.getAddress(), positions)
+		console.log("User::::LiquidatePositions: " + tx.hash)
+		const receipt = await tx.wait()
+
+		if (receipt && receipt.logs) {
+			console.log("User::::Receipt gas used: " + receipt.gasUsed.toString())
+			const LiquidatePositionsPartyA = receipt.logs.find((log: any): log is EventLog => {
+				return (log as EventLog).eventName === "LiquidatePositionsPartyA"
+			})
+			if (LiquidatePositionsPartyA && LiquidatePositionsPartyA.args) {
+				console.log("User::::LiquidatePositionsPartyA: ", LiquidatePositionsPartyA.args)
+			}
+		}
 	}
 
 	public async getOpenPositions(): Promise<QuoteStructOutput[]> {
