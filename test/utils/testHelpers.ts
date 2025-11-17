@@ -2,7 +2,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers"
 import { ethers } from "hardhat"
 import { RunContext } from "../models/RunContext"
 import { time } from "@nomicfoundation/hardhat-network-helpers"
-import { testnetChainId } from "../../tasks/deploy/constants"
+import { gasOptions, testnetChainId } from "../../tasks/deploy/constants"
 
 /**
  * Helper function to load fixture compatible with both local and testnet environments
@@ -32,10 +32,7 @@ export async function getNetworkGasOptions() {
 
 	if (network.chainId === testnetChainId) {
 		// COTI testnet
-		return {
-			gasLimit: 60000000,
-			gasPrice: 1000000000,
-		}
+		return gasOptions
 	}
 
 	return {} // Use default gas estimation for other networks
