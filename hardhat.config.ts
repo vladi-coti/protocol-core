@@ -44,7 +44,7 @@ const config: HardhatUserConfig = {
 	},
 	networks: {
 		"private-testnet": {
-			url: "http://40.160.5.30:8545",
+			url: "http://40.160.11.74:8545",
 			chainId: 15151515,
 			accounts: privateKeyList,
 			gasPrice: 1000000000,

@@ -21,6 +21,8 @@ export function shouldBehaveLikeFundingRate(): void {
 		await user.setup()
 		await user.setBalances(decimal(5000n), decimal(5000n), decimal(5000n))
 
+		await context.controlFacet.connect(context.signers.admin).setSymbolFundingState(1, 120, 50)
+
 		user2 = new User(context, context.signers.user2)
 
 		hedger = new Hedger(context, context.signers.hedger)
@@ -125,7 +127,7 @@ export function shouldBehaveLikeFundingRate(): void {
 		let duration = symbol.fundingRateEpochDuration
 		let window = symbol.fundingRateWindowTime
 		let currentEpoch = BigInt(await timeCompatible.latest()) / duration * duration
-		let targetTime = (duration * 2n) + window - 1n + currentEpoch
+		let targetTime = currentEpoch + duration + (window / 2n)
 
 		let oldQuote = await context.viewFacet.getQuote(1)
 		let oldOpenedPrice = await user.decryptUint256(oldQuote.openedPrice.userCiphertext)
@@ -135,7 +137,7 @@ export function shouldBehaveLikeFundingRate(): void {
 
 		let newQuote = await context.viewFacet.getQuote(1)
 		let newOpenedPrice = await user.decryptUint256(newQuote.openedPrice.userCiphertext)
-		expect(oldOpenedPrice).to.be.equal(unDecimal(newOpenedPrice * (decimal(1n) + decimal(1n, 16))))
+		expect(newOpenedPrice).to.be.equal(unDecimal(oldOpenedPrice * (decimal(1n) + decimal(1n, 16))))
 	})
 
 	it("Should run successfully for short", async function () {
@@ -143,7 +145,7 @@ export function shouldBehaveLikeFundingRate(): void {
 		let duration = symbol.fundingRateEpochDuration
 		let window = symbol.fundingRateWindowTime
 		let currentEpoch = BigInt(await timeCompatible.latest()) / duration * duration
-		let targetTime = (duration * 2n) + window - 1n + currentEpoch
+		let targetTime = currentEpoch + duration + (window / 2n)
 
 		let oldQuote = await context.viewFacet.getQuote(2)
 		let oldOpenedPrice = await user.decryptUint256(oldQuote.openedPrice.userCiphertext)
@@ -153,6 +155,6 @@ export function shouldBehaveLikeFundingRate(): void {
 
 		let newQuote = await context.viewFacet.getQuote(2)
 		let newOpenedPrice = await user.decryptUint256(newQuote.openedPrice.userCiphertext)
-		expect(oldOpenedPrice).to.be.equal(unDecimal(newOpenedPrice * (decimal(1n) - decimal(1n, 16))))
+		expect(newOpenedPrice).to.be.equal(unDecimal(oldOpenedPrice * (decimal(1n) + decimal(1n, 16))))
 	})
 }

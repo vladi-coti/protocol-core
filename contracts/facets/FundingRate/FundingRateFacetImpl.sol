@@ -22,14 +22,9 @@ library FundingRateFacetImpl {
 		LibMuonFundingRate.verifyPairUpnl(upnlSig, msg.sender, partyA);
 		require(quoteIds.length == rates.length && quoteIds.length > 0, "ChargeFundingFacet: Length not match");
 		
-		// Get encrypted available balances and decrypt
+		// Get encrypted available balances
 		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlSig.upnlPartyB, msg.sender, partyA);
-		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
-			upnlSig.upnlPartyA,
-			partyA
-		);
-		int256 partyBAvailableBalance = MpcCore.decrypt(gtPartyBAvailableBalance);
-		int256 partyAAvailableBalance = MpcCore.decrypt(gtPartyAAvailableBalance);
+		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(upnlSig.upnlPartyA, partyA);
 		uint256 epochDuration;
 		uint256 windowTime;
 		for (uint256 i = 0; i < quoteIds.length; i++) {
@@ -77,10 +72,9 @@ library FundingRateFacetImpl {
 				quote.openedPrice = gtOpenedPrice.offBoardCombined(quote.partyA);
 				
 				// Calculate impact on balances
-				gtUint256 gtImpact = gtQuoteOpenAmount.mul(gtPriceDiff).div(gtScaleFactor);
-				uint256 impact = MpcCore.decrypt(gtImpact);
-				partyAAvailableBalance -= int256(impact);
-				partyBAvailableBalance += int256(impact);
+				gtInt256 gtImpact = gtQuoteOpenAmount.mul(gtPriceDiff).div(gtScaleFactor).toSigned();
+				gtPartyAAvailableBalance = gtPartyAAvailableBalance.sub(gtImpact);
+				gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtImpact);
 			} else {
 				require(uint256(-rates[i]) <= quote.maxFundingRate, "ChargeFundingFacet: High funding rate");
 				
@@ -97,15 +91,17 @@ library FundingRateFacetImpl {
 				quote.openedPrice = gtOpenedPrice.offBoardCombined(quote.partyA);
 				
 				// Calculate impact on balances
-				gtUint256 gtImpact = gtQuoteOpenAmount.mul(gtPriceDiff).div(gtScaleFactor);
-				uint256 impact = MpcCore.decrypt(gtImpact);
-				partyAAvailableBalance += int256(impact);
-				partyBAvailableBalance -= int256(impact);
+				gtInt256 gtImpact = gtQuoteOpenAmount.mul(gtPriceDiff).div(gtScaleFactor).toSigned();
+				gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(gtImpact);
+				gtPartyBAvailableBalance = gtPartyBAvailableBalance.sub(gtImpact);
 			}
 			quote.lastFundingPaymentTimestamp = paidTimestamp;
 		}
-		require(partyAAvailableBalance >= 0, "ChargeFundingFacet: PartyA will be insolvent");
-		require(partyBAvailableBalance >= 0, "ChargeFundingFacet: PartyB will be insolvent");
+		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
+		gtBool isPartyAInsolvent = MpcCore.lt(gtPartyAAvailableBalance, gtZero);
+		require(!MpcCore.decrypt(isPartyAInsolvent), "ChargeFundingFacet: PartyA will be insolvent");
+		gtBool isPartyBInsolvent = MpcCore.lt(gtPartyBAvailableBalance, gtZero);
+		require(!MpcCore.decrypt(isPartyBInsolvent), "ChargeFundingFacet: PartyB will be insolvent");
 		AccountStorage.layout().partyBNonces[msg.sender][partyA] += 1;
 		AccountStorage.layout().partyANonces[partyA] += 1;
 	}

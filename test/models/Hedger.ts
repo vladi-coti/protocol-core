@@ -12,8 +12,16 @@ import {FillCloseRequest, limitFillCloseRequestBuilder} from "./requestModels/Fi
 import {limitOpenRequestBuilder, OpenRequest} from "./requestModels/OpenRequest"
 import {runTx} from "../utils/TxUtils"
 import {PairUpnlSigStructOutput} from "../../src/types/contracts/facets/FundingRate/FundingRateFacet"
-import { Wallet } from "@coti-io/coti-ethers";
-import {QuoteStructOutput, SendQuoteForPartyBEvent, SettlementSigStructOutput, SingleUpnlSigStruct} from "../../src/types/contracts/interfaces/ISymmio"
+import {Wallet} from "@coti-io/coti-ethers"
+import {
+	PairUpnlAndPriceSigStruct,
+	PrivateClosePositionParamsStruct,
+	PrivateOpenPositionParamsStruct,
+	QuoteStructOutput,
+	SendQuoteForPartyBEvent,
+	SettlementSigStructOutput,
+	SingleUpnlSigStruct,
+} from "../../src/types/contracts/interfaces/ISymmio"
 import { QuoteData } from "./types";
 
 export class Hedger {
@@ -111,6 +119,25 @@ export class Hedger {
 		)
 	}
 
+	public async buildOpenPositionCalldataArgs(request: OpenRequest): Promise<{
+		encryptedParams: PrivateOpenPositionParamsStruct
+		upnlSig: PairUpnlAndPriceSigStruct
+	}> {
+		const contractAddress = this.context.diamond
+		const selector = this.context.partyBPositionActionsFacet.interface.getFunction("openPosition").selector
+
+		const encryptedFilledAmount = await this.signer.encryptUint256(BigInt(request.filledAmount), contractAddress, selector)
+		const encryptedOpenedPrice = await this.signer.encryptUint256(BigInt(request.openPrice), contractAddress, selector)
+
+		return {
+			encryptedParams: {
+				encryptedFilledAmount,
+				encryptedOpenedPrice,
+			},
+			upnlSig: await getDummyPairUpnlAndPriceSig(BigInt(request.price), BigInt(request.upnlPartyA), BigInt(request.upnlPartyB)),
+		}
+	}
+
 	public async openPosition(quoteData: QuoteData, request: OpenRequest = limitOpenRequestBuilder().build()) {
 		if(quoteData.partyBEvent == undefined) {
 			throw new Error("PartyBEvent is undefined")
@@ -127,17 +154,7 @@ export class Hedger {
 			})
 		)
 		
-		// Encrypt the parameters for privacy
-		const contractAddress = this.context.diamond
-		const selector = this.context.partyBPositionActionsFacet.interface.getFunction("openPosition").selector
-
-		const encryptedFilledAmount = await this.signer.encryptUint256(BigInt(request.filledAmount), contractAddress, selector)
-		const encryptedOpenedPrice = await this.signer.encryptUint256(BigInt(request.openPrice), contractAddress, selector)
-		
-		const encryptedParams = {
-			encryptedFilledAmount,
-			encryptedOpenedPrice
-		}
+		const {encryptedParams, upnlSig} = await this.buildOpenPositionCalldataArgs(request)
 		
 		const tx = await runTx(
 			this.context.partyBPositionActionsFacet
@@ -145,7 +162,7 @@ export class Hedger {
 				.openPosition(
 					quoteData.quoteId,
 					encryptedParams,
-					await getDummyPairUpnlAndPriceSig(BigInt(request.price), BigInt(request.upnlPartyA), BigInt(request.upnlPartyB))
+					upnlSig
 				)
 		)
 		logger.info(`Hedger::OpenPosition: ${quoteData.quoteId} gas used: ${tx.gasUsed.toString()}`)
@@ -194,6 +211,25 @@ export class Hedger {
 		logger.info(`Hedger::AcceptCancelRequest: ${id}`)
 	}
 
+	public async buildFillCloseRequestCalldataArgs(request: FillCloseRequest): Promise<{
+		encryptedParams: PrivateClosePositionParamsStruct
+		upnlSig: PairUpnlAndPriceSigStruct
+	}> {
+		const contractAddress = this.context.diamond
+		const selector = this.context.partyBPositionActionsFacet.interface.getFunction("fillCloseRequest").selector
+
+		const encryptedFilledAmount = await this.signer.encryptUint256(BigInt(request.filledAmount), contractAddress, selector)
+		const encryptedClosedPrice = await this.signer.encryptUint256(BigInt(request.closedPrice), contractAddress, selector)
+
+		return {
+			encryptedParams: {
+				encryptedFilledAmount,
+				encryptedClosedPrice,
+			},
+			upnlSig: await getDummyPairUpnlAndPriceSig(BigInt(request.price), BigInt(request.upnlPartyA), BigInt(request.upnlPartyB)),
+		}
+	}
+
 	public async fillCloseRequest(id: BigNumberish, request: FillCloseRequest = limitFillCloseRequestBuilder().build()) {
 		const quote = await this.context.viewFacet.getQuote(id)
 		const user = this.context.manager.getUser(quote.partyA)
@@ -206,25 +242,14 @@ export class Hedger {
 				userUpnl: await user.getUpnl(),
 			})
 		)
-		
-		// Encrypt the parameters for privacy
-		const contractAddress = this.context.diamond
-		const selector = this.context.partyBPositionActionsFacet.interface.getFunction("fillCloseRequest").selector
-
-		const encryptedFilledAmount = await this.signer.encryptUint256(BigInt(request.filledAmount), contractAddress, selector)
-		const encryptedClosedPrice = await this.signer.encryptUint256(BigInt(request.closedPrice), contractAddress, selector)
-		
-		const encryptedCloseParams = {
-			encryptedFilledAmount,
-			encryptedClosedPrice
-		}
+		const {encryptedParams, upnlSig} = await this.buildFillCloseRequestCalldataArgs(request)
 		
 		const tx = await this.context.partyBPositionActionsFacet
 				.connect(this.signer)
 				.fillCloseRequest(
 					id,
-					encryptedCloseParams,
-					await getDummyPairUpnlAndPriceSig(BigInt(request.price), BigInt(request.upnlPartyA), BigInt(request.upnlPartyB))
+					encryptedParams,
+					upnlSig
 				)
 
 		console.log("Hedger::FillCloseRequest: tx: ", tx)

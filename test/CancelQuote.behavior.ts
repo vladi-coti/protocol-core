@@ -10,7 +10,7 @@ import {limitOpenRequestBuilder} from "./models/requestModels/OpenRequest"
 import {AcceptCancelRequestValidator} from "./models/validators/AcceptCancelRequestValidator"
 import {CancelQuoteValidator} from "./models/validators/CancelQuoteValidator"
 import {OpenPositionValidator} from "./models/validators/OpenPositionValidator"
-import {decimal, getQuoteQuantity, pausePartyA, pausePartyB} from "./utils/Common"
+import {decimal, getBlockTimestamp, getQuoteQuantity, pausePartyA, pausePartyB} from "./utils/Common"
 import {limitQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
 import {QuoteData} from "./models/types";
 
@@ -35,7 +35,7 @@ export function shouldBehaveLikeCancelQuote(): void {
 		await hedger2.setup()
 		await hedger2.setBalances(this.hedger_allocated, this.hedger_allocated)
 
-		quoteDataArray[1] = await user.sendQuote()
+		quoteDataArray[1] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).affiliate(context.multiAccount).deadline(getBlockTimestamp(900n)).build())
 	})
 
 	it("Should fail due to invalid quoteId", async function () {

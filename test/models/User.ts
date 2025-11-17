@@ -12,7 +12,7 @@ import {limitQuoteRequestBuilder, QuoteRequest} from "./requestModels/QuoteReque
 import {runTx} from "../utils/TxUtils"
 import {getDummyLiquidationSig} from "../utils/SignatureUtils"
 import {LiquidationSigStruct} from "../../src/types/contracts/facets/liquidation/LiquidationFacet"
-import {PrivateQuoteParamsStruct, QuoteBasicParamsStruct, QuoteStructOutput, SettlementSigStruct, SendQuoteForPartyBEvent} from "../../src/types/contracts/interfaces/ISymmio"
+import {PrivateQuoteParamsStruct, QuoteBasicParamsStruct, QuoteStructOutput, SettlementSigStruct, SendQuoteForPartyBEvent, SingleUpnlAndPriceSigStruct} from "../../src/types/contracts/interfaces/ISymmio"
 import {HighLowPriceSigStruct} from "../../src/types/contracts/facets/ForceActions/ForceActionsFacet"
 import {QuoteData} from "./types"
 
@@ -50,15 +50,7 @@ export class User {
 		await setBalance(this.signer.address, amount)
 	}
 
-	public async sendQuote(request: QuoteRequest = limitQuoteRequestBuilder().partyBWhiteList([this.context.signers.hedger.address]).affiliate(this.context.multiAccount).build()): Promise<QuoteData> {
-		logger.detailedDebug(
-			serializeToJson({
-				request: request,
-				userBalanceInfo: await this.getBalanceInfo(),
-				userUpnl: await this.getUpnl(),
-			}),
-		)
-
+	public async buildQuoteCalldataArgs(request: QuoteRequest): Promise<[QuoteBasicParamsStruct, PrivateQuoteParamsStruct, SingleUpnlAndPriceSigStruct]> {
 		const basicParams: QuoteBasicParamsStruct = {
 			partyBsWhiteList: request.partyBWhiteList,
 			symbolId: request.symbolId,
@@ -88,7 +80,22 @@ export class User {
 			encryptedPartyBmm: encryptedPartyBmm,
 		};
 
-		let tx = await this.context.partyAFacet.connect(this.signer).sendQuote(basicParams, encryptedParams, await request.upnlSig)
+		return [
+			basicParams, encryptedParams, await request.upnlSig
+		]
+	}
+
+	public async sendQuote(request: QuoteRequest = limitQuoteRequestBuilder().partyBWhiteList([this.context.signers.hedger.address]).affiliate(this.context.multiAccount).build()): Promise<QuoteData> {
+		logger.detailedDebug(
+			serializeToJson({
+				request: request,
+				userBalanceInfo: await this.getBalanceInfo(),
+				userUpnl: await this.getUpnl(),
+			}),
+		)
+		const [basicParams, encryptedParams, upnlSig] = await this.buildQuoteCalldataArgs(request)
+
+		let tx = await this.context.partyAFacet.connect(this.signer).sendQuote(basicParams, encryptedParams, upnlSig)
 		console.log("User::::SendQuote: " + tx.hash)
 		const receipt = await tx.wait()
 
@@ -233,6 +240,14 @@ export class User {
 		}
 	}
 
+	public async buildCloseRequestCalldataArgs(request: CloseRequest): Promise<[itUint256, itUint256, BigNumberish, bigint]> {
+		const contractAddress = this.context.diamond
+		const selector = this.context.partyAFacet.interface.getFunction("requestToClosePosition").selector
+
+		const encryptedClosePrice = await this.encryptUint256(BigInt(request.closePrice), contractAddress, selector);
+		const encryptedQuantityToClose = await this.encryptUint256(BigInt(request.quantityToClose), contractAddress, selector);
+		return [encryptedClosePrice, encryptedQuantityToClose, request.orderType, await request.deadline]
+	}
 
 	public async requestToClosePosition(id: BigNumberish, request: CloseRequest = limitCloseRequestBuilder().build()) {
 		logger.detailedDebug(
@@ -243,16 +258,12 @@ export class User {
 			}),
 		)
 
-		const contractAddress = this.context.diamond
-		const selector = this.context.partyAFacet.interface.getFunction("requestToClosePosition").selector
-
-		const encryptedClosePrice = await this.encryptUint256(BigInt(request.closePrice), contractAddress, selector);
-		const encryptedQuantityToClose = await this.encryptUint256(BigInt(request.quantityToClose), contractAddress, selector);
+		const [encryptedClosePrice, encryptedQuantityToClose, orderType, deadline] = await this.buildCloseRequestCalldataArgs(request)
 
 		await runTx(
 			this.context.partyAFacet
 				.connect(this.signer)
-				.requestToClosePosition(id, encryptedClosePrice, encryptedQuantityToClose, request.orderType, await request.deadline),
+				.requestToClosePosition(id, encryptedClosePrice, encryptedQuantityToClose, orderType, deadline),
 		)
 		logger.info(`User::::RequestToClosePosition: ${id}`)
 	}
