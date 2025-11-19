@@ -81,13 +81,12 @@ export function shouldBehaveLikeMultiAccount() {
 		const SymmioPartyBDeploy = await upgrades.deployProxy(SymmioPartyB, [await context.signers.admin.getAddress(), symmioAddress], {
 			initializer: "initialize",
 		})
-
+		symmioPartyB = await SymmioPartyBDeploy.waitForDeployment()
+		
 		const MultiAccount = await upgrades.deployProxy(Factory, [await context.signers.admin.getAddress(), symmioAddress, SymmioPartyA.bytecode], {
 			initializer: "initialize",
 		})
-
 		multiAccount = await MultiAccount.waitForDeployment()
-		symmioPartyB = await SymmioPartyBDeploy.waitForDeployment()
 
 		await context.controlFacet.connect(context.signers.admin).registerPartyB(await symmioPartyB.getAddress())
 		await context.controlFacet.connect(context.signers.admin).registerAffiliate(await MultiAccount.getAddress())
@@ -291,11 +290,12 @@ export function shouldBehaveLikeMultiAccount() {
 
 			await multiAccount.connect(context.signers.user).depositAndAllocateForAccount(partyAAccount, decimal(500n))
 
-			await context.accountFacet.connect(context.signers.user).setEncryptionAddress(userAddress)
+			const setEncryptionCalldata = context.accountFacet.interface.encodeFunctionData("setEncryptionAddress", [userAddress])
+			await multiAccount.connect(context.signers.user)._call(partyAAccount, [setEncryptionCalldata])
 		})
 
 		it("Should be able to send Quotes", async () => {
-			let quoteRequest1 = limitQuoteRequestBuilder().build()
+			let quoteRequest1 = limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).build()
 			let sendQuote1 = context.partyAFacet.interface.encodeFunctionData("sendQuote", await getListFormatOfQuoteRequest(quoteRequest1, user))
 			await multiAccount.connect(context.signers.user)._call(partyAAccount, [sendQuote1])
 			expect((await context.viewFacet.getQuote(1)).quoteStatus).to.be.equal(QuoteStatus.PENDING)
@@ -308,9 +308,9 @@ export function shouldBehaveLikeMultiAccount() {
 
 		describe("Locking quotes", function () {
 			beforeEach(async () => {
-				let quoteRequest1 = marketQuoteRequestBuilder().build()
+				let quoteRequest1 = marketQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).build()
 				let sendQuote1 = context.partyAFacet.interface.encodeFunctionData("sendQuote", await getListFormatOfQuoteRequest(quoteRequest1, user))
-				let quoteRequest2 = marketQuoteRequestBuilder().positionType(PositionType.SHORT).build()
+				let quoteRequest2 = marketQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).positionType(PositionType.SHORT).build()
 				let sendQuote2 = context.partyAFacet.interface.encodeFunctionData("sendQuote", await getListFormatOfQuoteRequest(quoteRequest2, user))
 
 				await context.collateral.connect(context.signers.admin).mint(await symmioPartyB.getAddress(), decimal(1000000n))
