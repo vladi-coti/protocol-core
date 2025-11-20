@@ -50,7 +50,7 @@ export class User {
 		await setBalance(this.signer.address, amount)
 	}
 
-	public async buildQuoteCalldataArgs(request: QuoteRequest): Promise<[QuoteBasicParamsStruct, PrivateQuoteParamsStruct, SingleUpnlAndPriceSigStruct]> {
+	public async buildQuoteCalldataArgs(request: QuoteRequest, selector: string = this.context.partyAFacet.interface.getFunction("sendQuote").selector): Promise<[QuoteBasicParamsStruct, PrivateQuoteParamsStruct, SingleUpnlAndPriceSigStruct]> {
 		const basicParams: QuoteBasicParamsStruct = {
 			partyBsWhiteList: request.partyBWhiteList,
 			symbolId: request.symbolId,
@@ -62,7 +62,6 @@ export class User {
 		}
 
 		const contractAddress = this.context.diamond
-		const selector = this.context.partyAFacet.interface.getFunction("sendQuote").selector
 
 		const encryptedPrice = await this.encryptUint256(BigInt(request.price), contractAddress, selector);
 		const encryptedQuantity = await this.encryptUint256(BigInt(request.quantity), contractAddress, selector);
@@ -240,9 +239,11 @@ export class User {
 		}
 	}
 
-	public async buildCloseRequestCalldataArgs(request: CloseRequest): Promise<[itUint256, itUint256, BigNumberish, bigint]> {
+	public async buildCloseRequestCalldataArgs(
+		request: CloseRequest,
+		selector: string = this.context.partyAFacet.interface.getFunction("requestToClosePosition").selector,
+	): Promise<[itUint256, itUint256, BigNumberish, bigint]> {
 		const contractAddress = this.context.diamond
-		const selector = this.context.partyAFacet.interface.getFunction("requestToClosePosition").selector
 
 		const encryptedClosePrice = await this.encryptUint256(BigInt(request.closePrice), contractAddress, selector);
 		const encryptedQuantityToClose = await this.encryptUint256(BigInt(request.quantityToClose), contractAddress, selector);

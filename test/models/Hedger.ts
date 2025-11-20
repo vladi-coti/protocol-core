@@ -119,12 +119,14 @@ export class Hedger {
 		)
 	}
 
-	public async buildOpenPositionCalldataArgs(request: OpenRequest): Promise<{
+	public async buildOpenPositionCalldataArgs(
+		request: OpenRequest,
+		selector: string = this.context.partyBPositionActionsFacet.interface.getFunction("openPosition").selector,
+	): Promise<{
 		encryptedParams: PrivateOpenPositionParamsStruct
 		upnlSig: PairUpnlAndPriceSigStruct
 	}> {
 		const contractAddress = this.context.diamond
-		const selector = this.context.partyBPositionActionsFacet.interface.getFunction("openPosition").selector
 
 		const encryptedFilledAmount = await this.signer.encryptUint256(BigInt(request.filledAmount), contractAddress, selector)
 		const encryptedOpenedPrice = await this.signer.encryptUint256(BigInt(request.openPrice), contractAddress, selector)
@@ -211,12 +213,14 @@ export class Hedger {
 		logger.info(`Hedger::AcceptCancelRequest: ${id}`)
 	}
 
-	public async buildFillCloseRequestCalldataArgs(request: FillCloseRequest): Promise<{
+	public async buildFillCloseRequestCalldataArgs(
+		request: FillCloseRequest,
+		selector: string = this.context.partyBPositionActionsFacet.interface.getFunction("fillCloseRequest").selector,
+	): Promise<{
 		encryptedParams: PrivateClosePositionParamsStruct
 		upnlSig: PairUpnlAndPriceSigStruct
 	}> {
 		const contractAddress = this.context.diamond
-		const selector = this.context.partyBPositionActionsFacet.interface.getFunction("fillCloseRequest").selector
 
 		const encryptedFilledAmount = await this.signer.encryptUint256(BigInt(request.filledAmount), contractAddress, selector)
 		const encryptedClosedPrice = await this.signer.encryptUint256(BigInt(request.closedPrice), contractAddress, selector)
