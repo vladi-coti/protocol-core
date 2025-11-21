@@ -409,7 +409,7 @@ export function shouldBehaveLikeMultiAccount() {
 
 						it("Should fill close quote", async () => {
 							let fillCloseRequest = marketFillCloseRequestBuilder().build()
-							let fillCloseRequestParams = await getListFormatOfFillCloseRequest(fillCloseRequest, admin, multiAccountCallSelector)
+							let fillCloseRequestParams = await getListFormatOfFillCloseRequest(fillCloseRequest, admin, symmioPartyBCallSelector)
 							let fillCloseRequestCallData = context.partyBPositionActionsFacet.interface.encodeFunctionData("fillCloseRequest", [
 								1,
 								...fillCloseRequestParams,
