@@ -13,11 +13,9 @@ interface IPartyBPositionActionsEvents is IPartiesEvents {
 		uint256 quoteId,
 		address partyA,
 		address partyB,
-		uint256 filledAmount,
+		ctUint256 filledAmount,
 		uint256 closedPrice,
 		QuoteStatus quoteStatus,
 		uint256 closeId
 	);
-
-	event OpenPositionPrivate(uint256 quoteId, address partyA, address partyB, ctUint256 encryptedFilledAmount, uint256 openedPrice);
 }

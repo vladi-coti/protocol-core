@@ -147,12 +147,11 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 	function settlePartyALiquidation(address partyA, address[] memory partyBs) external whenNotLiquidationPaused {
 		// FIXME: commented out because it's pushes the contract size over the limit
 		
-		// (int256[] memory settleAmounts, bytes memory liquidationId) = LiquidationFacetImpl.settlePartyALiquidation(partyA, partyBs);
+		// (gtInt256[] memory settleAmounts, bytes memory liquidationId) = LiquidationFacetImpl.settlePartyALiquidation(partyA, partyBs);
 		// address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
 		// ctInt256[] memory encryptedSettleAmounts = new ctInt256[](settleAmounts.length);
 		// for (uint256 i = 0; i < settleAmounts.length; i++) {
-		// 	gtInt256 gtSettleAmount = MpcCore.setPublic256(settleAmounts[i]);
-		// 	encryptedSettleAmounts[i] = MpcCore.offBoardToUser(gtSettleAmount, partyAEncryptionAddress);
+		// 	encryptedSettleAmounts[i] = MpcCore.offBoardToUser(settleAmounts[i], partyAEncryptionAddress);
 		// }
 		// emit SettlePartyALiquidation(partyA, partyBs, encryptedSettleAmounts, liquidationId);
 		// if (!MAStorage.layout().liquidationStatus[partyA]) {

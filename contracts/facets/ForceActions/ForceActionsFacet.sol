@@ -30,11 +30,8 @@ contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceAct
 	 * @param quoteId The ID of the quote for which the close request should be canceled.
 	 */
 	function forceCancelCloseRequest(uint256 quoteId) external notLiquidated(quoteId) whenNotPartyAActionsPaused {
-		// FIXME: commented out because it's pushes the contract size over the limit
-		
-		// ForceActionsFacetImpl.forceCancelCloseRequest(quoteId);
-		// emit ForceCancelCloseRequest(quoteId, QuoteStatus.OPENED, QuoteStorage.layout().closeIds[quoteId]);
-		// emit ForceCancelCloseRequest(quoteId, QuoteStatus.OPENED); // For backward compatibility, will be removed in future
+		ForceActionsFacetImpl.forceCancelCloseRequest(quoteId);
+		emit ForceCancelCloseRequest(quoteId, QuoteStatus.OPENED, QuoteStorage.layout().closeIds[quoteId]);
 	}
 
 	/**

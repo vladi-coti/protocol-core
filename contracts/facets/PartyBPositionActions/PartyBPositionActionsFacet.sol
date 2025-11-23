@@ -96,10 +96,8 @@ contract PartyBPositionActionsFacet is Accessibility, Pausable, IPartyBPositionA
 	 * @param quoteId The ID of the quote for which the cancel close request is accepted.
 	 */
 	function acceptCancelCloseRequest(uint256 quoteId) external whenNotPartyBActionsPaused onlyPartyBOfQuote(quoteId) notLiquidated(quoteId) {
-		// FIXME: commented out because it's pushes the contract size over the limit
-		
-		// PartyBPositionActionsFacetImpl.acceptCancelCloseRequest(quoteId);
-		// emit AcceptCancelCloseRequest(quoteId, QuoteStatus.OPENED, QuoteStorage.layout().closeIds[quoteId]);
+		PartyBPositionActionsFacetImpl.acceptCancelCloseRequest(quoteId);
+		emit AcceptCancelCloseRequest(quoteId, QuoteStatus.OPENED, QuoteStorage.layout().closeIds[quoteId]);
 	}
 
 	/**
@@ -116,9 +114,10 @@ contract PartyBPositionActionsFacet is Accessibility, Pausable, IPartyBPositionA
 		// QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		// Quote storage quote = quoteLayout.quotes[quoteId];
 		
-		// // Decrypt quoteOpenAmount for event
+		// // Encrypt quoteOpenAmount for event
 		// gtUint256 gtFilledAmount = LibQuote.quoteOpenAmount(quote);
-		// uint256 filledAmount = MpcCore.decrypt(gtFilledAmount);
+		// address partyAAddr = LibAccount.getUserEncryptionAddress(quote.partyA);
+		// ctUint256 memory filledAmount = MpcCore.offBoardToUser(gtFilledAmount, partyAAddr);
 		
 		// PartyBPositionActionsFacetImpl.emergencyClosePosition(quoteId, upnlSig);
 		// emit EmergencyClosePosition(
@@ -130,6 +129,5 @@ contract PartyBPositionActionsFacet is Accessibility, Pausable, IPartyBPositionA
 		// 	quote.quoteStatus,
 		// 	quoteLayout.closeIds[quoteId]
 		// );
-		// emit EmergencyClosePosition(quoteId, quote.partyA, quote.partyB, filledAmount, upnlSig.price, quote.quoteStatus); // For backward compatibility, will be removed in future
 	}
 }
