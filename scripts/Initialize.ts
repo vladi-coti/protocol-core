@@ -7,7 +7,7 @@ import { ControlFacet } from "../src/types"
 import { symbolsMock } from "../test/models/SymbolManager"
 import { Addresses, loadAddresses, saveAddresses } from "./utils/file"
 import { toUtf8Bytes } from "ethers"
-import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers"
+import { Wallet } from "@coti-io/coti-ethers"
 
 export async function initialize(): Promise<RunContext> {
 	let collateral = await run("deploy:stablecoin")
@@ -71,7 +71,7 @@ export async function initialize(): Promise<RunContext> {
 			.connect(context.signers.admin)
 			.grantRole(context.signers.user2.getAddress(), ethers.keccak256(toUtf8Bytes("LIQUIDATOR_ROLE"))),
 	)
-	const addSymbolAsync = async (controlFacet: ControlFacet, adminSigner: SignerWithAddress, sym: any) => {
+	const addSymbolAsync = async (controlFacet: ControlFacet, adminSigner: Wallet, sym: any) => {
 		await runTx(
 			controlFacet
 				.connect(adminSigner)

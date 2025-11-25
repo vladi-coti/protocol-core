@@ -1,5 +1,5 @@
-import {ethers} from "hardhat"
 import {interval} from "rxjs"
+import {join} from "path"
 import {Hedger} from "./models/Hedger"
 import {HedgerController} from "./models/HedgerController"
 import {ManagedError} from "./models/ManagedError"
@@ -8,13 +8,19 @@ import {User} from "./models/User"
 import {UserController} from "./models/UserController"
 import {decimal} from "./utils/Common"
 import fsPromise from "fs/promises"
-import {BigNumber} from "ethers"
 import {QuoteCheckpoint} from "./models/quoteCheckpoint"
 
 export function shouldBehaveLikeFuzzTest(): void {
 	beforeEach(async function () {
-		const addresses = JSON.parse("" + (await fsPromise.readFile(join(__dirname, "..", "output", "addresses.json"))))
-		this.context = await createRunContext(addresses.v3Address, addresses.collateralAddress)
+		const addressesPath = join(__dirname, "..", "output", "addresses.json")
+		const addresses = JSON.parse(await fsPromise.readFile(addressesPath, "utf8"))
+
+		const {symmioAddress, collateralAddress, multiAccountAddress} = addresses
+		if (!symmioAddress || !collateralAddress || !multiAccountAddress) {
+			throw new Error("Missing deployment data in output/addresses.json. Run scripts/Initialize.ts first.")
+		}
+
+		this.context = await createRunContext(symmioAddress, collateralAddress, multiAccountAddress)
 	})
 
 	it("Should run fine", async function () {
@@ -22,23 +28,23 @@ export function shouldBehaveLikeFuzzTest(): void {
 		const manager = context.manager
 		const checkpoint = QuoteCheckpoint.getInstance()
 
-		const uSigner = await ethers.getImpersonatedSigner(ethers.Wallet.createRandom().address)
+		const uSigner = context.signers.user
 		const user = new User(context, uSigner)
 		await user.setup()
-		await user.setNativeBalance(100n ** 18n)
+		// await user.setNativeBalance(100n ** 18n)
 		const userController = new UserController(manager, user, checkpoint)
 
-		const hSigner = await ethers.getImpersonatedSigner(ethers.Wallet.createRandom().address)
+		const hSigner = context.signers.hedger
 		const hedger = new Hedger(context, hSigner)
 		await hedger.setup()
-		await hedger.setNativeBalance(100n ** 18n)
-		await hedger.setBalances(BigNumber.from("10").pow(`50`), BigNumber.from("10").pow(`50`))
+		// await hedger.setNativeBalance(100n ** 18n)
+		await hedger.setBalances(decimal(10n ** 50n), decimal(10n ** 50n))
 		await hedger.register()
 		const hedgerController = new HedgerController(manager, hedger, checkpoint)
 
 		await userController.start()
 		await hedgerController.start()
-		await user.setBalances(decimal(100000), decimal(100000), decimal(100000))
+		await user.setBalances(decimal(100000n), decimal(100000n), decimal(100000n))
 
 		const subscription = interval(1000).subscribe(() => {
 			manager.actionsLoop.next({
