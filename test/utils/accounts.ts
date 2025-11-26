@@ -2,8 +2,62 @@ import fs from "fs"
 import hre from "hardhat"
 import { JsonRpcProvider, parseEther, Wallet } from "@coti-io/coti-ethers"
 import { getNetworkGasOptions } from "./testHelpers";
+import { gasOptions as defaultGasOptions, testnetChainId } from "../../tasks/deploy/constants"
 
 let pks = process.env.PRIVATE_KEYS_STR ? process.env.PRIVATE_KEYS_STR.split(",") : []
+
+function isTestnetChain(): boolean {
+	const network = hre.network.config
+	return network.chainId === Number(testnetChainId)
+}
+
+function patchProviderForTestnet(provider: any) {
+	if (!isTestnetChain()) return
+
+	const gasLimit = BigInt(defaultGasOptions.gasLimit)
+	const gasPrice = BigInt(defaultGasOptions.gasPrice)
+
+	provider.estimateGas = async () => gasLimit
+	provider.getFeeData = async () => ({
+		gasPrice,
+		lastBaseFeePerGas: null,
+		maxFeePerGas: null,
+		maxPriorityFeePerGas: null,
+	})
+	provider.getGasPrice = async () => gasPrice
+}
+
+function wrapWalletForTestnet(wallet: Wallet): Wallet {
+	if (!isTestnetChain()) return wallet
+
+	const gasLimit = BigInt(defaultGasOptions.gasLimit)
+	const gasPrice = BigInt(defaultGasOptions.gasPrice)
+
+	const originalSendTransaction = wallet.sendTransaction.bind(wallet)
+	wallet.sendTransaction = async (tx: any) => {
+		const patchedTx = { ...tx }
+		if (patchedTx.gasLimit == null) patchedTx.gasLimit = gasLimit
+		if (gasPrice != null) {
+			delete patchedTx.maxFeePerGas
+			delete patchedTx.maxPriorityFeePerGas
+			patchedTx.gasPrice = gasPrice
+		}
+		const response = await originalSendTransaction(patchedTx)
+		if (response && typeof response.wait === "function") {
+			const receipt = await response.wait()
+			// Return a proxy that makes wait() a no-op returning the cached receipt
+			return new Proxy(response, {
+				get(target, p) {
+					if (p === "wait") return async () => receipt
+					return (target as any)[p]
+				},
+			}) as any
+		}
+		return response
+	}
+
+	return wallet
+}
 
 export async function setupAccounts() {
 	// Get the network configuration from hardhat config
@@ -16,6 +70,7 @@ export async function setupAccounts() {
 	}
 	
 	const provider = new JsonRpcProvider(networkConfig.url);
+	patchProviderForTestnet(provider)
 
 	if (pks.length == 0) {
 		const key1 = Wallet.createRandom(provider)
@@ -65,7 +120,8 @@ export async function setupAccounts() {
 		accounts = await Promise.all(wallets.map(async (account, i) => await toAccount(account, userKeys[i])))
 	// }
 
-	return accounts
+	// Wrap wallets with auto-wait for testnet
+	return accounts.map(wrapWalletForTestnet)
 }
 
 function setEnvValue(key: string, value: string) {
