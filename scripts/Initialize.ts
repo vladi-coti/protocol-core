@@ -92,6 +92,7 @@ export async function initialize(): Promise<RunContext> {
 	let output: Addresses = loadAddresses()
 	output.collateralAddress = await collateral.getAddress()
 	output.symmioAddress = await diamond.getAddress()
+	output.multiAccountAddress = await multiAccount.getAddress()
 	output.MulticallAddress = await multicall?.getAddress()
 	output.nextQuoteIdVerifierAddress = await nextQuoteIdVerifier?.getAddress()
 	saveAddresses(output)

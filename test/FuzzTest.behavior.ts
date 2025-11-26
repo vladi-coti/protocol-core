@@ -38,7 +38,7 @@ export function shouldBehaveLikeFuzzTest(): void {
 		const hedger = new Hedger(context, hSigner)
 		await hedger.setup()
 		// await hedger.setNativeBalance(100n ** 18n)
-		await hedger.setBalances(decimal(10n ** 50n), decimal(10n ** 50n))
+		await hedger.setBalances(decimal(1000000n), decimal(1000000n))
 		await hedger.register()
 		const hedgerController = new HedgerController(manager, hedger, checkpoint)
 
@@ -46,7 +46,7 @@ export function shouldBehaveLikeFuzzTest(): void {
 		await hedgerController.start()
 		await user.setBalances(decimal(100000n), decimal(100000n), decimal(100000n))
 
-		const subscription = interval(1000).subscribe(() => {
+		const subscription = interval(10000).subscribe(() => {
 			manager.actionsLoop.next({
 				title: "SendQuote",
 				action: () => {

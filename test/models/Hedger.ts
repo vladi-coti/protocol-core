@@ -140,11 +140,15 @@ export class Hedger {
 		}
 	}
 
-	public async openPosition(quoteData: QuoteData, request: OpenRequest = limitOpenRequestBuilder().build()) {
-		if(quoteData.partyBEvent == undefined) {
-			throw new Error("PartyBEvent is undefined")
+	public async openPosition(quoteData: QuoteData | { quoteId: bigint; partyA: string }, request: OpenRequest = limitOpenRequestBuilder().build()) {
+		let partyA: string
+		if ('partyBEvent' in quoteData && quoteData.partyBEvent) {
+			partyA = quoteData.partyBEvent.partyA
+		} else if ('partyA' in quoteData) {
+			partyA = quoteData.partyA
+		} else {
+			throw new Error("PartyA is required - provide either partyBEvent or partyA directly")
 		}
-		const { partyA } = quoteData.partyBEvent
 		const user = this.context.manager.getUser(partyA)
 		logger.detailedDebug(
 			serializeToJson({

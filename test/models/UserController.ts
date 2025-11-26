@@ -44,7 +44,8 @@ export class UserController {
 	public async start() {
 		let userAddress = await this.user.getAddress()
 		for (let status = 0; status < Object.keys(QuoteStatus).length / 2; status++) {
-			const actions = userActionsMap.get(status)!
+			const actions = userActionsMap.get(status)
+			if (!actions) continue
 			if (actions.length > 1 || (actions.length == 1 && actions[0].action != Action.NOTHING))
 				this.manager
 					.getQueueObservable(status)

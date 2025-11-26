@@ -7,6 +7,10 @@ import {
 	checkStatus,
 	getQuoteMinLeftQuantityForFill,
 	getQuoteQuantity,
+	getQuoteQuantityToClose,
+	getQuoteRequestedOpenPrice,
+	getQuoteMarketPrice,
+	getQuoteRequestedClosePrice,
 	getTotalLockedValuesForQuoteIds
 } from "../utils/Common"
 import {logger} from "../utils/LoggerUtils"
@@ -46,7 +50,8 @@ export class HedgerController {
 	public async start() {
 		let userAddress = await this.hedger.getAddress()
 		for (let status = 0; status < Object.keys(QuoteStatus).length / 2; status++) {
-			const actions = hedgerActionsMap.get(status)!
+			const actions = hedgerActionsMap.get(status)
+			if (!actions) continue
 			if (actions.length > 1 || (actions.length == 1 && actions[0].action != Action.NOTHING))
 				this.manager
 					.getQueueObservable(status)
@@ -101,7 +106,7 @@ export class HedgerController {
 						user: user,
 					})
 				}
-				await this.hedger.lockQuote(quote.id)
+				await this.hedger.lockQuote({ quoteId: quote.id, partyBEvent: undefined }, 0n, null)
 				if (validate) {
 					await (validator as LockQuoteValidator).after(this.context, {
 						user: user,
@@ -179,17 +184,15 @@ export class HedgerController {
 			}
 			case Action.OPEN_POSITION: {
 				const quantity = await getQuoteQuantity(this.context, quote.id)
-				let fillAmount = undefined
-				let partially = false
+				let fillAmount: bigint
 				const symbol: SymbolStructOutput = await this.context.viewFacet.getSymbol(quote.symbolId)
 				if (quote.orderType == BigInt(OrderType.LIMIT)) {
-					const locked = await getTotalLockedValuesForQuoteIds(this.context, [quote.id])
+					const locked = await getTotalLockedValuesForQuoteIds(this.context, [quote.id], this.context.signers.user)
 					const minQuantity = safeDiv(symbol.minAcceptableQuoteValue * quantity, locked)
 					const max = quantity - minQuantity
 					if (max > minQuantity) {
 						const partialQuantity = randomBigNumber(quantity - minQuantity, minQuantity)
 						fillAmount = randomExt.pick([partialQuantity, quantity])
-						partially = fillAmount === partialQuantity
 					} else {
 						fillAmount = quantity
 					}
@@ -199,7 +202,9 @@ export class HedgerController {
 				const price = await getPrice()
 				const partyAUpnl = await this.manager.getUser(quote.partyA).getUpnl()
 				const partyBUpnl = await this.hedger.getUpnl(quote.partyA)
-				const openPrice = quote.orderType == BigInt(OrderType.LIMIT) ? quote.requestedOpenPrice : quote.marketPrice //FIXME: Can we do anything else?
+				const openPrice = quote.orderType == BigInt(OrderType.LIMIT) 
+					? await getQuoteRequestedOpenPrice(this.context, quote.id) 
+					: await getQuoteMarketPrice(this.context, quote.id)
 
 				const user = this.manager.getUser(quote.partyA)
 				let before: OpenPositionValidatorBeforeOutput
@@ -212,7 +217,7 @@ export class HedgerController {
 					})
 				}
 				await this.hedger.openPosition(
-					quote.id,
+					{ quoteId: quote.id, partyA: quote.partyA },
 					Builder<OpenRequest>().filledAmount(fillAmount).openPrice(openPrice).upnlPartyA(partyAUpnl).upnlPartyB(partyBUpnl).price(price).build(),
 				)
 				if (validate) {
@@ -233,25 +238,25 @@ export class HedgerController {
 				if (this.checkpoint.isBlockedQuote(quote.id)) {
 					break
 				}
-				let fillAmount = undefined
-				const symbol: SymbolStructOutput = await this.context.viewFacet.getSymbol(quote.symbolId)
+				let fillAmount: bigint
 				const minLeftQuantity = await getQuoteMinLeftQuantityForFill(this.manager.context, quote.id)
+				const quantityToClose = await getQuoteQuantityToClose(this.context, quote.id)
 				if (quote.orderType === BigInt(OrderType.LIMIT)) {
-					const maxFillAmount = quote.quantityToClose - minLeftQuantity
+					const maxFillAmount = quantityToClose - minLeftQuantity
 					if (maxFillAmount > 0n) {
 						const partialQuantity = randomBigNumber(maxFillAmount)
-						fillAmount = randomExt.pick([partialQuantity, quote.quantityToClose])
+						fillAmount = randomExt.pick([partialQuantity, quantityToClose])
 					} else {
-						fillAmount = quote.quantityToClose
+						fillAmount = quantityToClose
 					}
 				} else {
-					fillAmount = quote.quantityToClose
+					fillAmount = quantityToClose
 				}
 				const price = await getPrice()
 				const partyAUpnl = await this.manager.getUser(quote.partyA).getUpnl()
 				const partyBUpnl = await this.hedger.getUpnl(quote.partyA)
 
-				const closePrice = quote.requestedClosePrice //FIXME: Can we do anything else?
+				const closePrice = await getQuoteRequestedClosePrice(this.context, quote.id)
 
 				const user = this.manager.getUser(quote.partyA)
 				let before: FillCloseRequestValidatorBeforeOutput

@@ -70,6 +70,26 @@ export async function getQuoteNotFilledAmount(context: RunContext, quoteId: bigi
 	return quantityToClose - closedAmount;
 }
 
+export async function getQuoteQuantityToClose(context: RunContext, quoteId: bigint, user: Wallet = context.signers.user): Promise<bigint> {
+	const q = await context.viewFacet.getQuote(quoteId)
+	return await user.decryptUint256(q.quantityToClose.userCiphertext);
+}
+
+export async function getQuoteRequestedOpenPrice(context: RunContext, quoteId: bigint, user: Wallet = context.signers.user): Promise<bigint> {
+	const q = await context.viewFacet.getQuote(quoteId)
+	return await user.decryptUint256(q.requestedOpenPrice.userCiphertext);
+}
+
+export async function getQuoteMarketPrice(context: RunContext, quoteId: bigint, user: Wallet = context.signers.user): Promise<bigint> {
+	const q = await context.viewFacet.getQuote(quoteId)
+	return await user.decryptUint256(q.marketPrice.userCiphertext);
+}
+
+export async function getQuoteRequestedClosePrice(context: RunContext, quoteId: bigint, user: Wallet = context.signers.user): Promise<bigint> {
+	const q = await context.viewFacet.getQuote(quoteId)
+	return await user.decryptUint256(q.requestedClosePrice.userCiphertext);
+}
+
 export async function getTotalPartyALockedValuesForQuotes(
 	quotes: QuoteStructOutput[],
 	wallet: Wallet,
