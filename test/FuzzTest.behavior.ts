@@ -10,6 +10,9 @@ import {decimal} from "./utils/Common"
 import fsPromise from "fs/promises"
 import {QuoteCheckpoint} from "./models/quoteCheckpoint"
 
+const ACTION_LOOP_INTERVAL_MS = 10000 // 10 seconds between actions
+const ACTION_LOOP_DURATION_MS = 600000 // 10 minutes total duration
+
 export function shouldBehaveLikeFuzzTest(): void {
 	beforeEach(async function () {
 		const addressesPath = join(__dirname, "..", "output", "addresses.json")
@@ -46,7 +49,7 @@ export function shouldBehaveLikeFuzzTest(): void {
 		await hedgerController.start()
 		await user.setBalances(decimal(100000n), decimal(100000n), decimal(100000n))
 
-		const subscription = interval(10000).subscribe(() => {
+		const subscription = interval(ACTION_LOOP_INTERVAL_MS).subscribe(() => {
 			manager.actionsLoop.next({
 				title: "SendQuote",
 				action: () => {
@@ -79,6 +82,6 @@ export function shouldBehaveLikeFuzzTest(): void {
 			})
 		})
 
-		await new Promise(r => setTimeout(r, 200000))
+		await new Promise(r => setTimeout(r, ACTION_LOOP_DURATION_MS))
 	})
 }

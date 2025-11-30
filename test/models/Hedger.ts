@@ -36,8 +36,21 @@ export class Hedger {
 		const userAddress = await this.signer.getAddress()
 		await runTx(this.context.collateral.connect(this.signer).approve(this.context.diamond, ethers.MaxUint256))
 
-		if (collateralAmount) await runTx(this.context.collateral.connect(this.signer).mint(userAddress, collateralAmount))
-		if (depositAmount) await runTx(this.context.accountFacet.connect(this.signer).deposit(depositAmount))
+		if (collateralAmount) {
+			const currentCollateral = await this.context.collateral.balanceOf(userAddress)
+			if (currentCollateral < BigInt(collateralAmount.toString())) {
+				const needed = BigInt(collateralAmount.toString()) - currentCollateral
+				await runTx(this.context.collateral.connect(this.signer).mint(userAddress, needed))
+			}
+		}
+		
+		if (depositAmount) {
+			const currentDeposited = await this.context.viewFacet.balanceOf(userAddress)
+			if (currentDeposited < BigInt(depositAmount.toString())) {
+				const needed = BigInt(depositAmount.toString()) - currentDeposited
+				await runTx(this.context.accountFacet.connect(this.signer).deposit(needed))
+			}
+		}
 	}
 
 	public async depositToReserveVault(amount: BigNumberish) {
@@ -58,7 +71,16 @@ export class Hedger {
 	}
 
 	public async register() {
-		await runTx(this.context.controlFacet.connect(this.context.signers.admin).registerPartyB(await this.signer.getAddress()))
+		const hedgerAddress = await this.signer.getAddress()
+		
+		// Check if already registered
+		const isRegistered = await this.context.viewFacet.isPartyB(hedgerAddress)
+		if (isRegistered) {
+			return
+		}
+		
+		const tx = await this.context.controlFacet.connect(this.context.signers.admin).registerPartyB(hedgerAddress)
+		await tx.wait()
 	}
 
 	private async decryptQuoteData(partyBEvent: SendQuoteForPartyBEvent.OutputObject): Promise<{quantity: bigint, price: bigint, partyA: string}> {

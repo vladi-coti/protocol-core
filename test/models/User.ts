@@ -37,13 +37,50 @@ export class User {
 	}
 
 	public async setBalances(collateralAmount?: BigNumberish, depositAmount?: BigNumberish, allocatedAmount?: BigNumberish) {
-		const userAddress = this.signer.getAddress()
-
+		const userAddress = await this.signer.getAddress()
+		
 		await runTx(this.context.collateral.connect(this.signer).approve(this.context.diamond, ethers.MaxUint256))
 
-		if (collateralAmount) await runTx(this.context.collateral.connect(this.signer).mint(userAddress, collateralAmount))
-		if (depositAmount) await runTx(this.context.accountFacet.connect(this.signer).deposit(depositAmount))
-		if (allocatedAmount) await runTx(this.context.accountFacet.connect(this.signer).allocate(allocatedAmount))
+		if (collateralAmount) {
+			const currentCollateral = await this.context.collateral.balanceOf(userAddress)
+			if (currentCollateral < BigInt(collateralAmount.toString())) {
+				const needed = BigInt(collateralAmount.toString()) - currentCollateral
+				await runTx(this.context.collateral.connect(this.signer).mint(userAddress, needed))
+			}
+		}
+		
+		if (depositAmount) {
+			const currentDeposited = await this.context.viewFacet.balanceOf(userAddress)
+			if (currentDeposited < BigInt(depositAmount.toString())) {
+				const needed = BigInt(depositAmount.toString()) - currentDeposited
+				await runTx(this.context.accountFacet.connect(this.signer).deposit(needed))
+			}
+		}
+		
+		if (allocatedAmount) {
+			try {
+				const currentAllocated = await this.context.viewFacet.allocatedBalanceOfPartyA(userAddress)
+				const decryptedAllocated = await this.decryptUint256(currentAllocated)
+				const balanceLimit = await this.context.viewFacet.getBalanceLimitPerUser()
+				const targetAllocated = BigInt(allocatedAmount.toString())
+				const remainingCapacity = balanceLimit - decryptedAllocated
+				
+				if (remainingCapacity > 0n && decryptedAllocated < targetAllocated) {
+					const needed = targetAllocated - decryptedAllocated
+					const toAllocate = needed > remainingCapacity ? remainingCapacity : needed
+					if (toAllocate > 0n) {
+						await runTx(this.context.accountFacet.connect(this.signer).allocate(toAllocate))
+					}
+				}
+			} catch (e) {
+				// Allocated balance not initialized, allocate normally
+				const balanceLimit = await this.context.viewFacet.getBalanceLimitPerUser()
+				const toAllocate = BigInt(allocatedAmount.toString()) > balanceLimit ? balanceLimit : BigInt(allocatedAmount.toString())
+				if (toAllocate > 0n) {
+					await runTx(this.context.accountFacet.connect(this.signer).allocate(toAllocate))
+				}
+			}
+		}
 	}
 
 	public async setNativeBalance(amount: bigint) {

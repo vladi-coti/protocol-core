@@ -130,7 +130,8 @@ export class UserController {
 
 		const quoteData = await this.user.sendQuote(
 			Builder<QuoteRequest>()
-				.partyBWhiteList([])
+				.partyBWhiteList([this.context.signers.hedger.address])
+				.affiliate(this.context.multiAccount)
 				.quantity(quantity)
 				.partyAmm(mm)
 				.partyBmm(mm / 2n)
@@ -139,7 +140,7 @@ export class UserController {
 				.symbolId(symbol.symbolId)
 				.positionType(positionType)
 				.orderType(orderType)
-				.deadline(1722889307n)
+				.deadline(getBlockTimestamp(900n))
 				.price(requestPrice)
 				.upnlSig(getDummySingleUpnlAndPriceSig(price, upnl))
 				.maxFundingRate(0n)

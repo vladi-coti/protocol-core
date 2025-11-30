@@ -6,7 +6,7 @@ export function pick(array: any[]): any {
 }
 
 export function randomBigNumber(max: bigint, min?: bigint): bigint {
-	if (min == null) return BigInt(ethers.randomBytes(32).toString()) % max
+	if (min == null) return BigInt(ethers.hexlify(ethers.randomBytes(32))) % max
 	const diff = max - min
 	return min + randomBigNumber(diff)
 }
