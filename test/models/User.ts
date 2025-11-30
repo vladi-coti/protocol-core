@@ -38,118 +38,70 @@ export class User {
 
 	public async setBalances(collateralAmount?: BigNumberish, depositAmount?: BigNumberish, allocatedAmount?: BigNumberish) {
 		const userAddress = await this.signer.getAddress()
-		console.log("User::setBalances - Starting for address:", userAddress)
-		console.log("User::setBalances - collateralAmount:", collateralAmount?.toString())
-		console.log("User::setBalances - depositAmount:", depositAmount?.toString())
-		console.log("User::setBalances - allocatedAmount:", allocatedAmount?.toString())
 		
-		console.log("User::setBalances - Approving...")
 		await runTx(this.context.collateral.connect(this.signer).approve(this.context.diamond, ethers.MaxUint256))
-		console.log("User::setBalances - Approval done")
 
 		if (collateralAmount) {
-			console.log("User::setBalances - Checking collateral...")
 			const currentCollateral = await this.context.collateral.balanceOf(userAddress)
-			console.log("User::setBalances - Current collateral:", currentCollateral.toString())
 			if (currentCollateral < BigInt(collateralAmount.toString())) {
 				const needed = BigInt(collateralAmount.toString()) - currentCollateral
-				console.log("User::setBalances - Minting collateral:", needed.toString())
 				await runTx(this.context.collateral.connect(this.signer).mint(userAddress, needed))
-				console.log("User::setBalances - Collateral minted")
-			} else {
-				console.log("User::setBalances - Collateral sufficient, skipping mint")
 			}
 		}
 		
 		if (depositAmount) {
-			console.log("User::setBalances - Checking deposit...")
 			const currentDeposited = await this.context.viewFacet.balanceOf(userAddress)
-			console.log("User::setBalances - Current deposited:", currentDeposited.toString())
 			if (currentDeposited < BigInt(depositAmount.toString())) {
 				const needed = BigInt(depositAmount.toString()) - currentDeposited
-				console.log("User::setBalances - Depositing:", needed.toString())
 				await runTx(this.context.accountFacet.connect(this.signer).deposit(needed))
-				console.log("User::setBalances - Deposit done")
-			} else {
-				console.log("User::setBalances - Deposit sufficient, skipping")
 			}
 		}
 		
 		if (allocatedAmount) {
-			console.log("User::setBalances - Checking allocation...")
 			const currentDeposited = await this.context.viewFacet.balanceOf(userAddress)
 			const balanceLimit = await this.context.viewFacet.getBalanceLimitPerUser()
 			const targetAllocated = BigInt(allocatedAmount.toString())
 			
-			console.log("User::setBalances - Current deposited:", currentDeposited.toString())
-			console.log("User::setBalances - Balance limit:", balanceLimit.toString())
-			console.log("User::setBalances - Target allocated:", targetAllocated.toString())
-			
 			// Check how much we can actually allocate (limited by deposited balance and limit)
 			const maxAllocatable = currentDeposited < balanceLimit ? currentDeposited : balanceLimit
-			console.log("User::setBalances - Max allocatable:", maxAllocatable.toString())
 			
 			if (maxAllocatable < targetAllocated) {
 				// Can't allocate the full amount, allocate what we can
-				console.log("User::setBalances - Max allocatable < target, allocating:", maxAllocatable.toString())
 				if (maxAllocatable > 0n) {
 					await runTx(this.context.accountFacet.connect(this.signer).allocate(maxAllocatable))
-					console.log("User::setBalances - Allocation done (max path)")
-				} else {
-					console.log("User::setBalances - Max allocatable is 0, skipping allocation")
 				}
 			} else {
 				// Try to get current allocated balance to see how much more we need
-				console.log("User::setBalances - Trying to get current allocated balance...")
 				try {
 					const currentAllocated = await this.context.viewFacet.allocatedBalanceOfPartyA(userAddress)
-					console.log("User::setBalances - Got allocated balance, decrypting...")
 					const decryptedAllocated = await this.decryptUint256(currentAllocated)
-					console.log("User::setBalances - Decrypted allocated:", decryptedAllocated.toString())
 					
 					// Validate decrypted value makes sense (not garbage from uninitialized value)
 					// If it's larger than the limit, it's likely garbage from uninitialized value
 					if (decryptedAllocated > balanceLimit) {
-						console.log("User::setBalances - Decrypted value exceeds limit, treating as uninitialized")
 						throw new Error("Uninitialized value detected")
 					}
 					
 					const remainingCapacity = balanceLimit - decryptedAllocated
-					console.log("User::setBalances - Remaining capacity:", remainingCapacity.toString())
 					
 					if (remainingCapacity > 0n && decryptedAllocated < targetAllocated) {
 						const needed = targetAllocated - decryptedAllocated
 						const toAllocate = needed > remainingCapacity ? remainingCapacity : needed
 						// Also check we have enough deposited balance
 						const actualAllocate = toAllocate > currentDeposited ? currentDeposited : toAllocate
-						console.log("User::setBalances - Needed:", needed.toString(), "toAllocate:", toAllocate.toString(), "actualAllocate:", actualAllocate.toString())
 						if (actualAllocate > 0n) {
-							console.log("User::setBalances - Allocating:", actualAllocate.toString())
 							await runTx(this.context.accountFacet.connect(this.signer).allocate(actualAllocate))
-							console.log("User::setBalances - Allocation done (try path)")
-						} else {
-							console.log("User::setBalances - actualAllocate is 0, skipping")
 						}
-					} else {
-						console.log("User::setBalances - No allocation needed (already at target or no capacity)")
 					}
 				} catch (e: any) {
 					// Allocated balance not initialized or can't decrypt, allocate up to limit and deposited balance
-					console.log("User::setBalances - Error getting allocated balance:", e.message)
-					console.log("User::setBalances - Falling back to catch block")
 					const toAllocate = targetAllocated > maxAllocatable ? maxAllocatable : targetAllocated
-					console.log("User::setBalances - toAllocate (catch):", toAllocate.toString())
 					if (toAllocate > 0n) {
-						console.log("User::setBalances - Allocating in catch:", toAllocate.toString())
 						await runTx(this.context.accountFacet.connect(this.signer).allocate(toAllocate))
-						console.log("User::setBalances - Allocation done (catch path)")
-					} else {
-						console.log("User::setBalances - toAllocate is 0 in catch, skipping")
 					}
 				}
 			}
 		}
-		console.log("User::setBalances - Completed")
 	}
 
 	public async setNativeBalance(amount: bigint) {
@@ -201,31 +153,19 @@ export class User {
 		const [basicParams, encryptedParams, upnlSig] = await this.buildQuoteCalldataArgs(request)
 
 		const tx = await this.context.partyAFacet.connect(this.signer).sendQuote(basicParams, encryptedParams, upnlSig)
-		console.log("User::::SendQuote: " + tx.hash)
 		const receipt = await tx.wait()
 
 		let quoteId: bigint = 0n
 		let partyBEvent: SendQuoteForPartyBEvent.OutputObject | undefined
 		if (receipt && receipt.logs) {
-			console.log("User::::Receipt gas used: " + receipt.gasUsed.toString())
-		
 			const SendQuoteForPartyA = receipt.logs.find((log: any): log is EventLog => {
 				return (log as EventLog).eventName === "SendQuoteForPartyA"
 			})
 
 			if (SendQuoteForPartyA && SendQuoteForPartyA.args) {
 				const id = SendQuoteForPartyA.args.quoteId
-				console.log("User::::SendQuote: " + id)
 				quoteId = id
-				const args = SendQuoteForPartyA.args as any[]
-				const values = this.formatEncryptedQuoteValues(args[6]) as SendQuoteForPartyBEvent.OutputObject["values"]
-				console.log("User::::SendQuote openedPrice: ", await this.decryptUint256(values.price))
-				console.log("User::::SendQuote quantity: ", await this.decryptUint256(values.quantity))
 			}
-
-			const quote = await this.context.viewFacet.getQuote(quoteId)
-			console.log("User::::Quote: requestedOpenPrice: ", await this.decryptUint256(quote.requestedOpenPrice.userCiphertext))
-			console.log("User::::Quote: quantity: ", await this.decryptUint256(quote.quantity.userCiphertext))
 
 			const SendQuoteForPartyB = receipt.logs.find((log: any): log is EventLog => {
 				return (log as EventLog).eventName === "SendQuoteForPartyB"
@@ -246,7 +186,6 @@ export class User {
 					values: this.formatEncryptedQuoteValues(rawValues),
 					deadline: args[7]
 				} as SendQuoteForPartyBEvent.OutputObject
-				console.log("User::::SendQuoteForPartyBEvent: ", partyBEvent.quoteId)
 			}
 		}
 		if (quoteId == 0n) {

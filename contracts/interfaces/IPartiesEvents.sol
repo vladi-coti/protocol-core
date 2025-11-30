@@ -12,7 +12,7 @@ interface IPartiesEvents {
 
 	event SendQuoteForPartyA(
 		address partyA,
-		uint256 quoteId,
+		uint256 indexed quoteId,
 		address[] partyBsWhiteList,
 		uint256 symbolId,
 		PositionType positionType,
@@ -23,7 +23,7 @@ interface IPartiesEvents {
 
 	event SendQuoteForPartyB(
 		address partyA,
-		uint256 quoteId,
+		uint256 indexed quoteId,
 		address partyB,
 		uint256 symbolId,
 		PositionType positionType,
@@ -37,21 +37,21 @@ interface IPartiesEvents {
 	event ExpireQuoteClose(QuoteStatus quoteStatus, uint256 quoteId, uint256 closeId);
 
 	event OpenPositionForPartyA(
-		uint256 quoteId,
+		uint256 indexed quoteId,
 		address partyA,
 		address partyB,
 		EncryptedPositionValues values
 	);
 
 	event OpenPositionForPartyB(
-		uint256 quoteId,
+		uint256 indexed quoteId,
 		address partyA,
 		address partyB,
 		EncryptedPositionValues values
 	);
 
 	event FillCloseRequestForPartyA(
-		uint256 quoteId,
+		uint256 indexed quoteId,
 		address partyA,
 		address partyB,
 		EncryptedPositionValues values,
@@ -60,7 +60,7 @@ interface IPartiesEvents {
 	);
 
 	event FillCloseRequestForPartyB(
-		uint256 quoteId,
+		uint256 indexed quoteId,
 		address partyA,
 		address partyB,
 		EncryptedPositionValues values,

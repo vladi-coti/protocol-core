@@ -91,16 +91,73 @@ export class Hedger {
 		return { quantity: quantityDecrypted, price: priceDecrypted, partyA: partyBEvent.partyA }
 	}
 
+	private formatEncryptedQuoteValues(rawValues: any[]): any {
+		return {
+			price: this.convertRawCiphertextToCtUint256(rawValues[0]),
+			marketPrice: this.convertRawCiphertextToCtUint256(rawValues[1]),
+			quantity: this.convertRawCiphertextToCtUint256(rawValues[2]),
+			cva: this.convertRawCiphertextToCtUint256(rawValues[3]),
+			lf: this.convertRawCiphertextToCtUint256(rawValues[4]),
+			partyAmm: this.convertRawCiphertextToCtUint256(rawValues[5]),
+			partyBmm: this.convertRawCiphertextToCtUint256(rawValues[6]),
+			tradingFee: this.convertRawCiphertextToCtUint256(rawValues[7])
+		}
+	}
+
+	private convertRawCiphertextToCtUint256(rawCiphertext: [bigint, bigint]): { ciphertextHigh: bigint, ciphertextLow: bigint } {
+		return {
+			ciphertextHigh: rawCiphertext[0],
+			ciphertextLow: rawCiphertext[1]
+		}
+	}
+
+	private async fetchPartyBEventFromQuote(quoteId: bigint): Promise<SendQuoteForPartyBEvent.OutputObject> {
+		// Query SendQuoteForPartyB events filtered by quoteId
+		// Filter signature: SendQuoteForPartyB(address partyA, uint256 quoteId, address partyB, ...)
+		const filter = this.context.partyAFacet.filters.SendQuoteForPartyB(undefined, quoteId)
+		const events = await this.context.partyAFacet.queryFilter(filter)
+		
+		if (events.length === 0) {
+			throw new Error(`SendQuoteForPartyB event not found for quoteId: ${quoteId}`)
+		}
+
+		// Get the most recent event for this quoteId (in case there are multiple)
+		const event = events[events.length - 1]
+		if (!event.args) {
+			throw new Error(`SendQuoteForPartyB event has no args for quoteId: ${quoteId}`)
+		}
+
+		const args = event.args as any[]
+		const rawValues = args[6] // The EncryptedQuoteValues struct is at index 6
+		
+		return {
+			partyA: args[0],
+			quoteId: args[1],
+			partyB: args[2],
+			symbolId: args[3],
+			positionType: args[4],
+			orderType: args[5],
+			values: this.formatEncryptedQuoteValues(rawValues) as SendQuoteForPartyBEvent.OutputObject["values"],
+			deadline: args[7]
+		} as SendQuoteForPartyBEvent.OutputObject
+	}
+
 	public async lockQuote(quoteData: QuoteData, upnl: bigint = 0n, allocateCoefficient: bigint | null = decimal(12n, 17)) {
 		const { quoteId: id } = quoteData
+		let partyBEvent = quoteData.partyBEvent
+
 		if (allocateCoefficient != null) {
-			if(quoteData.partyBEvent == undefined) {
-				throw new Error("PartyBEvent is undefined")
+			// If partyBEvent is undefined, try to fetch it from the contract
+			if (partyBEvent == undefined) {
+				partyBEvent = await this.fetchPartyBEventFromQuote(id)
 			}
-			const { partyA } = quoteData.partyBEvent
-			const { price, quantity } = await this.decryptQuoteData(quoteData.partyBEvent)
-			console.log("Hedger::LockQuote: price: ", price)
-			console.log("Hedger::LockQuote: quantity: ", quantity)
+
+			if (partyBEvent == undefined) {
+				throw new Error(`PartyBEvent is required for allocation but could not be found for quoteId: ${id}`)
+			}
+
+			const { partyA } = partyBEvent
+			const { price, quantity } = await this.decryptQuoteData(partyBEvent)
 			const notional = unDecimal(quantity * price)
 			await runTx(
 				this.context.accountFacet.connect(this.signer).allocateForPartyB(unDecimal(notional * BigInt(allocateCoefficient)), partyA)

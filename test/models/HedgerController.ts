@@ -5,6 +5,7 @@ import {concatMap, filter, from} from "rxjs"
 
 import {
 	checkStatus,
+	decimal,
 	getQuoteMinLeftQuantityForFill,
 	getQuoteQuantity,
 	getQuoteQuantityToClose,
@@ -106,7 +107,8 @@ export class HedgerController {
 						user: user,
 					})
 				}
-				await this.hedger.lockQuote({ quoteId: quote.id, partyBEvent: undefined }, 0n, null)
+				// Pass allocateCoefficient to lockQuote - it will fetch partyBEvent if needed and allocate funds
+				await this.hedger.lockQuote({ quoteId: quote.id, partyBEvent: undefined }, 0n, decimal(12n, 17))
 				if (validate) {
 					await (validator as LockQuoteValidator).after(this.context, {
 						user: user,
