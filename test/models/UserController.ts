@@ -99,9 +99,16 @@ export class UserController {
 		if (availableForQuote < symbol.minAcceptableQuoteValue) throw new ManagedError("Insufficient funds available")
 
 		const lockedAmount = randomBigNumber(min(availableForQuote, maxLockedAmountForQuote), symbol.minAcceptableQuoteValue)
-		const lf = randomBigNumber(unDecimal(lockedAmount * decimal(5n, 17)), unDecimal(lockedAmount * symbol.minAcceptablePortionLF))
+		// Ensure LF is well above minimum to account for encrypted validation rounding
+		const minLfRequired = unDecimal(lockedAmount * symbol.minAcceptablePortionLF)
+		const lf = randomBigNumber(unDecimal(lockedAmount * decimal(5n, 17)), minLfRequired * 2n) // Use 2x minimum to be safe
 		const cva = randomBigNumberRatio(lockedAmount - lf, 0.2)
 		const mm = lockedAmount - lf - cva
+		
+		// Double-check that mm is positive (should always be, but just in case)
+		if (mm <= 0n) {
+			throw new ManagedError("Random data lead to invalid quote... This request will be rejected")
+		}
 
 		let requestPrice =
 			orderType == OrderType.MARKET
@@ -146,7 +153,8 @@ export class UserController {
 				.maxFundingRate(0n)
 				.build(),
 		)
-		console.log((await this.context.viewFacet.getQuote(quoteData.quoteId)).deadline)
+		console.log("deadline: " + (await this.context.viewFacet.getQuote(quoteData.quoteId)).deadline)
+		console.log("quoteData.quoteId: " + quoteData.quoteId)
 
 		if (randomBigNumber(100n, 1n) <= 110n) {
 			this.checkpoint.addBlockedQuotes(quoteData.quoteId)
