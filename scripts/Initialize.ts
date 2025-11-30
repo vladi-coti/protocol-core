@@ -64,13 +64,9 @@ export async function initialize(): Promise<RunContext> {
 	await runTx(
 		context.controlFacet
 			.connect(context.signers.admin)
-			.grantRole(context.signers.user.getAddress(), ethers.keccak256(toUtf8Bytes("LIQUIDATOR_ROLE"))),
+			.grantRole(context.signers.liquidator.getAddress(), ethers.keccak256(toUtf8Bytes("LIQUIDATOR_ROLE"))),
 	)
-	await runTx(
-		context.controlFacet
-			.connect(context.signers.admin)
-			.grantRole(context.signers.user2.getAddress(), ethers.keccak256(toUtf8Bytes("LIQUIDATOR_ROLE"))),
-	)
+	// Note: user and user2 should NOT have LIQUIDATOR_ROLE because the contract prevents liquidators from being PartyA
 	const addSymbolAsync = async (controlFacet: ControlFacet, adminSigner: Wallet, sym: any) => {
 		await runTx(
 			controlFacet
