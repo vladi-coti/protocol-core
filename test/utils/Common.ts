@@ -6,7 +6,7 @@ import {OrderType, QuoteStatus} from "../models/Enums"
 import {RunContext} from "../models/RunContext"
 import {safeDiv} from "./SafeMath"
 import {network} from "hardhat"
-import {QuoteStructOutput, SymbolStructOutput} from "../../src/types/contracts/interfaces/ISymmio"
+import {QuoteStructOutput, SendQuoteForPartyBEvent, SymbolStructOutput} from "../../src/types/contracts/interfaces/ISymmio"
 
 const defaultSerializer = new JsonSerializer()
 
@@ -34,6 +34,64 @@ export async function getQuoteQuantity(context: RunContext, quoteId: bigint, use
 	const quote = await context.viewFacet.getQuote(quoteId);
 	// Properly decrypt the encrypted quantity using the user's wallet
 	return await user.decryptUint256(quote.quantity.userCiphertext);
+}
+
+function formatEncryptedQuoteValues(rawValues: any[]): any {
+	return {
+		price: convertRawCiphertextToCtUint256(rawValues[0]),
+		marketPrice: convertRawCiphertextToCtUint256(rawValues[1]),
+		quantity: convertRawCiphertextToCtUint256(rawValues[2]),
+		cva: convertRawCiphertextToCtUint256(rawValues[3]),
+		lf: convertRawCiphertextToCtUint256(rawValues[4]),
+		partyAmm: convertRawCiphertextToCtUint256(rawValues[5]),
+		partyBmm: convertRawCiphertextToCtUint256(rawValues[6]),
+		tradingFee: convertRawCiphertextToCtUint256(rawValues[7])
+	}
+}
+
+function convertRawCiphertextToCtUint256(rawCiphertext: [bigint, bigint]): { ciphertextHigh: bigint, ciphertextLow: bigint } {
+	return {
+		ciphertextHigh: rawCiphertext[0],
+		ciphertextLow: rawCiphertext[1]
+	}
+}
+
+export async function fetchPartyBEventFromQuote(context: RunContext, quoteId: bigint, hedger: Wallet = context.signers.hedger): Promise<SendQuoteForPartyBEvent.OutputObject> {
+	const filter = context.partyAFacet.filters.SendQuoteForPartyB(undefined, quoteId)
+	const events = await context.partyAFacet.queryFilter(filter)
+		
+	if (events.length === 0) {
+		throw new Error(`SendQuoteForPartyB event not found for quoteId: ${quoteId}`)
+	}
+
+	// Get the most recent event for this quoteId (in case there are multiple)
+	const event = events[events.length - 1]
+	if (!event.args) {
+		throw new Error(`SendQuoteForPartyB event has no args for quoteId: ${quoteId}`)
+	}
+
+	const args = event.args as any[]
+	const rawValues = args[6] // The EncryptedQuoteValues struct is at index 6
+
+	if(hedger.address !== args[2]) {
+		throw new Error(`Hedger address does not match the partyB address in the event for quoteId: ${quoteId}`)
+	}
+	
+	return {
+		partyA: args[0],
+		quoteId: args[1],
+		partyB: args[2],
+		symbolId: args[3],
+		positionType: args[4],
+		orderType: args[5],
+		values: formatEncryptedQuoteValues(rawValues) as SendQuoteForPartyBEvent.OutputObject["values"],
+		deadline: args[7]
+	} as SendQuoteForPartyBEvent.OutputObject
+}
+
+export async function getQuoteQuantityFromPartyBEvent(context: RunContext, quoteId: bigint, hedger: Wallet = context.signers.hedger): Promise<any> {
+	const partyBEvent = await fetchPartyBEventFromQuote(context, quoteId, hedger)
+	return await hedger.decryptUint256(partyBEvent.values.quantity)
 }
 
 export async function getQuoteMinLeftQuantityForClose(context: RunContext, quoteId: bigint, user: Wallet = context.signers.user): Promise<bigint> {

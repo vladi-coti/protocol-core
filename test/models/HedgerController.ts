@@ -12,7 +12,8 @@ import {
 	getQuoteRequestedOpenPrice,
 	getQuoteMarketPrice,
 	getQuoteRequestedClosePrice,
-	getTotalLockedValuesForQuoteIds
+	getTotalLockedValuesForQuoteIds,
+	getQuoteQuantityFromPartyBEvent
 } from "../utils/Common"
 import {logger} from "../utils/LoggerUtils"
 import {getPrice} from "../utils/PriceUtils"
@@ -185,7 +186,7 @@ export class HedgerController {
 				break
 			}
 			case Action.OPEN_POSITION: {
-				const quantity = await getQuoteQuantity(this.context, quote.id)
+				const quantity = await getQuoteQuantityFromPartyBEvent(this.context, quote.id, this.context.signers.hedger)
 				let fillAmount: bigint
 				const symbol: SymbolStructOutput = await this.context.viewFacet.getSymbol(quote.symbolId)
 				if (quote.orderType == BigInt(OrderType.LIMIT)) {

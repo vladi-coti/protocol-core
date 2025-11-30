@@ -1,7 +1,7 @@
 import {setBalance} from "@nomicfoundation/hardhat-network-helpers"
 import {BigNumberish, ethers, EventLog} from "ethers"
 
-import {decimal, serializeToJson, unDecimal} from "../utils/Common"
+import {decimal, fetchPartyBEventFromQuote, serializeToJson, unDecimal} from "../utils/Common"
 import {logger} from "../utils/LoggerUtils"
 import {getPrice} from "../utils/PriceUtils"
 import {getDummyPairUpnlAndPriceSig, getDummySettlementSig, getDummySingleUpnlSig} from "../utils/SignatureUtils"
@@ -83,63 +83,12 @@ export class Hedger {
 		await tx.wait()
 	}
 
-	private async decryptQuoteData(partyBEvent: SendQuoteForPartyBEvent.OutputObject): Promise<{quantity: bigint, price: bigint, partyA: string}> {
+	public async decryptQuoteData(partyBEvent: SendQuoteForPartyBEvent.OutputObject): Promise<{quantity: bigint, price: bigint, partyA: string}> {
 		const { values } = partyBEvent
 		const { price, quantity } = values
 		const quantityDecrypted = await this.signer.decryptUint256(quantity)
 		const priceDecrypted = await this.signer.decryptUint256(price)
 		return { quantity: quantityDecrypted, price: priceDecrypted, partyA: partyBEvent.partyA }
-	}
-
-	private formatEncryptedQuoteValues(rawValues: any[]): any {
-		return {
-			price: this.convertRawCiphertextToCtUint256(rawValues[0]),
-			marketPrice: this.convertRawCiphertextToCtUint256(rawValues[1]),
-			quantity: this.convertRawCiphertextToCtUint256(rawValues[2]),
-			cva: this.convertRawCiphertextToCtUint256(rawValues[3]),
-			lf: this.convertRawCiphertextToCtUint256(rawValues[4]),
-			partyAmm: this.convertRawCiphertextToCtUint256(rawValues[5]),
-			partyBmm: this.convertRawCiphertextToCtUint256(rawValues[6]),
-			tradingFee: this.convertRawCiphertextToCtUint256(rawValues[7])
-		}
-	}
-
-	private convertRawCiphertextToCtUint256(rawCiphertext: [bigint, bigint]): { ciphertextHigh: bigint, ciphertextLow: bigint } {
-		return {
-			ciphertextHigh: rawCiphertext[0],
-			ciphertextLow: rawCiphertext[1]
-		}
-	}
-
-	private async fetchPartyBEventFromQuote(quoteId: bigint): Promise<SendQuoteForPartyBEvent.OutputObject> {
-		// Query SendQuoteForPartyB events filtered by quoteId
-		// Filter signature: SendQuoteForPartyB(address partyA, uint256 quoteId, address partyB, ...)
-		const filter = this.context.partyAFacet.filters.SendQuoteForPartyB(undefined, quoteId)
-		const events = await this.context.partyAFacet.queryFilter(filter)
-		
-		if (events.length === 0) {
-			throw new Error(`SendQuoteForPartyB event not found for quoteId: ${quoteId}`)
-		}
-
-		// Get the most recent event for this quoteId (in case there are multiple)
-		const event = events[events.length - 1]
-		if (!event.args) {
-			throw new Error(`SendQuoteForPartyB event has no args for quoteId: ${quoteId}`)
-		}
-
-		const args = event.args as any[]
-		const rawValues = args[6] // The EncryptedQuoteValues struct is at index 6
-		
-		return {
-			partyA: args[0],
-			quoteId: args[1],
-			partyB: args[2],
-			symbolId: args[3],
-			positionType: args[4],
-			orderType: args[5],
-			values: this.formatEncryptedQuoteValues(rawValues) as SendQuoteForPartyBEvent.OutputObject["values"],
-			deadline: args[7]
-		} as SendQuoteForPartyBEvent.OutputObject
 	}
 
 	public async lockQuote(quoteData: QuoteData, upnl: bigint = 0n, allocateCoefficient: bigint | null = decimal(12n, 17)) {
@@ -149,7 +98,7 @@ export class Hedger {
 		if (allocateCoefficient != null) {
 			// If partyBEvent is undefined, try to fetch it from the contract
 			if (partyBEvent == undefined) {
-				partyBEvent = await this.fetchPartyBEventFromQuote(id)
+				partyBEvent = await fetchPartyBEventFromQuote(this.context, id, this.signer)
 			}
 
 			if (partyBEvent == undefined) {
@@ -221,36 +170,101 @@ export class Hedger {
 
 	public async openPosition(quoteData: QuoteData | { quoteId: bigint; partyA: string }, request: OpenRequest = limitOpenRequestBuilder().build()) {
 		let partyA: string
+		let partyBEvent: SendQuoteForPartyBEvent.OutputObject | undefined
+		
 		if ('partyBEvent' in quoteData && quoteData.partyBEvent) {
 			partyA = quoteData.partyBEvent.partyA
+			partyBEvent = quoteData.partyBEvent
 		} else if ('partyA' in quoteData) {
 			partyA = quoteData.partyA
+			// Fetch PartyB event if not provided
+			partyBEvent = await fetchPartyBEventFromQuote(this.context, quoteData.quoteId, this.signer)
 		} else {
 			throw new Error("PartyA is required - provide either partyBEvent or partyA directly")
 		}
 		const user = this.context.manager.getUser(partyA)
+		
+		// Pre-flight checks before attempting openPosition
+		const quote = await this.context.viewFacet.getQuote(quoteData.quoteId)
+		const hedgerBalanceInfo = await this.getBalanceInfo(partyA)
+		const userBalanceInfo = await user.getBalanceInfo()
+		const hedgerUpnl = await this.getUpnl(partyA)
+		const userUpnl = await user.getUpnl()
+		const currentBlock = await this.signer.provider?.getBlock("latest")
+		const currentTimestamp = currentBlock ? BigInt(currentBlock.timestamp) : 0n
+		
+		// Get quote details for validation - use PartyB event data which hedger can decrypt
+		const { quantity: quoteQuantity, price: quoteRequestedOpenPrice } = await this.decryptQuoteData(partyBEvent)
+		const quoteMarketPrice = await this.signer.decryptUint256(partyBEvent.values.marketPrice)
+		
+		console.log(`Hedger::openPosition - quoteId: ${quoteData.quoteId}`)
+		console.log(`Hedger::openPosition - quoteStatus: ${quote.quoteStatus}`)
+		console.log(`Hedger::openPosition - orderType: ${quote.orderType} (0=MARKET, 1=LIMIT)`)
+		console.log(`Hedger::openPosition - positionType: ${quote.positionType} (0=LONG, 1=SHORT)`)
+		console.log(`Hedger::openPosition - deadline: ${quote.deadline}, currentTimestamp: ${currentTimestamp}`)
+		console.log(`Hedger::openPosition - quoteQuantity: ${quoteQuantity.toString()}`)
+		console.log(`Hedger::openPosition - quoteRequestedOpenPrice: ${quoteRequestedOpenPrice.toString()}`)
+		console.log(`Hedger::openPosition - quoteMarketPrice: ${quoteMarketPrice.toString()}`)
+		console.log(`Hedger::openPosition - filledAmount: ${request.filledAmount.toString()}`)
+		console.log(`Hedger::openPosition - openPrice: ${request.openPrice.toString()}`)
+		console.log(`Hedger::openPosition - price (market): ${request.price.toString()}`)
+		console.log(`Hedger::openPosition - partyAUpnl: ${request.upnlPartyA.toString()}`)
+		console.log(`Hedger::openPosition - partyBUpnl: ${request.upnlPartyB.toString()}`)
+		console.log(`Hedger::openPosition - hedgerAllocatedBalances: ${hedgerBalanceInfo.allocatedBalances.toString()}`)
+		console.log(`Hedger::openPosition - hedgerTotalLockedPartyB: ${hedgerBalanceInfo.totalLockedPartyB.toString()}`)
+		console.log(`Hedger::openPosition - userAllocatedBalances: ${userBalanceInfo.allocatedBalances.toString()}`)
+		console.log(`Hedger::openPosition - userTotalLockedPartyA: ${userBalanceInfo.totalLockedPartyA.toString()}`)
+		
+		// Validation checks
+		const openPriceBigInt = BigInt(request.openPrice.toString())
+		const filledAmountBigInt = BigInt(request.filledAmount.toString())
+		if (quote.orderType == 1n) { // LIMIT
+			if (quote.positionType == 0n) { // LONG
+				if (openPriceBigInt > quoteRequestedOpenPrice) {
+					console.log(`Hedger::openPosition - WARNING: LONG LIMIT - openPrice (${openPriceBigInt}) > requestedOpenPrice (${quoteRequestedOpenPrice})`)
+				}
+			} else { // SHORT
+				if (openPriceBigInt < quoteRequestedOpenPrice) {
+					console.log(`Hedger::openPosition - WARNING: SHORT LIMIT - openPrice (${openPriceBigInt}) < requestedOpenPrice (${quoteRequestedOpenPrice})`)
+				}
+			}
+			if (filledAmountBigInt > quoteQuantity || filledAmountBigInt == 0n) {
+				console.log(`Hedger::openPosition - WARNING: LIMIT - filledAmount (${filledAmountBigInt}) invalid for quantity (${quoteQuantity})`)
+			}
+		} else { // MARKET
+			if (filledAmountBigInt != quoteQuantity) {
+				console.log(`Hedger::openPosition - WARNING: MARKET - filledAmount (${filledAmountBigInt}) != quantity (${quoteQuantity})`)
+			}
+		}
+		
 		logger.detailedDebug(
 			serializeToJson({
 				request: request,
-				hedgerBalanceInfo: await this.getBalanceInfo(partyA),
-				hedgerUpnl: await this.getUpnl(partyA),
-				userBalanceInfo: await user.getBalanceInfo(),
-				userUpnl: await user.getUpnl(),
+				hedgerBalanceInfo: hedgerBalanceInfo,
+				hedgerUpnl: hedgerUpnl,
+				userBalanceInfo: userBalanceInfo,
+				userUpnl: userUpnl,
 			})
 		)
 		
 		const {encryptedParams, upnlSig} = await this.buildOpenPositionCalldataArgs(request)
 		
-		const tx = await runTx(
-			this.context.partyBPositionActionsFacet
-				.connect(this.signer)
-				.openPosition(
-					quoteData.quoteId,
-					encryptedParams,
-					upnlSig
-				)
-		)
-		logger.info(`Hedger::OpenPosition: ${quoteData.quoteId} gas used: ${tx.gasUsed.toString()}`)
+		try {
+			const tx = await runTx(
+				this.context.partyBPositionActionsFacet
+					.connect(this.signer)
+					.openPosition(
+						quoteData.quoteId,
+						encryptedParams,
+						upnlSig
+					)
+			)
+			logger.info(`Hedger::OpenPosition: ${quoteData.quoteId} gas used: ${tx.gasUsed.toString()}`)
+		} catch (error: any) {
+			console.log(`Hedger::openPosition - ERROR: ${error.message}`)
+			console.log(`Hedger::openPosition - Error code: ${error.code}`)
+			throw error
+		}
 	}
 
 	public async getBalance(): Promise<bigint> {
@@ -441,16 +455,56 @@ export class Hedger {
 		}
 
 		let upnl = 0n
+		const maxReasonableValue = decimal(1000000n, 18) // 1M tokens max
+		const minInt256 = -(2n ** 255n)
+		const maxInt256 = 2n ** 255n - 1n
+		
 		for (const pos of openPositions) {
-			// Decrypt encrypted quote fields
-			const openedPrice = await this.signer.decryptUint256(pos.openedPrice.userCiphertext)
-			const quantity = await this.signer.decryptUint256(pos.quantity.userCiphertext)
-			const closedAmount = await this.signer.decryptUint256(pos.closedAmount.userCiphertext)
-			
-			const priceDiff = openedPrice - await getPrice()
-			const amount = quantity - closedAmount
-			upnl += unDecimal(amount * priceDiff) * (pos.positionType === BigInt(PositionType.LONG) ? -1n : 1n)
+			try {
+				// Decrypt encrypted quote fields
+				const openedPrice = await this.signer.decryptUint256(pos.openedPrice.userCiphertext)
+				const quantity = await this.signer.decryptUint256(pos.quantity.userCiphertext)
+				const closedAmount = await this.signer.decryptUint256(pos.closedAmount.userCiphertext)
+				
+				// Validate decrypted values are reasonable (not garbage from uninitialized/corrupted data)
+				if (quantity > maxReasonableValue || openedPrice > maxReasonableValue || closedAmount > maxReasonableValue) {
+					console.log(`Hedger::getUpnl - Skipping position ${pos.id}: Invalid decrypted values (quantity: ${quantity}, openedPrice: ${openedPrice}, closedAmount: ${closedAmount})`)
+					continue
+				}
+				
+				if (closedAmount > quantity) {
+					console.log(`Hedger::getUpnl - Skipping position ${pos.id}: closedAmount (${closedAmount}) > quantity (${quantity})`)
+					continue
+				}
+				
+				const currentPrice = await getPrice()
+				const priceDiff = openedPrice - currentPrice
+				const amount = quantity - closedAmount
+				
+				// Calculate UPNL: original formula with bounds checking
+				let positionUpnl = unDecimal(amount * priceDiff) * (pos.positionType === BigInt(PositionType.LONG) ? -1n : 1n)
+				
+				// Clamp to int256 bounds to prevent overflow
+				if (positionUpnl < minInt256) {
+					console.log(`Hedger::getUpnl - Clamping position ${pos.id} UPNL from ${positionUpnl} to ${minInt256}`)
+					positionUpnl = minInt256
+				} else if (positionUpnl > maxInt256) {
+					console.log(`Hedger::getUpnl - Clamping position ${pos.id} UPNL from ${positionUpnl} to ${maxInt256}`)
+					positionUpnl = maxInt256
+				}
+				
+				upnl += positionUpnl
+			} catch (error: any) {
+				console.log(`Hedger::getUpnl - Error processing position ${pos.id}: ${error.message}`)
+				// Skip this position if decryption fails
+				continue
+			}
 		}
+		
+		// Final bounds check
+		if (upnl < minInt256) upnl = minInt256
+		if (upnl > maxInt256) upnl = maxInt256
+		
 		return upnl
 	}
 }
