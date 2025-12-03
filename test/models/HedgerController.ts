@@ -106,7 +106,7 @@ export class HedgerController {
 						user: user,
 					})
 				}
-				await this.hedger.lockQuote({ quoteId: quote.id, partyBEvent: undefined }, 0n, null)
+				await this.hedger.lockQuote({ quoteId: quote.id, partyBEvent: undefined })
 				if (validate) {
 					await (validator as LockQuoteValidator).after(this.context, {
 						user: user,
@@ -187,7 +187,7 @@ export class HedgerController {
 				let fillAmount: bigint
 				const symbol: SymbolStructOutput = await this.context.viewFacet.getSymbol(quote.symbolId)
 				if (quote.orderType == BigInt(OrderType.LIMIT)) {
-					const locked = await getTotalLockedValuesForQuoteIds(this.context, [quote.id], this.context.signers.user)
+					const locked = await getTotalLockedValuesForQuoteIds(this.context, [quote.id])
 					const minQuantity = safeDiv(symbol.minAcceptableQuoteValue * quantity, locked)
 					const max = quantity - minQuantity
 					if (max > minQuantity) {
@@ -217,7 +217,7 @@ export class HedgerController {
 					})
 				}
 				await this.hedger.openPosition(
-					{ quoteId: quote.id, partyA: quote.partyA },
+					{ quoteId: quote.id, partyBEvent: undefined },
 					Builder<OpenRequest>().filledAmount(fillAmount).openPrice(openPrice).upnlPartyA(partyAUpnl).upnlPartyB(partyBUpnl).price(price).build(),
 				)
 				if (validate) {

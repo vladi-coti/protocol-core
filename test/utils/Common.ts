@@ -153,7 +153,7 @@ export async function getTotalPartyBLockedValuesForQuotes(
 export async function getTotalLockedValuesForQuoteIds(
 	context: RunContext,
 	quoteIds: bigint[],
-	wallet: Wallet,
+	wallet: Wallet = context.signers.user,
 	includeMM: boolean = true,
 	returnAfterOpened: boolean = true,
 ): Promise<bigint> {

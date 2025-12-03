@@ -16,5 +16,5 @@ export const FacetNames = [
 
 export const DEPLOYMENT_LOG_FILE = "deployed.json"
 
-export const testnetChainId = 15151515n
+export const testnetChainId = 7082400n
 export const gasOptions = { gasLimit: 60000000, gasPrice: 1000000000 }

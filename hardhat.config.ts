@@ -35,7 +35,7 @@ const beraAPIKey: string = process.env.BERA_API_KEY || ""
 const hardhatDockerUrl: string | undefined = process.env.HARDHAT_DOCKER_URL || ""
 
 const config: HardhatUserConfig = {
-	defaultNetwork: "private-testnet",
+	defaultNetwork: "coti-testnet",
 	gasReporter: {
 		currency: "USD",
 		enabled: false,
@@ -48,9 +48,9 @@ const config: HardhatUserConfig = {
 			chainId: 15151515,
 			accounts: privateKeyList,
 			gasPrice: 1000000000,
-			gasMultiplier: 1.5, // Increased multiplier
+			gasMultiplier: 1.5,
 			blockGasLimit: 30000000,
-			timeout: 120000, // Increased timeout to 2 minutes
+			timeout: 120000,
 			initialBaseFeePerGas: 1200000000, // 1.2 gwei
 		},
 		"soda-testnet": {
@@ -58,22 +58,20 @@ const config: HardhatUserConfig = {
 			chainId: 50505050,
 			accounts: privateKeyList,
 			gasPrice: 1000000000,
-			gasMultiplier: 1.5, // Increased multiplier
+			gasMultiplier: 1.5,
 			blockGasLimit: 30000000,
-			timeout: 120000, // Increased timeout to 2 minutes
+			timeout: 120000,
 			initialBaseFeePerGas: 1200000000, // 1.2 gwei
 		},
 		"coti-testnet": {
 			url: "https://testnet.coti.io/rpc",
 			chainId: 7082400,
 			accounts: privateKeyList,
-			gas: 8000000,
-			gasPrice: 1200000000, // 1.2 gwei - slightly higher
-			gasMultiplier: 1.5, // Increased multiplier
+			gasPrice: 1000000000,
+			gasMultiplier: 1.5,
 			blockGasLimit: 30000000,
-			timeout: 120000, // Increased timeout to 2 minutes
+			timeout: 120000,
 			initialBaseFeePerGas: 1200000000, // 1.2 gwei
-			hardfork: "london",
 		},
 		"coti-mainnet": {
 			url: "https://mainnet.coti.io/rpc",
