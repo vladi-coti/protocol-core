@@ -18,7 +18,6 @@ import {
 	PrivateClosePositionParamsStruct,
 	PrivateOpenPositionParamsStruct,
 	QuoteStructOutput,
-	SendQuoteForPartyBEvent,
 	SettlementSigStructOutput,
 	SingleUpnlSigStruct,
 } from "../../src/types/contracts/interfaces/ISymmio"
@@ -83,22 +82,14 @@ export class Hedger {
 		await tx.wait()
 	}
 
-	private async decryptQuoteData(partyBEvent: SendQuoteForPartyBEvent.OutputObject): Promise<{quantity: bigint, price: bigint, partyA: string}> {
-		const { values } = partyBEvent
-		const { price, quantity } = values
-		const quantityDecrypted = await this.signer.decryptUint256(quantity)
-		const priceDecrypted = await this.signer.decryptUint256(price)
-		return { quantity: quantityDecrypted, price: priceDecrypted, partyA: partyBEvent.partyA }
-	}
-
 	public async lockQuote(quoteData: QuoteData, upnl: bigint = 0n, allocateCoefficient: bigint | null = decimal(12n, 17)) {
 		const { quoteId: id } = quoteData
 		if (allocateCoefficient != null) {
-			if(quoteData.partyBEvent == undefined) {
-				throw new Error("PartyBEvent is undefined")
-			}
-			const { partyA } = quoteData.partyBEvent
-			const { price, quantity } = await this.decryptQuoteData(quoteData.partyBEvent)
+			const quote = await this.context.viewFacet.getQuote(id)
+			const partyA = quote.partyA
+			const user = this.context.manager.getUser(partyA)
+			const price = await user.decryptUint256(quote.requestedOpenPrice.userCiphertext)
+			const quantity = await user.decryptUint256(quote.quantity.userCiphertext)
 			console.log("Hedger::LockQuote: price: ", price)
 			console.log("Hedger::LockQuote: quantity: ", quantity)
 			const notional = unDecimal(quantity * price)
@@ -119,11 +110,13 @@ export class Hedger {
 	public async lockAndOpenQuote(quoteData: QuoteData, allocateCoefficient: bigint | null = decimal(12n, 17), openRequest: OpenRequest = limitOpenRequestBuilder().build()) {
 		const { quoteId: id } = quoteData
 		if (allocateCoefficient != null) {
-			if(quoteData.partyBEvent == undefined) {
-				throw new Error("PartyBEvent is undefined")
-			}
-			const { partyA } = quoteData.partyBEvent
-			const { price, quantity } = await this.decryptQuoteData(quoteData.partyBEvent)
+			const quote = await this.context.viewFacet.getQuote(id)
+			const partyA = quote.partyA
+			const user = this.context.manager.getUser(partyA)
+			const price = await user.decryptUint256(quote.requestedOpenPrice.userCiphertext)
+			const quantity = await user.decryptUint256(quote.quantity.userCiphertext)
+			console.log("Hedger::LockAndOpenQuote: price: ", price)
+			console.log("Hedger::LockAndOpenQuote: quantity: ", quantity)
 			const notional = unDecimal(quantity * price)
 			await runTx(
 				this.context.accountFacet.connect(this.signer).allocateForPartyB(unDecimal(notional * BigInt(allocateCoefficient)), partyA)
@@ -162,38 +155,142 @@ export class Hedger {
 		}
 	}
 
-	public async openPosition(quoteData: QuoteData | { quoteId: bigint; partyA: string }, request: OpenRequest = limitOpenRequestBuilder().build()) {
-		let partyA: string
-		if ('partyBEvent' in quoteData && quoteData.partyBEvent) {
-			partyA = quoteData.partyBEvent.partyA
-		} else if ('partyA' in quoteData) {
-			partyA = quoteData.partyA
-		} else {
-			throw new Error("PartyA is required - provide either partyBEvent or partyA directly")
-		}
+	public async openPosition({quoteId: id}: QuoteData, request: OpenRequest = limitOpenRequestBuilder().build()) {
+		const quote = await this.context.viewFacet.getQuote(id)
+		
+		const partyA = quote.partyA
 		const user = this.context.manager.getUser(partyA)
+		
+		// Pre-flight validation checks
+		const symbol = await this.context.viewFacet.getSymbol(quote.symbolId)
+		const requestedOpenPrice = await user.decryptUint256(quote.requestedOpenPrice.userCiphertext)
+		const quantity = await user.decryptUint256(quote.quantity.userCiphertext)
+		const openPrice = BigInt(request.openPrice.toString())
+		const filledAmount = BigInt(request.filledAmount.toString())
+		
+		// Get locked values from pending balances (before opening)
+		const hedgerBalanceInfo = await this.getBalanceInfo(partyA)
+		const userBalanceInfo = await user.getBalanceInfo()
+		const hedgerUpnl = await this.getUpnl(partyA)
+		const userUpnl = await user.getUpnl()
+		const marketPrice = BigInt(request.price.toString())
+		
+		// Calculate what the scaled locked values will be after opening
+		const priceScale = openPrice * 10n**18n / requestedOpenPrice
+		const totalPendingLockedPartyA = userBalanceInfo.totalPendingLockedPartyA
+		const scaledTotalForPartyA = (totalPendingLockedPartyA * priceScale) / 10n**18n
+		
+		// Calculate leverage: (quantity * openedPrice) / totalForPartyA
+		// Contract comment says "is in 18 decimals", meaning the result is in 18 decimals
+		// Since quantity and openedPrice are already in 18 decimals, and totalForPartyA is in base units,
+		// the result is: (quantity * openedPrice) / totalForPartyA (already in 18 decimals)
+		const leverage = (filledAmount * openPrice) / scaledTotalForPartyA
+		
+		// Calculate solvency check (happens AFTER position is opened)
+		// The solvency check uses locked balances AFTER opening, so we need to account for the new locked values
+		// Get locked values for THIS quote from the quote itself (encrypted for PartyA, so use user's wallet)
+		const quoteCva = await user.decryptUint256(quote.lockedValues.cva.userCiphertext)
+		const quoteLf = await user.decryptUint256(quote.lockedValues.lf.userCiphertext)
+		
+		// Scale the locked values by price scale
+		const scaledQuoteCva = (quoteCva * priceScale) / 10n**18n
+		const scaledQuoteLf = (quoteLf * priceScale) / 10n**18n
+		
+		// After opening, the new locked balances are: current locked + scaled quote locked values
+		// The solvency check uses only CVA+LF (not MM) for available balance calculation
+		// Note: The quote's values are currently in pendingLockedBalances, and will be:
+		// 1. Removed from pendingLockedBalances (unscaled)
+		// 2. Added to lockedBalances (scaled)
+		const currentLockedCvaLfPartyA = userBalanceInfo.lockedCva + userBalanceInfo.lockedLf
+		const currentLockedCvaLfPartyB = hedgerBalanceInfo.lockedCva + hedgerBalanceInfo.lockedLf
+		const newLockedCvaLfPartyA = currentLockedCvaLfPartyA + scaledQuoteCva + scaledQuoteLf
+		const newLockedCvaLfPartyB = currentLockedCvaLfPartyB + scaledQuoteCva + scaledQuoteLf
+		
+		// Calculate PnL adjustment: filledAmount * (openedPrice - marketPrice) / 1e18
+		// The contract uses: gtDiff = gtFilledAmount.mul(gtOpenedPrice.sub(gtMarketPrice)).div(gtScaleFactor)
+		// If openedPrice < marketPrice, the subtraction underflows in uint256
+		// When converted to signed, a large uint256 (from underflow) becomes a large negative int256
+		// We need to simulate this: calculate the actual signed difference
+		const actualPriceDiff = openPrice >= marketPrice 
+			? openPrice - marketPrice 
+			: -(marketPrice - openPrice) // Negative value
+		const pnlDiff = (filledAmount * actualPriceDiff) / 10n**18n
+		
+		// Calculate available balances after opening (for solvency check)
+		// PartyA: available = (allocated - cvaLf) + upnl + adjustment
+		// PartyB: available = (allocated - cvaLf) + upnl + adjustment
+		const partyAFreeBalance = userBalanceInfo.allocatedBalances - newLockedCvaLfPartyA
+		const partyBFreeBalance = hedgerBalanceInfo.allocatedBalances - newLockedCvaLfPartyB
+		
+		let partyAAvailableAfter: bigint
+		let partyBAvailableAfter: bigint
+		
+		// Apply PnL adjustment based on position type
+		// The contract uses: gtPartyAAdjustment and gtPartyBAdjustment based on position type and price comparison
+		// Since pnlDiff already has the correct sign (positive when PartyA gains, negative when PartyA loses),
+		// we just add it directly for both parties (with opposite signs)
+		partyAAvailableAfter = partyAFreeBalance + userUpnl + pnlDiff
+		partyBAvailableAfter = partyBFreeBalance + hedgerUpnl - pnlDiff
+		
+		console.log("Hedger::OpenPosition: quoteId: ", id)
+		console.log("Hedger::OpenPosition: orderType: ", quote.orderType, " (0=LIMIT, 1=MARKET)")
+		console.log("Hedger::OpenPosition: positionType: ", quote.positionType, " (0=LONG, 1=SHORT)")
+		console.log("Hedger::OpenPosition: requestedOpenPrice: ", requestedOpenPrice)
+		console.log("Hedger::OpenPosition: openPrice (being sent): ", openPrice)
+		console.log("Hedger::OpenPosition: marketPrice: ", marketPrice)
+		console.log("Hedger::OpenPosition: quantity: ", quantity)
+		console.log("Hedger::OpenPosition: filledAmount: ", filledAmount)
+		console.log("Hedger::OpenPosition: priceScale: ", priceScale, " (openedPrice/requestedOpenPrice)")
+		console.log("Hedger::OpenPosition: totalPendingLockedPartyA (unscaled): ", totalPendingLockedPartyA)
+		console.log("Hedger::OpenPosition: scaledTotalForPartyA: ", scaledTotalForPartyA)
+		console.log("Hedger::OpenPosition: minAcceptableQuoteValue: ", symbol.minAcceptableQuoteValue)
+		console.log("Hedger::OpenPosition: leverage: ", leverage)
+		console.log("Hedger::OpenPosition: maxLeverage: ", symbol.maxLeverage)
+		console.log("Hedger::OpenPosition: SOLVENCY CHECK:")
+		console.log("Hedger::OpenPosition:   Quote CVA (unscaled): ", quoteCva, ", LF (unscaled): ", quoteLf)
+		console.log("Hedger::OpenPosition:   Quote CVA (scaled): ", scaledQuoteCva, ", LF (scaled): ", scaledQuoteLf)
+		console.log("Hedger::OpenPosition:   PartyA: currentLockedCvaLf=", currentLockedCvaLfPartyA, ", newLockedCvaLf=", newLockedCvaLfPartyA)
+		console.log("Hedger::OpenPosition:   PartyA: allocated=", userBalanceInfo.allocatedBalances, ", freeBalance=", partyAFreeBalance)
+		console.log("Hedger::OpenPosition:   PartyA: currentUpnl=", userUpnl, ", pnlDiff=", pnlDiff, " (actualPriceDiff=", actualPriceDiff, "), availableAfter=", partyAAvailableAfter)
+		console.log("Hedger::OpenPosition:   PartyB: currentLockedCvaLf=", currentLockedCvaLfPartyB, ", newLockedCvaLf=", newLockedCvaLfPartyB)
+		console.log("Hedger::OpenPosition:   PartyB: allocated=", hedgerBalanceInfo.allocatedBalances, ", freeBalance=", partyBFreeBalance)
+		console.log("Hedger::OpenPosition:   PartyB: currentUpnl=", hedgerUpnl, ", pnlDiff=", pnlDiff, " (actualPriceDiff=", actualPriceDiff, "), availableAfter=", partyBAvailableAfter)
+		
+		if (scaledTotalForPartyA < symbol.minAcceptableQuoteValue) {
+			console.log("Hedger::OpenPosition: WARNING - scaledTotalForPartyA < minAcceptableQuoteValue - will revert!")
+		}
+		if (leverage > symbol.maxLeverage) {
+			console.log("Hedger::OpenPosition: WARNING - leverage > maxLeverage - will revert!")
+		}
+		if (partyAAvailableAfter < 0n) {
+			console.log("Hedger::OpenPosition: WARNING - PartyA availableBalance < 0 - will revert!")
+		}
+		if (partyBAvailableAfter < 0n) {
+			console.log("Hedger::OpenPosition: WARNING - PartyB availableBalance < 0 - will revert!")
+		}
+		
 		logger.detailedDebug(
 			serializeToJson({
 				request: request,
-				hedgerBalanceInfo: await this.getBalanceInfo(partyA),
+				hedgerBalanceInfo: hedgerBalanceInfo,
 				hedgerUpnl: await this.getUpnl(partyA),
-				userBalanceInfo: await user.getBalanceInfo(),
+				userBalanceInfo: userBalanceInfo,
 				userUpnl: await user.getUpnl(),
 			})
 		)
-		
+
 		const {encryptedParams, upnlSig} = await this.buildOpenPositionCalldataArgs(request)
 		
 		const tx = await runTx(
 			this.context.partyBPositionActionsFacet
 				.connect(this.signer)
 				.openPosition(
-					quoteData.quoteId,
+					id,
 					encryptedParams,
 					upnlSig
 				)
 		)
-		logger.info(`Hedger::OpenPosition: ${quoteData.quoteId} gas used: ${tx.gasUsed.toString()}`)
+		logger.info(`Hedger::OpenPosition: ${id} gas used: ${tx.gasUsed.toString()}`)
 	}
 
 	public async getBalance(): Promise<bigint> {
@@ -385,10 +482,12 @@ export class Hedger {
 
 		let upnl = 0n
 		for (const pos of openPositions) {
+			const user = this.context.manager.getUser(pos.partyA)
+
 			// Decrypt encrypted quote fields
-			const openedPrice = await this.signer.decryptUint256(pos.openedPrice.userCiphertext)
-			const quantity = await this.signer.decryptUint256(pos.quantity.userCiphertext)
-			const closedAmount = await this.signer.decryptUint256(pos.closedAmount.userCiphertext)
+			const openedPrice = await user.decryptUint256(pos.openedPrice.userCiphertext)
+			const quantity = await user.decryptUint256(pos.quantity.userCiphertext)
+			const closedAmount = await user.decryptUint256(pos.closedAmount.userCiphertext)
 			
 			const priceDiff = openedPrice - await getPrice()
 			const amount = quantity - closedAmount

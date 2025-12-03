@@ -49,6 +49,12 @@ export function shouldBehaveLikeFuzzTest(): void {
 		await hedgerController.start()
 		await user.setBalances(decimal(100000n), decimal(100000n), decimal(100000n))
 
+		// Track statistics
+		let totalAttempts = 0
+		let successfulQuotes = 0
+		let transactionReverts = 0
+		let otherErrors = 0
+
 		const subscription = interval(ACTION_LOOP_INTERVAL_MS).subscribe(() => {
 			manager.actionsLoop.next({
 				title: "SendQuote",
@@ -57,9 +63,11 @@ export function shouldBehaveLikeFuzzTest(): void {
 						if (manager.getPauseState()) {
 							reject()
 						}
+						totalAttempts++
 						userController
 							.sendQuote()
 							.then(() => {
+								successfulQuotes++
 								resolve()
 							})
 							.catch(error => {
@@ -67,11 +75,20 @@ export function shouldBehaveLikeFuzzTest(): void {
 									if (error.message.indexOf("Insufficient funds available") >= 0) {
 										console.error(error.message)
 										subscription.unsubscribe()
+										resolve()
 									} else if (error.message.indexOf("Too many open quotes") >= 0) {
-										// DO nothing
+										// Expected, continue
+										resolve()
+									} else if (error.message.indexOf("Transaction reverted") >= 0) {
+										transactionReverts++
+										// Continue fuzzing, but track the revert
+										resolve()
+									} else {
+										otherErrors++
+										resolve()
 									}
-									resolve()
 								} else {
+									otherErrors++
 									reject(error)
 									process.exitCode = 1
 									console.error(error)
@@ -83,5 +100,30 @@ export function shouldBehaveLikeFuzzTest(): void {
 		})
 
 		await new Promise(r => setTimeout(r, ACTION_LOOP_DURATION_MS))
+		subscription.unsubscribe()
+
+		// Calculate failure rate
+		const totalFailures = transactionReverts + otherErrors
+		const failureRate = totalAttempts > 0 ? (totalFailures / totalAttempts) * 100 : 0
+
+		console.log(`\nFuzz Test Statistics:`)
+		console.log(`  Total attempts: ${totalAttempts}`)
+		console.log(`  Successful quotes: ${successfulQuotes}`)
+		console.log(`  Transaction reverts: ${transactionReverts}`)
+		console.log(`  Other errors: ${otherErrors}`)
+		console.log(`  Failure rate: ${failureRate.toFixed(2)}%`)
+
+		// Fail the test if failure rate is too high (> 80%)
+		if (failureRate > 80 && totalAttempts >= 3) {
+			throw new Error(
+				`Fuzz test failure rate too high: ${failureRate.toFixed(2)}% (${totalFailures}/${totalAttempts} failures). ` +
+				`This suggests a systemic issue with quote generation or encrypted validation.`
+			)
+		}
+
+		// Warn if failure rate is high but not critical
+		if (failureRate > 50 && totalAttempts >= 3) {
+			console.warn(`Warning: High failure rate: ${failureRate.toFixed(2)}%`)
+		}
 	})
 }
