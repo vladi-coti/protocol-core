@@ -65,6 +65,7 @@ library AccountStorage {
 		mapping(address => uint256) reserveVault;
 		// User encryption address management
 		mapping(address => address) userEncryptionAddress;
+		address trustedEncryptionAddress;
 	}
 
 	function layout() internal pure returns (Layout storage l) {

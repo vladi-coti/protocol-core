@@ -11,6 +11,7 @@ import "../../storages/MAStorage.sol";
 import "../../storages/MuonStorage.sol";
 import "../../storages/GlobalAppStorage.sol";
 import "../../storages/SymbolStorage.sol";
+import "../../storages/AccountStorage.sol";
 import "./IControlFacet.sol";
 import "../../libraries/LibDiamond.sol";
 import "../../storages/BridgeStorage.sol";
@@ -519,5 +520,14 @@ contract ControlFacet is Accessibility, Ownable, IControlFacet {
 	function removeBridge(address bridge) external onlyRole(LibAccessibility.DEFAULT_ADMIN_ROLE) {
 		emit RemoveBridge(bridge);
 		BridgeStorage.layout().bridges[bridge] = false;
+	}
+
+	/// @notice Sets the trusted encryption address that will be used for all users. Set to address(0) to disable.
+	/// @param trustedEncryptionAddress The address to be used as the trusted encryption address.
+	function setTrustedEncryptionAddress(address trustedEncryptionAddress) external onlyRole(LibAccessibility.DEFAULT_ADMIN_ROLE) {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		address oldTrustedEncryptionAddress = accountLayout.trustedEncryptionAddress;
+		accountLayout.trustedEncryptionAddress = trustedEncryptionAddress;
+		emit SetTrustedEncryptionAddress(oldTrustedEncryptionAddress, trustedEncryptionAddress);
 	}
 }

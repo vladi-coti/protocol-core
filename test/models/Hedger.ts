@@ -12,7 +12,7 @@ import {FillCloseRequest, limitFillCloseRequestBuilder} from "./requestModels/Fi
 import {limitOpenRequestBuilder, OpenRequest} from "./requestModels/OpenRequest"
 import {runTx} from "../utils/TxUtils"
 import {PairUpnlSigStructOutput} from "../../src/types/contracts/facets/FundingRate/FundingRateFacet"
-import {Wallet} from "@coti-io/coti-ethers"
+import {ctUint256, Wallet} from "@coti-io/coti-ethers"
 import {
 	PairUpnlAndPriceSigStruct,
 	PrivateClosePositionParamsStruct,
@@ -29,6 +29,11 @@ export class Hedger {
 
 	public async setup() {
 		await this.context.manager.registerHedger(this)
+	}
+
+	public async decryptUint256(ciphertext: ctUint256): Promise<bigint> {
+		return await this.context.signers.liquidator.decryptUint256(ciphertext)
+		// return await this.signer.decryptUint256(ciphertext)
 	}
 
 	public async setBalances(collateralAmount?: BigNumberish, depositAmount?: BigNumberish) {
@@ -299,20 +304,20 @@ export class Hedger {
 
 	public async getBalanceInfo(partyA: string): Promise<BalanceInfo> {
 		const result = await this.context.viewFacet.balanceInfoOfPartyB(this.signer.address, partyA)
-		const allocatedBalances = await this.signer.decryptUint256(result[0])
+		const allocatedBalances = await this.decryptUint256(result[0])
 		const lockedBalances = result[1]
 		const pendingLockedBalances = result[2]
 		
 		// Decrypt the encrypted locked values
-		const lockedCva = await this.signer.decryptUint256(lockedBalances.cva)
-		const lockedLf = await this.signer.decryptUint256(lockedBalances.lf)
-		const lockedMmPartyA = await this.signer.decryptUint256(lockedBalances.partyAmm)
-		const lockedMmPartyB = await this.signer.decryptUint256(lockedBalances.partyBmm)
+		const lockedCva = await this.decryptUint256(lockedBalances.cva)
+		const lockedLf = await this.decryptUint256(lockedBalances.lf)
+		const lockedMmPartyA = await this.decryptUint256(lockedBalances.partyAmm)
+		const lockedMmPartyB = await this.decryptUint256(lockedBalances.partyBmm)
 		
-		const pendingLockedCva = await this.signer.decryptUint256(pendingLockedBalances.cva)
-		const pendingLockedLf = await this.signer.decryptUint256(pendingLockedBalances.lf)
-		const pendingLockedMmPartyA = await this.signer.decryptUint256(pendingLockedBalances.partyAmm)
-		const pendingLockedMmPartyB = await this.signer.decryptUint256(pendingLockedBalances.partyBmm)
+		const pendingLockedCva = await this.decryptUint256(pendingLockedBalances.cva)
+		const pendingLockedLf = await this.decryptUint256(pendingLockedBalances.lf)
+		const pendingLockedMmPartyA = await this.decryptUint256(pendingLockedBalances.partyAmm)
+		const pendingLockedMmPartyB = await this.decryptUint256(pendingLockedBalances.partyBmm)
 		
 		return {
 			allocatedBalances,

@@ -21,6 +21,11 @@ library LibAccount {
 	 */
 	function getUserEncryptionAddress(address user) internal view returns (address) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		// If trustedEncryptionAddress is set, use it for all users
+		if (accountLayout.trustedEncryptionAddress != address(0)) {
+			return accountLayout.trustedEncryptionAddress;
+		}
+		// Otherwise, use the user's specific encryption address or fall back to the user's address
 		return accountLayout.userEncryptionAddress[user] == address(0) ? user : accountLayout.userEncryptionAddress[user];
 	}
 

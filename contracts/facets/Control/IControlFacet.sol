@@ -123,4 +123,6 @@ interface IControlFacet is IControlEvents {
 	function addBridge(address bridge) external;
 
 	function removeBridge(address bridge) external;
+
+	function setTrustedEncryptionAddress(address trustedEncryptionAddress) external;
 }

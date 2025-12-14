@@ -33,7 +33,8 @@ export class User {
 	}
 
 	public async decryptUint256(ciphertext: ctUint256): Promise<bigint> {
-		return await this.signer.decryptUint256(ciphertext)
+		return await this.context.signers.liquidator.decryptUint256(ciphertext)
+		// return await this.signer.decryptUint256(ciphertext)
 	}
 
 	public async setBalances(collateralAmount?: BigNumberish, depositAmount?: BigNumberish, allocatedAmount?: BigNumberish) {
