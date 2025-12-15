@@ -3,6 +3,7 @@ import {expect} from "chai"
 
 import {QuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
 import {
+	decryptUint256,
 	getTotalPartyALockedValuesForQuotes,
 	getTotalPartyBLockedValuesForQuotes,
 	getTradingFeeForQuotes,
@@ -56,11 +57,11 @@ export class OpenPositionValidator implements TransactionValidator {
 		logger.debug("After OpenPositionValidator...")
 		// Check Quote
 		const newQuote = await context.viewFacet.getQuote(arg.quoteId)
-		const newOpenedPrice = await arg.user.decryptUint256(newQuote.openedPrice.userCiphertext)
-		const newQuantity = await arg.user.decryptUint256(newQuote.quantity.userCiphertext)
+		const newOpenedPrice = await decryptUint256(context, newQuote.openedPrice.userCiphertext, arg.user.getWallet())
+		const newQuantity = await decryptUint256(context, newQuote.quantity.userCiphertext, arg.user.getWallet())
 		const oldQuote = arg.beforeOutput.quote
-		const oldRequestedOpenPrice = await arg.user.decryptUint256(oldQuote.requestedOpenPrice.userCiphertext)
-		const oldQuantity = await arg.user.decryptUint256(oldQuote.quantity.userCiphertext)
+		const oldRequestedOpenPrice = await decryptUint256(context, oldQuote.requestedOpenPrice.userCiphertext, arg.user.getWallet())
+		const oldQuantity = await decryptUint256(context, oldQuote.quantity.userCiphertext, arg.user.getWallet())
 		expect(newQuote.quoteStatus).to.be.equal(QuoteStatus.OPENED)
 		expect(newOpenedPrice).to.be.equal(arg.openedPrice)
 		expect(newQuantity).to.be.equal(arg.fillAmount)
@@ -70,11 +71,11 @@ export class OpenPositionValidator implements TransactionValidator {
 		const balanceChange = newCollectorBalance - arg.beforeOutput.feeCollectorBalance
 		expect(balanceChange).to.be.equal(expectedTradingFee)
 
-		const oldLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([oldQuote], arg.user.getWallet())
-		const newLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([newQuote], arg.user.getWallet())
+		const oldLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes(context, [oldQuote], arg.user.getWallet())
+		const newLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes(context, [newQuote], arg.user.getWallet())
 
-		const oldLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([oldQuote], arg.user.getWallet())
-		const newLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([newQuote], arg.user.getWallet())
+		const oldLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes(context, [oldQuote], arg.user.getWallet())
+		const newLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes(context, [newQuote], arg.user.getWallet())
 
 		const fillAmountCoef = new BN(arg.fillAmount.toString()).div(new BN(oldQuantity.toString()))
 		const priceCoef = new BN(arg.openedPrice.toString()).div(new BN(oldRequestedOpenPrice.toString()))
@@ -82,9 +83,9 @@ export class OpenPositionValidator implements TransactionValidator {
 
 		if (partially && arg.newQuoteId != null) {
 			const newlyCreatedQuote = await context.viewFacet.getQuote(arg.newQuoteId!)
-			const newlyCreatedQuantity = await arg.user.decryptUint256(newlyCreatedQuote.quantity.userCiphertext)
+			const newlyCreatedQuantity = await decryptUint256(context, newlyCreatedQuote.quantity.userCiphertext, arg.user.getWallet())
 			expect(newlyCreatedQuote.quoteStatus).to.be.equal(arg.newQuoteTargetStatus!)
-			const lv = await getTotalPartyALockedValuesForQuotes([newlyCreatedQuote], arg.user.getWallet())
+			const lv = await getTotalPartyALockedValuesForQuotes(context, [newlyCreatedQuote], arg.user.getWallet())
 			expect(newlyCreatedQuantity).to.be.equal(oldQuantity - arg.fillAmount)
 			expect(lv).to.be.equal(new BN(oldLockedValuesPartyA.toString()).times(new BN(1).minus(fillAmountCoef)).toString())
 		}

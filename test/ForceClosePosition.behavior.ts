@@ -9,6 +9,7 @@ import {User} from "./models/User"
 import {limitCloseRequestBuilder, marketCloseRequestBuilder} from "./models/requestModels/CloseRequest"
 import {limitQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
 import {
+	decryptUint256,
 	decimal,
 	getBlockTimestamp,
 	getQuoteQuantity,
@@ -149,7 +150,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 	it("Should fail when price not reached to requested close price", async function () {
 		const sigTimes = await prepareSigTimes()
 		const gapRatio1 = await context.viewFacet.forceCloseGapRatio(quote1LongOpened.symbolId)
-		const decryptedRequestedClosePrice1 = await user.decryptUint256(quote1LongOpened.requestedClosePrice.userCiphertext)
+		const decryptedRequestedClosePrice1 = await decryptUint256(context, quote1LongOpened.requestedClosePrice.userCiphertext, user.getWallet())
 		let dummySig = await getDummyHighLowPriceSig(
 			sigTimes[0], // startTime
 			sigTimes[1], // endTime
@@ -167,7 +168,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 		dummySig = await getDummyHighLowPriceSig(
 			sigTimes[0], // startTime
 			sigTimes[1], // endTime
-			await user.decryptUint256(quote2ShortOpened.requestedClosePrice.userCiphertext) + unDecimal(await user.decryptUint256(quote2ShortOpened.requestedClosePrice.userCiphertext) * BigInt(gapRatio2)) + decimal(1n),  // lowest
+			await decryptUint256(context, quote2ShortOpened.requestedClosePrice.userCiphertext, user.getWallet()) + unDecimal(await decryptUint256(context, quote2ShortOpened.requestedClosePrice.userCiphertext, user.getWallet()) * BigInt(gapRatio2)) + decimal(1n),  // lowest
 			decimal(10n), // highest
 			decimal(7n),  // currentPrice
 			decimal(8n),  // averagePrice
@@ -184,7 +185,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 		const dummySig = await getDummyHighLowPriceSig(
 			sigTimes[0], // startTime
 			sigTimes[1], // endTime
-			await user.decryptUint256(quote2ShortOpened.requestedClosePrice.userCiphertext) + unDecimal(await user.decryptUint256(quote2ShortOpened.requestedClosePrice.userCiphertext) * BigInt(gapRatio2)) - decimal(1n),  // lowest
+			await decryptUint256(context, quote2ShortOpened.requestedClosePrice.userCiphertext, user.getWallet()) + unDecimal(await decryptUint256(context, quote2ShortOpened.requestedClosePrice.userCiphertext, user.getWallet()) * BigInt(gapRatio2)) - decimal(1n),  // lowest
 			decimal(1n), // highest
 			decimal(1n),  // currentPrice
 			decimal(1n),  // averagePrice
@@ -210,7 +211,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 		const dummySig = await getDummyHighLowPriceSig(
 			sigTimes[0],  // startTime
 			sigTimes[1],  // endTime
-			await user.decryptUint256(quote2ShortOpened.requestedClosePrice.userCiphertext) + unDecimal(await user.decryptUint256(quote2ShortOpened.requestedClosePrice.userCiphertext) * BigInt(gapRatio2)) - decimal(1n),  // lowest
+			await decryptUint256(context, quote2ShortOpened.requestedClosePrice.userCiphertext, user.getWallet()) + unDecimal(await decryptUint256(context, quote2ShortOpened.requestedClosePrice.userCiphertext, user.getWallet()) * BigInt(gapRatio2)) - decimal(1n),  // lowest
 			decimal(1n),  // highest
 			decimal(1n),   // currentPrice
 			decimal(1n),   // averagePrice
@@ -280,7 +281,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 			const dummySig = await getDummyHighLowPriceSig(
 				sigTimes[0],  				// startTime
 				sigTimes[1],  				// endTime
-				await user.decryptUint256(quote2ShortOpened.requestedClosePrice.userCiphertext) + unDecimal(await user.decryptUint256(quote2ShortOpened.requestedClosePrice.userCiphertext) * BigInt(gapRatio2)) - decimal(1n),  // lowest
+				await decryptUint256(context, quote2ShortOpened.requestedClosePrice.userCiphertext, user.getWallet()) + unDecimal(await decryptUint256(context, quote2ShortOpened.requestedClosePrice.userCiphertext, user.getWallet()) * BigInt(gapRatio2)) - decimal(1n),  // lowest
 				decimal(10n),  				// highest
 				marketPrice,   				// currentPrice
 				decimal(8n),   				// averagePrice
@@ -292,9 +293,9 @@ export function shouldBehaveLikeForceClosePosition(): void {
 			let balanceInfo: BalanceInfo = await hedger.getBalanceInfo(userAddress)
 			expect(balanceInfo.allocatedBalances.toString()).to.not.be.equal("0")
 
-			let diff = unDecimal((marketPrice - await user.decryptUint256(quote2ShortOpened.requestedClosePrice.userCiphertext)) * await user.decryptUint256(quote2ShortOpened.quantity.userCiphertext))
-			const decryptedCva = await user.decryptUint256(quote2ShortOpened.lockedValues.cva.userCiphertext)
-			const decryptedLf = await user.decryptUint256(quote2ShortOpened.lockedValues.lf.userCiphertext)
+			let diff = unDecimal((marketPrice - await decryptUint256(context, quote2ShortOpened.requestedClosePrice.userCiphertext, user.getWallet())) * await decryptUint256(context, quote2ShortOpened.quantity.userCiphertext, user.getWallet()))
+			const decryptedCva = await decryptUint256(context, quote2ShortOpened.lockedValues.cva.userCiphertext, user.getWallet())
+			const decryptedLf = await decryptUint256(context, quote2ShortOpened.lockedValues.lf.userCiphertext, user.getWallet())
 			const reserveLeft = reserveBalance + balance.allocatedBalances - diff - balance.lockedCva - balance.lockedLf + decryptedCva + decryptedLf
 			expect(await hedger.balanceOfReserveVault()).to.be.equal(reserveLeft)
 		})
@@ -312,7 +313,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 		const dummySig = await getDummyHighLowPriceSig(
 			sigTimes[0],  // startTime
 			sigTimes[1],  // endTime
-			await user.decryptUint256(quote2ShortOpened.requestedClosePrice.userCiphertext) + unDecimal(await user.decryptUint256(quote2ShortOpened.requestedClosePrice.userCiphertext) * BigInt(gapRatio2)) - decimal(1n),  // lowest
+			await decryptUint256(context, quote2ShortOpened.requestedClosePrice.userCiphertext, user.getWallet()) + unDecimal(await decryptUint256(context, quote2ShortOpened.requestedClosePrice.userCiphertext, user.getWallet()) * BigInt(gapRatio2)) - decimal(1n),  // lowest
 			decimal(3n),  // highest
 			decimal(2n),   // currentPrice
 			decimal(2n),   // averagePrice
@@ -347,15 +348,15 @@ export function shouldBehaveLikeForceClosePosition(): void {
 			const penalty = await context.viewFacet.forceClosePricePenalty()
 			const quote = await context.viewFacet.getQuote(1)
 
-			const decryptedAvgClosedPrice = await user.decryptUint256(quote.avgClosedPrice.userCiphertext)
-			const decryptedClosedAmount = await user.decryptUint256(quote.closedAmount.userCiphertext)
-			const decryptedQuantityToClose = await user.decryptUint256(quote.quantityToClose.userCiphertext)
-			const decryptedRequestedClosePrice = await user.decryptUint256(quote.requestedClosePrice.userCiphertext)
+			const decryptedAvgClosedPrice = await decryptUint256(context, quote.avgClosedPrice.userCiphertext, user.getWallet())
+			const decryptedClosedAmount = await decryptUint256(context, quote.closedAmount.userCiphertext, user.getWallet())
+			const decryptedQuantityToClose = await decryptUint256(context, quote.quantityToClose.userCiphertext, user.getWallet())
+			const decryptedRequestedClosePrice = await decryptUint256(context, quote.requestedClosePrice.userCiphertext, user.getWallet())
 			
 			const expectedClosePrice = calculateExpectedClosePriceForForceClose(decryptedRequestedClosePrice, penalty, true)
 			const expectedAvgClosedPrice = calculateExpectedAvgPriceForForceClose(decryptedAvgClosedPrice, decryptedClosedAmount, decryptedQuantityToClose, expectedClosePrice)
 
-			const decryptedRequestedClosePrice1 = await user.decryptUint256(quote1LongOpened.requestedClosePrice.userCiphertext)
+			const decryptedRequestedClosePrice1 = await decryptUint256(context, quote1LongOpened.requestedClosePrice.userCiphertext, user.getWallet())
 			
 			const gapRatio = await context.viewFacet.forceCloseGapRatio(quote1LongOpened.symbolId)
 			let dummySig = await getDummyHighLowPriceSig(
@@ -371,7 +372,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 			)
 
 			await user.forceClosePosition(quote1LongOpened.id, dummySig)
-			const decryptedAvgClosePrice2 = await user.decryptUint256((await context.viewFacet.getQuote(quote1LongOpened.id)).avgClosedPrice.userCiphertext)
+			const decryptedAvgClosePrice2 = await decryptUint256(context, (await context.viewFacet.getQuote(quote1LongOpened.id)).avgClosedPrice.userCiphertext, user.getWallet())
 			expect(decryptedAvgClosePrice2).to.be.equal(expectedAvgClosedPrice)
 		})
 
@@ -381,14 +382,14 @@ export function shouldBehaveLikeForceClosePosition(): void {
 			await context.controlFacet.setForceClosePricePenalty(decimal(1n))
 			const quote = await context.viewFacet.getQuote(1)
 
-			const decryptedAvgClosedPrice3 = await user.decryptUint256(quote.avgClosedPrice.userCiphertext)
-			const decryptedClosedAmount3 = await user.decryptUint256(quote.closedAmount.userCiphertext)
-			const decryptedQuantityToClose3 = await user.decryptUint256(quote.quantityToClose.userCiphertext)
+			const decryptedAvgClosedPrice3 = await decryptUint256(context, quote.avgClosedPrice.userCiphertext, user.getWallet())
+			const decryptedClosedAmount3 = await decryptUint256(context, quote.closedAmount.userCiphertext, user.getWallet())
+			const decryptedQuantityToClose3 = await decryptUint256(context, quote.quantityToClose.userCiphertext, user.getWallet())
 			
 			const expectedClosePrice = decimal(4n) //sig.averagePrice
 			const expectedAvgClosedPrice = calculateExpectedAvgPriceForForceClose(decryptedAvgClosedPrice3, decryptedClosedAmount3, decryptedQuantityToClose3, expectedClosePrice)
 
-			const decryptedRequestedClosePrice1 = await user.decryptUint256(quote1LongOpened.requestedClosePrice.userCiphertext)
+			const decryptedRequestedClosePrice1 = await decryptUint256(context, quote1LongOpened.requestedClosePrice.userCiphertext, user.getWallet())
 
 			const gapRatio = await context.viewFacet.forceCloseGapRatio(quote1LongOpened.symbolId)
 			let dummySig = await getDummyHighLowPriceSig(
@@ -426,7 +427,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 
 			await user.forceClosePosition(2, dummySig)
 
-			const decryptedAvgClosePrice = await user.decryptUint256((await context.viewFacet.getQuote(2)).avgClosedPrice.userCiphertext)
+			const decryptedAvgClosePrice = await decryptUint256(context, (await context.viewFacet.getQuote(2)).avgClosedPrice.userCiphertext, user.getWallet())
 			expect(decryptedAvgClosePrice).to.be.equal(decimal(1n) / 6n / 2n) // sig.averagePrice
 
 		})
@@ -438,10 +439,10 @@ export function shouldBehaveLikeForceClosePosition(): void {
 			const penalty = await context.viewFacet.forceClosePricePenalty()
 			const quote = await context.viewFacet.getQuote(2)
 
-			const decryptedAvgClosedPrice4 = await user.decryptUint256(quote.avgClosedPrice.userCiphertext)
-			const decryptedClosedAmount4 = await user.decryptUint256(quote.closedAmount.userCiphertext)
-			const decryptedQuantityToClose4 = await user.decryptUint256(quote.quantityToClose.userCiphertext)
-			const decryptedRequestedClosePrice2 = await user.decryptUint256(quote2ShortOpened.requestedClosePrice.userCiphertext)
+			const decryptedAvgClosedPrice4 = await decryptUint256(context, quote.avgClosedPrice.userCiphertext, user.getWallet())
+			const decryptedClosedAmount4 = await decryptUint256(context, quote.closedAmount.userCiphertext, user.getWallet())
+			const decryptedQuantityToClose4 = await decryptUint256(context, quote.quantityToClose.userCiphertext, user.getWallet())
+			const decryptedRequestedClosePrice2 = await decryptUint256(context, quote2ShortOpened.requestedClosePrice.userCiphertext, user.getWallet())
 
 			const expectClosePrice = calculateExpectedClosePriceForForceClose(decryptedRequestedClosePrice2, penalty, false)
 			const expectedAvgClosedPrice = calculateExpectedAvgPriceForForceClose(decryptedAvgClosedPrice4, decryptedClosedAmount4, decryptedQuantityToClose4, expectClosePrice)
@@ -450,7 +451,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 			const dummySig = await getDummyHighLowPriceSig(
 				sigTimes[0],  // startTime
 				sigTimes[1],  // endTime
-				await user.decryptUint256(quote2ShortOpened.requestedClosePrice.userCiphertext) + unDecimal(await user.decryptUint256(quote2ShortOpened.requestedClosePrice.userCiphertext) * BigInt(gapRatio)) - decimal(1n),  // lowest
+				await decryptUint256(context, quote2ShortOpened.requestedClosePrice.userCiphertext, user.getWallet()) + unDecimal(await decryptUint256(context, quote2ShortOpened.requestedClosePrice.userCiphertext, user.getWallet()) * BigInt(gapRatio)) - decimal(1n),  // lowest
 				decimal(1n),  // highest
 				decimal(1n),  // currentPrice
 				decimal(1n),  // averagePrice

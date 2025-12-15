@@ -1,7 +1,7 @@
 import {expect} from "chai"
 
 import {QuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
-import {getTotalPartyALockedValuesForQuotes, getTotalPartyBLockedValuesForQuotes, unDecimal} from "../../utils/Common"
+import {decryptUint256, getTotalPartyALockedValuesForQuotes, getTotalPartyBLockedValuesForQuotes, unDecimal} from "../../utils/Common"
 import {logger} from "../../utils/LoggerUtils"
 import {expectToBeApproximately} from "../../utils/SafeMath"
 import {PositionType, QuoteStatus} from "../Enums"
@@ -47,17 +47,17 @@ export class EmergencyCloseRequestValidator implements TransactionValidator {
 		const oldQuote = arg.beforeOutput.quote
 
 		expect(newQuote.quoteStatus).to.be.equal(QuoteStatus.CLOSED)
-		const decryptedNewClosedAmount = await arg.user.decryptUint256(newQuote.closedAmount.userCiphertext)
-		const decryptedOldQuantity = await arg.user.decryptUint256(oldQuote.quantity.userCiphertext)
-		const decryptedOldClosedAmount = await arg.user.decryptUint256(oldQuote.closedAmount.userCiphertext)
-		const decryptedNewOpenedPrice = await arg.user.decryptUint256(newQuote.openedPrice.userCiphertext)
+		const decryptedNewClosedAmount = await decryptUint256(context, newQuote.closedAmount.userCiphertext, arg.user.getWallet())
+		const decryptedOldQuantity = await decryptUint256(context, oldQuote.quantity.userCiphertext, arg.user.getWallet())
+		const decryptedOldClosedAmount = await decryptUint256(context, oldQuote.closedAmount.userCiphertext, arg.user.getWallet())
+		const decryptedNewOpenedPrice = await decryptUint256(context, newQuote.openedPrice.userCiphertext, arg.user.getWallet())
 		expect(decryptedNewClosedAmount).to.be.equal(decryptedOldQuantity)
 
-		const oldLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([oldQuote], context.signers.user)
-		const newLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes([newQuote], context.signers.user)
+		const oldLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes(context, [oldQuote], context.signers.user)
+		const newLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes(context, [newQuote], context.signers.user)
 
-		const oldLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([oldQuote], context.signers.hedger)
-		const newLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes([newQuote], context.signers.hedger)
+		const oldLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes(context, [oldQuote], context.signers.hedger)
+		const newLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes(context, [newQuote], context.signers.hedger)
 
 		const closedAmount = BigInt(decryptedNewClosedAmount) - BigInt(decryptedOldClosedAmount)
 		let profit

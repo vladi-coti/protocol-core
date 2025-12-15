@@ -8,7 +8,7 @@ import {User} from "./models/User"
 import {limitOpenRequestBuilder, marketOpenRequestBuilder} from "./models/requestModels/OpenRequest"
 import {limitQuoteRequestBuilder, marketQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
 import {OpenPositionValidator} from "./models/validators/OpenPositionValidator"
-import {decimal, getQuoteQuantity, pausePartyB} from "./utils/Common"
+import {decryptUint256, decimal, getQuoteQuantity, pausePartyB} from "./utils/Common"
 import {QuoteData} from "./models/types";
 
 export function shouldBehaveLikeOpenPosition(): void {
@@ -204,7 +204,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 			hedger: hedger,
 			quoteId: BigInt(1),
 		})
-		const quantity = quoteDataArray[1].partyBEvent ? await context.signers.hedger.decryptUint256(quoteDataArray[1].partyBEvent.values.quantity) : 0n
+		const quantity = quoteDataArray[1].partyBEvent ? await decryptUint256(context, quoteDataArray[1].partyBEvent.values.quantity, context.signers.hedger) : 0n
 		const filledAmount = quantity / 4n
 		const openedPrice = decimal(9n, 17)
 		await hedger.openPosition(quoteDataArray[1], limitOpenRequestBuilder().filledAmount(filledAmount).openPrice(openedPrice).price(decimal(1n, 17)).build())
@@ -249,7 +249,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 
 		it("Should lock and open quote partially", async function () {
 			const quoteData = quoteDataArray[3]
-			const quantity = quoteData.partyBEvent ? await context.signers.hedger2.decryptUint256(quoteData.partyBEvent.values.quantity) : 0n
+			const quantity = quoteData.partyBEvent ? await decryptUint256(context, quoteData.partyBEvent.values.quantity, context.signers.hedger2) : 0n
 			const filledAmount = quantity / 2n
 			await hedger2.lockAndOpenQuote(quoteData, decimal(12n, 17), limitOpenRequestBuilder()
 				.filledAmount(filledAmount)

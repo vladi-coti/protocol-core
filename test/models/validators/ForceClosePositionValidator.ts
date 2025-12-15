@@ -1,6 +1,6 @@
 import {expect} from "chai"
 import {QuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
-import {decimal, getBlockTimestamp, unDecimal} from "../../utils/Common"
+import {decryptUint256, decimal, getBlockTimestamp, unDecimal} from "../../utils/Common"
 import {logger} from "../../utils/LoggerUtils"
 import {expectToBeApproximately} from "../../utils/SafeMath"
 import {OrderType, PositionType, QuoteStatus} from "../Enums"
@@ -64,13 +64,13 @@ export class ForceClosePositionValidator implements TransactionValidator {
 		expect(newQuote.quoteStatus).to.be.equal(isPartyBLiquidated ? QuoteStatus.CLOSE_PENDING : QuoteStatus.CLOSED)
 		expect(newQuote.orderType).to.be.equal(OrderType.LIMIT)
 
-		const decryptedOldRequestedClosePrice = await arg.user.decryptUint256(oldQuote.requestedClosePrice.userCiphertext)
-		const decryptedOldAvgClosedPrice = await arg.user.decryptUint256(oldQuote.avgClosedPrice.userCiphertext)
-		const decryptedOldClosedAmount = await arg.user.decryptUint256(oldQuote.closedAmount.userCiphertext)
-		const decryptedOldQuantityToClose = await arg.user.decryptUint256(oldQuote.quantityToClose.userCiphertext)
-		const decryptedNewAvgClosedPrice = await arg.user.decryptUint256(newQuote.avgClosedPrice.userCiphertext)
-		const decryptedNewOpenedPrice = await arg.user.decryptUint256(newQuote.openedPrice.userCiphertext)
-		const decryptedNewClosedAmount = await arg.user.decryptUint256(newQuote.closedAmount.userCiphertext)
+		const decryptedOldRequestedClosePrice = await decryptUint256(context, oldQuote.requestedClosePrice.userCiphertext, arg.user.getWallet())
+		const decryptedOldAvgClosedPrice = await decryptUint256(context, oldQuote.avgClosedPrice.userCiphertext, arg.user.getWallet())
+		const decryptedOldClosedAmount = await decryptUint256(context, oldQuote.closedAmount.userCiphertext, arg.user.getWallet())
+		const decryptedOldQuantityToClose = await decryptUint256(context, oldQuote.quantityToClose.userCiphertext, arg.user.getWallet())
+		const decryptedNewAvgClosedPrice = await decryptUint256(context, newQuote.avgClosedPrice.userCiphertext, arg.user.getWallet())
+		const decryptedNewOpenedPrice = await decryptUint256(context, newQuote.openedPrice.userCiphertext, arg.user.getWallet())
+		const decryptedNewClosedAmount = await decryptUint256(context, newQuote.closedAmount.userCiphertext, arg.user.getWallet())
 
 		// check the Final ClosePrice (Long and Short)
 		if (newQuote.positionType === BigInt(PositionType.LONG)) {

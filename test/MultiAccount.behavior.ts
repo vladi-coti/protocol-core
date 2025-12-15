@@ -20,7 +20,7 @@ import {CloseRequest, marketCloseRequestBuilder} from "./models/requestModels/Cl
 import {FillCloseRequest, marketFillCloseRequestBuilder} from "./models/requestModels/FillCloseRequest"
 import {marketOpenRequestBuilder, OpenRequest} from "./models/requestModels/OpenRequest"
 import {limitQuoteRequestBuilder, marketQuoteRequestBuilder, QuoteRequest} from "./models/requestModels/QuoteRequest"
-import {decimal, PromiseOrValue} from "./utils/Common"
+import {decimal, decryptUint256, PromiseOrValue} from "./utils/Common"
 import {getDummyPairUpnlAndPriceSig, getDummySingleUpnlSig} from "./utils/SignatureUtils"
 
 async function getListFormatOfQuoteRequest(
@@ -260,7 +260,7 @@ export function shouldBehaveLikeMultiAccount() {
 				await multiAccount.connect(context.signers.user)._call(partyAAccount, [setEncryptionCalldata])
 				await multiAccount.connect(context.signers.user).depositAndAllocateForAccount(partyAAccount, decimal(100n))
 				const balanceInfo = await context.viewFacet.balanceInfoOfPartyA(partyAAccount)
-				const allocatedBalance = await user.decryptUint256(balanceInfo[0])
+				const allocatedBalance = await decryptUint256(context, balanceInfo[0], context.signers.user)
 				expect(allocatedBalance).to.be.equal(decimal(100n))
 			})
 
@@ -320,8 +320,8 @@ export function shouldBehaveLikeMultiAccount() {
 			await multiAccount.connect(context.signers.user)._call(partyAAccount, [sendQuote1])
 			expect((await context.viewFacet.getQuote(1)).quoteStatus).to.be.equal(QuoteStatus.PENDING)
 			let quote = await context.viewFacet.getQuote(1)
-			let decryptedRequestedPrice = await user.decryptUint256(quote.requestedOpenPrice.userCiphertext)
-			let decryptedQuantity = await user.decryptUint256(quote.quantity.userCiphertext)
+			let decryptedRequestedPrice = await decryptUint256(context, quote.requestedOpenPrice.userCiphertext, context.signers.user)
+			let decryptedQuantity = await decryptUint256(context, quote.quantity.userCiphertext, context.signers.user)
 			expect(decryptedRequestedPrice).to.equal(BigInt(quoteRequest1.price))
 			expect(decryptedQuantity).to.equal(BigInt(quoteRequest1.quantity))
 		})

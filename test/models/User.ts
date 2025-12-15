@@ -2,7 +2,7 @@ import {setBalance} from "@nomicfoundation/hardhat-network-helpers"
 import {BigNumberish, ethers, EventLog} from "ethers"
 import {Wallet, ctUint256, itUint256} from "@coti-io/coti-ethers"
 
-import {getPriceFetcher, serializeToJson, unDecimal} from "../utils/Common"
+import {decryptUint256, getPriceFetcher, serializeToJson, unDecimal} from "../utils/Common"
 import {logger} from "../utils/LoggerUtils"
 import {getPrice} from "../utils/PriceUtils"
 import {PositionType} from "./Enums"
@@ -33,8 +33,7 @@ export class User {
 	}
 
 	public async decryptUint256(ciphertext: ctUint256): Promise<bigint> {
-		return await this.context.signers.liquidator.decryptUint256(ciphertext)
-		// return await this.signer.decryptUint256(ciphertext)
+		return await decryptUint256(this.context, ciphertext, this.signer)
 	}
 
 	public async setBalances(collateralAmount?: BigNumberish, depositAmount?: BigNumberish, allocatedAmount?: BigNumberish) {

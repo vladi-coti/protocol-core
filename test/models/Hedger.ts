@@ -1,7 +1,7 @@
 import {setBalance} from "@nomicfoundation/hardhat-network-helpers"
 import {BigNumberish, ethers, EventLog} from "ethers"
 
-import {decimal, serializeToJson, unDecimal} from "../utils/Common"
+import {decryptUint256, decimal, serializeToJson, unDecimal} from "../utils/Common"
 import {logger} from "../utils/LoggerUtils"
 import {getPrice} from "../utils/PriceUtils"
 import {getDummyPairUpnlAndPriceSig, getDummySettlementSig, getDummySingleUpnlSig} from "../utils/SignatureUtils"
@@ -32,8 +32,7 @@ export class Hedger {
 	}
 
 	public async decryptUint256(ciphertext: ctUint256): Promise<bigint> {
-		return await this.context.signers.liquidator.decryptUint256(ciphertext)
-		// return await this.signer.decryptUint256(ciphertext)
+		return await decryptUint256(this.context, ciphertext, this.signer)
 	}
 
 	public async setBalances(collateralAmount?: BigNumberish, depositAmount?: BigNumberish) {
@@ -93,8 +92,8 @@ export class Hedger {
 			const quote = await this.context.viewFacet.getQuote(id)
 			const partyA = quote.partyA
 			const user = this.context.manager.getUser(partyA)
-			const price = await user.decryptUint256(quote.requestedOpenPrice.userCiphertext)
-			const quantity = await user.decryptUint256(quote.quantity.userCiphertext)
+			const price = await decryptUint256(this.context, quote.requestedOpenPrice.userCiphertext, user.getWallet())
+			const quantity = await decryptUint256(this.context, quote.quantity.userCiphertext, user.getWallet())
 			console.log("Hedger::LockQuote: price: ", price)
 			console.log("Hedger::LockQuote: quantity: ", quantity)
 			const notional = unDecimal(quantity * price)
@@ -118,8 +117,8 @@ export class Hedger {
 			const quote = await this.context.viewFacet.getQuote(id)
 			const partyA = quote.partyA
 			const user = this.context.manager.getUser(partyA)
-			const price = await user.decryptUint256(quote.requestedOpenPrice.userCiphertext)
-			const quantity = await user.decryptUint256(quote.quantity.userCiphertext)
+			const price = await decryptUint256(this.context, quote.requestedOpenPrice.userCiphertext, user.getWallet())
+			const quantity = await decryptUint256(this.context, quote.quantity.userCiphertext, user.getWallet())
 			console.log("Hedger::LockAndOpenQuote: price: ", price)
 			console.log("Hedger::LockAndOpenQuote: quantity: ", quantity)
 			const notional = unDecimal(quantity * price)
@@ -165,11 +164,13 @@ export class Hedger {
 		
 		const partyA = quote.partyA
 		const user = this.context.manager.getUser(partyA)
+
+		console.log("Hedger::OpenPosition: request: ", request)
 		
 		// Pre-flight validation checks
 		const symbol = await this.context.viewFacet.getSymbol(quote.symbolId)
-		const requestedOpenPrice = await user.decryptUint256(quote.requestedOpenPrice.userCiphertext)
-		const quantity = await user.decryptUint256(quote.quantity.userCiphertext)
+		const requestedOpenPrice = await decryptUint256(this.context, quote.requestedOpenPrice.userCiphertext, user.getWallet())
+		const quantity = await decryptUint256(this.context, quote.quantity.userCiphertext, user.getWallet())
 		const openPrice = BigInt(request.openPrice.toString())
 		const filledAmount = BigInt(request.filledAmount.toString())
 		
@@ -194,8 +195,8 @@ export class Hedger {
 		// Calculate solvency check (happens AFTER position is opened)
 		// The solvency check uses locked balances AFTER opening, so we need to account for the new locked values
 		// Get locked values for THIS quote from the quote itself (encrypted for PartyA, so use user's wallet)
-		const quoteCva = await user.decryptUint256(quote.lockedValues.cva.userCiphertext)
-		const quoteLf = await user.decryptUint256(quote.lockedValues.lf.userCiphertext)
+		const quoteCva = await decryptUint256(this.context, quote.lockedValues.cva.userCiphertext, user.getWallet())
+		const quoteLf = await decryptUint256(this.context, quote.lockedValues.lf.userCiphertext, user.getWallet())
 		
 		// Scale the locked values by price scale
 		const scaledQuoteCva = (quoteCva * priceScale) / 10n**18n
@@ -215,11 +216,13 @@ export class Hedger {
 		// The contract uses: gtDiff = gtFilledAmount.mul(gtOpenedPrice.sub(gtMarketPrice)).div(gtScaleFactor)
 		// If openedPrice < marketPrice, the subtraction underflows in uint256
 		// When converted to signed, a large uint256 (from underflow) becomes a large negative int256
-		// We need to simulate this: calculate the actual signed difference
-		const actualPriceDiff = openPrice >= marketPrice 
+		// Calculate diff as uint256 (simulating the on-chain underflow behavior)
+		const priceDiffUint256 = openPrice >= marketPrice 
 			? openPrice - marketPrice 
-			: -(marketPrice - openPrice) // Negative value
-		const pnlDiff = (filledAmount * actualPriceDiff) / 10n**18n
+			: (2n**256n - (marketPrice - openPrice)) // Simulate uint256 underflow
+		const diff = (filledAmount * priceDiffUint256) / 10n**18n
+		// Convert to signed int256 (treating as two's complement)
+		const diffSigned = diff > 2n**255n ? -(2n**256n - diff) : diff
 		
 		// Calculate available balances after opening (for solvency check)
 		// PartyA: available = (allocated - cvaLf) + upnl + adjustment
@@ -230,12 +233,40 @@ export class Hedger {
 		let partyAAvailableAfter: bigint
 		let partyBAvailableAfter: bigint
 		
-		// Apply PnL adjustment based on position type
+		// Apply PnL adjustment based on position type (matching on-chain logic)
 		// The contract uses: gtPartyAAdjustment and gtPartyBAdjustment based on position type and price comparison
-		// Since pnlDiff already has the correct sign (positive when PartyA gains, negative when PartyA loses),
-		// we just add it directly for both parties (with opposite signs)
-		partyAAvailableAfter = partyAFreeBalance + userUpnl + pnlDiff
-		partyBAvailableAfter = partyBFreeBalance + hedgerUpnl - pnlDiff
+		const openedPriceGteMarket = openPrice >= marketPrice
+		const isLong = quote.positionType === BigInt(PositionType.LONG)
+		
+		let partyAAdjustment: bigint
+		let partyBAdjustment: bigint
+		
+		if (isLong) {
+			// LONG position
+			if (openedPriceGteMarket) {
+				// PartyA loses, PartyB gains
+				partyAAdjustment = -diffSigned
+				partyBAdjustment = diffSigned
+			} else {
+				// PartyA gains, PartyB loses
+				partyAAdjustment = diffSigned
+				partyBAdjustment = -diffSigned
+			}
+		} else {
+			// SHORT position
+			if (openedPriceGteMarket) {
+				// PartyA gains, PartyB loses
+				partyAAdjustment = diffSigned
+				partyBAdjustment = -diffSigned
+			} else {
+				// PartyA loses, PartyB gains
+				partyAAdjustment = -diffSigned
+				partyBAdjustment = diffSigned
+			}
+		}
+		
+		partyAAvailableAfter = partyAFreeBalance + userUpnl + partyAAdjustment
+		partyBAvailableAfter = partyBFreeBalance + hedgerUpnl + partyBAdjustment
 		
 		console.log("Hedger::OpenPosition: quoteId: ", id)
 		console.log("Hedger::OpenPosition: orderType: ", quote.orderType, " (0=LIMIT, 1=MARKET)")
@@ -256,10 +287,10 @@ export class Hedger {
 		console.log("Hedger::OpenPosition:   Quote CVA (scaled): ", scaledQuoteCva, ", LF (scaled): ", scaledQuoteLf)
 		console.log("Hedger::OpenPosition:   PartyA: currentLockedCvaLf=", currentLockedCvaLfPartyA, ", newLockedCvaLf=", newLockedCvaLfPartyA)
 		console.log("Hedger::OpenPosition:   PartyA: allocated=", userBalanceInfo.allocatedBalances, ", freeBalance=", partyAFreeBalance)
-		console.log("Hedger::OpenPosition:   PartyA: currentUpnl=", userUpnl, ", pnlDiff=", pnlDiff, " (actualPriceDiff=", actualPriceDiff, "), availableAfter=", partyAAvailableAfter)
+		console.log("Hedger::OpenPosition:   PartyA: currentUpnl=", userUpnl, ", partyAAdjustment=", partyAAdjustment, " (diffSigned=", diffSigned, ", openedPriceGteMarket=", openedPriceGteMarket, "), availableAfter=", partyAAvailableAfter)
 		console.log("Hedger::OpenPosition:   PartyB: currentLockedCvaLf=", currentLockedCvaLfPartyB, ", newLockedCvaLf=", newLockedCvaLfPartyB)
 		console.log("Hedger::OpenPosition:   PartyB: allocated=", hedgerBalanceInfo.allocatedBalances, ", freeBalance=", partyBFreeBalance)
-		console.log("Hedger::OpenPosition:   PartyB: currentUpnl=", hedgerUpnl, ", pnlDiff=", pnlDiff, " (actualPriceDiff=", actualPriceDiff, "), availableAfter=", partyBAvailableAfter)
+		console.log("Hedger::OpenPosition:   PartyB: currentUpnl=", hedgerUpnl, ", partyBAdjustment=", partyBAdjustment, " (diffSigned=", diffSigned, ", openedPriceGteMarket=", openedPriceGteMarket, "), availableAfter=", partyBAvailableAfter)
 		
 		if (scaledTotalForPartyA < symbol.minAcceptableQuoteValue) {
 			console.log("Hedger::OpenPosition: WARNING - scaledTotalForPartyA < minAcceptableQuoteValue - will revert!")
@@ -490,9 +521,9 @@ export class Hedger {
 			const user = this.context.manager.getUser(pos.partyA)
 
 			// Decrypt encrypted quote fields
-			const openedPrice = await user.decryptUint256(pos.openedPrice.userCiphertext)
-			const quantity = await user.decryptUint256(pos.quantity.userCiphertext)
-			const closedAmount = await user.decryptUint256(pos.closedAmount.userCiphertext)
+			const openedPrice = await decryptUint256(this.context, pos.openedPrice.userCiphertext, user.getWallet())
+			const quantity = await decryptUint256(this.context, pos.quantity.userCiphertext, user.getWallet())
+			const closedAmount = await decryptUint256(this.context, pos.closedAmount.userCiphertext, user.getWallet())
 			
 			const priceDiff = openedPrice - await getPrice()
 			const amount = quantity - closedAmount

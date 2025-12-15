@@ -6,7 +6,7 @@ import {Hedger} from "./models/Hedger"
 import {RunContext} from "./models/RunContext"
 import {User} from "./models/User"
 import {limitQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
-import {decimal, unDecimal} from "./utils/Common"
+import {decimal, decryptUint256, unDecimal} from "./utils/Common"
 import {expect} from "chai"
 import {getDummySettlementSig, getDummySingleUpnlSig} from "./utils/SignatureUtils"
 import {QuoteSettlementDataStructOutput} from "../src/types/contracts/facets/Settlement/ISettlementFacet"
@@ -229,13 +229,13 @@ export function shouldBehaveLikeSettlement(): void {
 		expect(await context.viewFacet.nonceOfPartyB(await hedger.getAddress(), await user.getAddress())).to.be.eq(beforeNoncePartyB + 1n)
 		expect(await context.viewFacet.nonceOfPartyB(await hedger2.getAddress(), await user.getAddress())).to.be.eq(beforeNoncePartyB2 + 1n)
 
-		const openedPrice1 = await user.decryptUint256(quote1.openedPrice.userCiphertext)
-		const openedPrice2 = await user.decryptUint256(quote2.openedPrice.userCiphertext)
+		const openedPrice1 = await decryptUint256(context, quote1.openedPrice.userCiphertext, context.signers.user)
+		const openedPrice2 = await decryptUint256(context, quote2.openedPrice.userCiphertext, context.signers.user)
 		expect(openedPrice1).to.be.eq(decimal(5n, 17))
 		expect(openedPrice2).to.be.eq(decimal(5n, 17))
 
-		const decryptedQuote1Quantity = await user.decryptUint256(quote1.quantity.userCiphertext)
-		const decryptedQuote2Quantity = await user.decryptUint256(quote2.quantity.userCiphertext)
+		const decryptedQuote1Quantity = await decryptUint256(context, quote1.quantity.userCiphertext, context.signers.user)
+		const decryptedQuote2Quantity = await decryptUint256(context, quote2.quantity.userCiphertext, context.signers.user)
 		
 		expect((await user.getBalanceInfo()).allocatedBalances).to.be.eq(beforeAllocatedPartyA + unDecimal((decryptedQuote1Quantity + decryptedQuote2Quantity) * decimal(5n, 17)))
 		expect((await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances).to.be.eq(beforeAllocatedPartyB - unDecimal(decryptedQuote1Quantity * decimal(5n, 17)))

@@ -4,6 +4,7 @@ import {concatMap, filter, from} from "rxjs"
 import {
 	checkStatus,
 	decimal,
+	decryptUint256,
 	getBlockTimestamp,
 	getQuoteMinLeftQuantityForClose,
 	getSymbols,
@@ -211,8 +212,8 @@ export class UserController {
 				let symbolQP = this.manager.symbolManager.getSymbolQuantityPrecision(Number(symbol.symbolId))
 				let symbolPP = this.manager.symbolManager.getSymbolPricePrecision(Number(symbol.symbolId))
 
-				const quantity = await this.user.decryptUint256(quote.quantity.userCiphertext)
-				const closedAmount = await this.user.decryptUint256(quote.closedAmount.userCiphertext)
+				const quantity = await decryptUint256(this.context, quote.quantity.userCiphertext, this.context.signers.user)
+				const closedAmount = await decryptUint256(this.context, quote.closedAmount.userCiphertext, this.context.signers.user)
 
 				let quantityToClose: bigint
 				const openAmount = quantity - closedAmount

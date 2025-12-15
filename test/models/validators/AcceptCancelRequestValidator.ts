@@ -45,7 +45,7 @@ export class AcceptCancelRequestValidator implements TransactionValidator {
 		const newBalanceInfoPartyA = await arg.user.getBalanceInfo()
 		const oldBalanceInfoPartyA = arg.beforeOutput.balanceInfoPartyA
 
-		const lockedValues = await getTotalPartyALockedValuesForQuotes([oldQuote], arg.user.getWallet())
+		const lockedValues = await getTotalPartyALockedValuesForQuotes(context, [oldQuote], arg.user.getWallet())
 
 		// Assert changes in totalPendingLockedPartyA
 		expect(newBalanceInfoPartyA.totalPendingLockedPartyA).to.equal(

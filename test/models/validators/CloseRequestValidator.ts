@@ -6,6 +6,7 @@ import {Hedger} from "../Hedger"
 import {RunContext} from "../RunContext"
 import {BalanceInfo, User} from "../User"
 import {TransactionValidator} from "./TransactionValidator"
+import { decryptUint256 } from "../../utils/Common"
 
 export type CloseRequestValidatorBeforeArg = {
 	user: User
@@ -44,8 +45,8 @@ export class CloseRequestValidator implements TransactionValidator {
 		const newQuote = await context.viewFacet.getQuote(arg.quoteId)
 		const oldQuote = arg.beforeOutput.quote
 		expect(newQuote.quoteStatus).to.be.equal(QuoteStatus.CLOSE_PENDING)
-		const decryptedQuantityToClose = await arg.user.decryptUint256(newQuote.quantityToClose.userCiphertext)
-		const decryptedRequestedClosePrice = await arg.user.decryptUint256(newQuote.requestedClosePrice.userCiphertext)
+		const decryptedQuantityToClose = await decryptUint256(context, newQuote.quantityToClose.userCiphertext, arg.user.getWallet())
+		const decryptedRequestedClosePrice = await decryptUint256(context, newQuote.requestedClosePrice.userCiphertext, arg.user.getWallet())
 		expect(decryptedQuantityToClose).to.be.equal(arg.quantityToClose)
 		expect(decryptedRequestedClosePrice).to.be.equal(arg.closePrice)
 

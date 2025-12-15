@@ -5,7 +5,7 @@ import { RunContext } from "./models/RunContext"
 import { User } from "./models/User"
 import { getDummySingleUpnlSig } from "./utils/SignatureUtils"
 import { Hedger } from "./models/Hedger"
-import { decimal, unDecimal } from "./utils/Common"
+import { decimal, decryptUint256, unDecimal } from "./utils/Common"
 import { ethers } from "hardhat"
 import { loadFixtureCompatible, timeCompatible } from "./utils/testHelpers"
 
@@ -109,7 +109,7 @@ export function shouldBehaveLikeAccountFacet(): void {
 
 			expect(await context.viewFacet.balanceOf(userAddress)).to.equal("200")
 			const ctAllocatedBalance = await context.viewFacet.allocatedBalanceOfPartyA(userAddress)
-			const allocatedBalance = await user.decryptUint256(ctAllocatedBalance)
+			const allocatedBalance = await decryptUint256(context, ctAllocatedBalance, context.signers.user)
 			expect(allocatedBalance).to.equal("100")
 		})
 
@@ -119,7 +119,7 @@ export function shouldBehaveLikeAccountFacet(): void {
 			await context.accountFacet.connect(context.signers.user).depositAndAllocate("200")
 			expect(await context.viewFacet.balanceOf(userAddress)).to.equal("300")
 			const ctAllocatedBalance = await context.viewFacet.allocatedBalanceOfPartyA(userAddress)
-			const allocatedBalance = await user.decryptUint256(ctAllocatedBalance)
+			const allocatedBalance = await decryptUint256(context, ctAllocatedBalance, context.signers.user)
 			expect(allocatedBalance).to.equal("200")
 			expect(await context.collateral.balanceOf(userAddress)).to.equal("0")
 		})
@@ -159,7 +159,7 @@ export function shouldBehaveLikeAccountFacet(): void {
 				await context.accountFacet.connect(context.signers.user).deallocate("50", await getDummySingleUpnlSig())
 				expect(await context.viewFacet.balanceOf(userAddress)).to.equal("50")
 				const ctAllocatedBalance = await context.viewFacet.allocatedBalanceOfPartyA(userAddress)
-				const allocatedBalance = await user.decryptUint256(ctAllocatedBalance)
+				const allocatedBalance = await decryptUint256(context, ctAllocatedBalance, context.signers.user)
 				expect(allocatedBalance).to.equal("250")
 			})
 
@@ -200,8 +200,8 @@ export function shouldBehaveLikeAccountFacet(): void {
 
 				const {quoteId} = await user.sendQuote()
 				const quote = await context.viewFacet.getQuote(quoteId)
-				const quantity = await user.decryptUint256(quote.quantity.userCiphertext)
-				const requestedOpenPrice = await user.decryptUint256(quote.requestedOpenPrice.userCiphertext)
+				const quantity = await decryptUint256(context, quote.quantity.userCiphertext, context.signers.user)
+				const requestedOpenPrice = await decryptUint256(context, quote.requestedOpenPrice.userCiphertext, context.signers.user)
 				const notional = unDecimal(quantity * requestedOpenPrice)
 				await context.accountFacet.connect(context.signers.hedger).allocateForPartyB(unDecimal(notional * decimal(12n, 17)), quote.partyA)
 
@@ -255,7 +255,7 @@ export function shouldBehaveLikeAccountFacet(): void {
 			await context.accountFacet.connect(context.signers.user).internalTransfer(await user2.getAddress(), "250")
 			expect(await context.viewFacet.balanceOf(await user2.getAddress())).to.be.equal("0")
 			const ctAllocatedBalance = await context.viewFacet.allocatedBalanceOfPartyA(await user2.getAddress())
-			const allocatedBalance = await user2.decryptUint256(ctAllocatedBalance)
+			const allocatedBalance = await decryptUint256(context, ctAllocatedBalance, context.signers.user2)
 			expect(allocatedBalance).to.be.equal("250")
 
 			expect(await context.viewFacet.balanceOf(await user.getAddress())).to.be.equal("50")

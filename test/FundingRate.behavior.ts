@@ -4,7 +4,7 @@ import {initializeFixture} from "./Initialize.fixture"
 import {Hedger} from "./models/Hedger"
 import {RunContext} from "./models/RunContext"
 import {User} from "./models/User"
-import {decimal, unDecimal} from "./utils/Common"
+import {decimal, decryptUint256, unDecimal} from "./utils/Common"
 import {getDummyPairUpnlSig} from "./utils/SignatureUtils"
 import {expect} from "chai"
 import {limitQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
@@ -130,13 +130,13 @@ export function shouldBehaveLikeFundingRate(): void {
 		let targetTime = currentEpoch + duration + (window / 2n)
 
 		let oldQuote = await context.viewFacet.getQuote(1)
-		let oldOpenedPrice = await user.decryptUint256(oldQuote.openedPrice.userCiphertext)
+		let oldOpenedPrice = await decryptUint256(context, oldQuote.openedPrice.userCiphertext, context.signers.user)
 
 		await timeCompatible.setNextBlockTimestamp(targetTime)
 		await hedger.chargeFundingRate(await context.signers.user.getAddress(), [1], [decimal(1n, 16)], await getDummyPairUpnlSig())
 
 		let newQuote = await context.viewFacet.getQuote(1)
-		let newOpenedPrice = await user.decryptUint256(newQuote.openedPrice.userCiphertext)
+		let newOpenedPrice = await decryptUint256(context, newQuote.openedPrice.userCiphertext, context.signers.user)
 		expect(newOpenedPrice).to.be.equal(unDecimal(oldOpenedPrice * (decimal(1n) + decimal(1n, 16))))
 	})
 
@@ -148,13 +148,13 @@ export function shouldBehaveLikeFundingRate(): void {
 		let targetTime = currentEpoch + duration + (window / 2n)
 
 		let oldQuote = await context.viewFacet.getQuote(2)
-		let oldOpenedPrice = await user.decryptUint256(oldQuote.openedPrice.userCiphertext)
+		let oldOpenedPrice = await decryptUint256(context, oldQuote.openedPrice.userCiphertext, context.signers.user)
 
 		await timeCompatible.setNextBlockTimestamp(targetTime)
 		await hedger.chargeFundingRate(await context.signers.user.getAddress(), [2], [decimal(1n, 16)], await getDummyPairUpnlSig())
 
 		let newQuote = await context.viewFacet.getQuote(2)
-		let newOpenedPrice = await user.decryptUint256(newQuote.openedPrice.userCiphertext)
+		let newOpenedPrice = await decryptUint256(context, newQuote.openedPrice.userCiphertext, context.signers.user)
 		expect(newOpenedPrice).to.be.equal(unDecimal(oldOpenedPrice * (decimal(1n) + decimal(1n, 16))))
 	})
 }
