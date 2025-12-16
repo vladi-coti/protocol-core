@@ -57,8 +57,9 @@ library ForceActionsFacetImpl {
 		
 		// Set encrypted fields to zero
 		gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
-		quote.requestedClosePrice = gtZero.offBoardCombined(quote.partyA);
-		quote.quantityToClose = gtZero.offBoardCombined(quote.partyA);
+		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
+		quote.requestedClosePrice = gtZero.offBoardCombined(partyAEncryptionAddress);
+		quote.quantityToClose = gtZero.offBoardCombined(partyAEncryptionAddress);
 	}
 
 	function forceClosePosition(

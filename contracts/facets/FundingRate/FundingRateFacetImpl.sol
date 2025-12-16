@@ -69,7 +69,7 @@ library FundingRateFacetImpl {
 				} else {
 					gtOpenedPrice = gtOpenedPrice.sub(gtPriceDiff);
 				}
-				quote.openedPrice = gtOpenedPrice.offBoardCombined(quote.partyA);
+				quote.openedPrice = gtOpenedPrice.offBoardCombined(LibAccount.getUserEncryptionAddress(quote.partyA));
 				
 				// Calculate impact on balances
 				gtInt256 gtImpact = gtQuoteOpenAmount.mul(gtPriceDiff).div(gtScaleFactor).toSigned();
@@ -88,7 +88,7 @@ library FundingRateFacetImpl {
 				} else {
 					gtOpenedPrice = gtOpenedPrice.add(gtPriceDiff);
 				}
-				quote.openedPrice = gtOpenedPrice.offBoardCombined(quote.partyA);
+				quote.openedPrice = gtOpenedPrice.offBoardCombined(LibAccount.getUserEncryptionAddress(quote.partyA));
 				
 				// Calculate impact on balances
 				gtInt256 gtImpact = gtQuoteOpenAmount.mul(gtPriceDiff).div(gtScaleFactor).toSigned();

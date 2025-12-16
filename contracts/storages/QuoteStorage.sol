@@ -44,7 +44,6 @@ struct UserLockedValues {
 	ctUint256 partyBmm;
 }
 
-
 struct GarbledLockedValues {
 	gtUint256 cva;
 	gtUint256 lf;

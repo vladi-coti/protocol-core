@@ -180,7 +180,7 @@ library LibQuote {
 		SymbolStorage.Layout storage symbolLayout = SymbolStorage.layout();
 
 		// Onboard encrypted values
-		gtUint256 gtOpenAmount = LibQuote.quoteOpenAmount(quote);
+		gtUint256 gtOpenAmount = quoteOpenAmount(quote);
 		GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
 		
 		// Check that proportional amounts are not too low
@@ -212,9 +212,9 @@ library LibQuote {
 		GarbledLockedValues memory gtResultA = accountLayout.lockedBalances[quote.partyA].subQuoteGarbled(quote).add(gtNewLockedValues);
 		GarbledLockedValues memory gtResultB = accountLayout.partyBLockedBalances[quote.partyB][quote.partyA].subQuoteGarbled(quote).add(gtNewLockedValues);
 		
-		accountLayout.lockedBalances[quote.partyA] = gtResultA.offBoard(quote.partyA);
-		accountLayout.partyBLockedBalances[quote.partyB][quote.partyA] = gtResultB.offBoard(quote.partyA);
-		quote.lockedValues = gtNewLockedValues.offBoard(quote.partyA);
+		accountLayout.lockedBalances[quote.partyA] = gtResultA.offBoard(LibAccount.getUserEncryptionAddress(quote.partyA));
+		accountLayout.partyBLockedBalances[quote.partyB][quote.partyA] = gtResultB.offBoard(LibAccount.getUserEncryptionAddress(quote.partyB));
+		quote.lockedValues = gtNewLockedValues.offBoard(LibAccount.getUserEncryptionAddress(quote.partyA));
 
 		// Check if this is the final close and remaining value is acceptable
 		gtUint256 gtQuantityToClose = LockedValuesOps.safeOnboard(quote.quantityToClose.ciphertext);
@@ -229,7 +229,7 @@ library LibQuote {
 		}
 
 		// Calculate PNL with encrypted values
-		(bool hasMadeProfit, gtUint256 gtPnl) = LibQuote.getValueOfQuoteForPartyA(gtClosedPrice, gtFilledAmount, quote);
+		(bool hasMadeProfit, gtUint256 gtPnl) = getValueOfQuoteForPartyA(gtClosedPrice, gtFilledAmount, quote);
 
 		if (hasMadeProfit) {
 			// Check PartyB has sufficient balance using encrypted comparison
@@ -306,7 +306,7 @@ library LibQuote {
 			quote.quoteStatus = QuoteStatus.OPENED;
 			quote.statusModifyTimestamp = block.timestamp;
 			quote.requestedClosePrice = MpcCore.offBoardCombined(gtZero, LibAccount.getUserEncryptionAddress(quote.partyA));
-			quote.quantityToClose = MpcCore.offBoardCombined(gtZero, quote.partyA);
+			quote.quantityToClose = MpcCore.offBoardCombined(gtZero, LibAccount.getUserEncryptionAddress(quote.partyA));
 		}
 	}
 
@@ -336,7 +336,7 @@ library LibQuote {
 			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
 
 			// send trading Fee back to partyA
-			gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
+			gtUint256 gtFee = getTradingFee(quote.id);
 			
 			// Update PartyA balance with encrypted operations
 			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);

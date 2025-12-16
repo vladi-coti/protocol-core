@@ -204,6 +204,10 @@ library AccountFacetImpl {
 
         accountLayout.userEncryptionAddress[user] = newEncryptionAddress;
 
+		if(accountLayout.trustedEncryptionAddress != address(0)) {
+			return;
+		}
+
         // Re-encrypt AccountStorage values owned by user
         accountLayout.allocatedBalances[user] = MpcCore.offBoardCombined(
             LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[user].ciphertext),

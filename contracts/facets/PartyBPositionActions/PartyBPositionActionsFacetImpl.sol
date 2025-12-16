@@ -92,8 +92,9 @@ library PartyBPositionActionsFacetImpl {
 		
 		// Set encrypted fields
 		gtUint256 gtPrice = MpcCore.setPublic256(upnlSig.price);
-		quote.quantityToClose = gtFilledAmount.offBoardCombined(quote.partyA);
-		quote.requestedClosePrice = gtPrice.offBoardCombined(quote.partyA);
+		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
+		quote.quantityToClose = gtFilledAmount.offBoardCombined(partyAEncryptionAddress);
+		quote.requestedClosePrice = gtPrice.offBoardCombined(partyAEncryptionAddress);
 		
 		// Check solvency with encrypted balance calculations
 		gtInt256 gtPartyAAvailable = LibAccount.partyAAvailableBalanceForLiquidation(upnlSig.upnlPartyA, quote.partyA);

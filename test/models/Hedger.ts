@@ -214,15 +214,11 @@ export class Hedger {
 		
 		// Calculate PnL adjustment: filledAmount * (openedPrice - marketPrice) / 1e18
 		// The contract uses: gtDiff = gtFilledAmount.mul(gtOpenedPrice.sub(gtMarketPrice)).div(gtScaleFactor)
-		// If openedPrice < marketPrice, the subtraction underflows in uint256
-		// When converted to signed, a large uint256 (from underflow) becomes a large negative int256
-		// Calculate diff as uint256 (simulating the on-chain underflow behavior)
-		const priceDiffUint256 = openPrice >= marketPrice 
-			? openPrice - marketPrice 
-			: (2n**256n - (marketPrice - openPrice)) // Simulate uint256 underflow
-		const diff = (filledAmount * priceDiffUint256) / 10n**18n
-		// Convert to signed int256 (treating as two's complement)
-		const diffSigned = diff > 2n**255n ? -(2n**256n - diff) : diff
+		// Calculate the actual signed difference directly (the contract converts uint256 to int256 using two's complement)
+		const priceDiffSigned = openPrice >= marketPrice 
+			? (openPrice - marketPrice)  // Positive difference
+			: -(marketPrice - openPrice) // Negative difference (simulating uint256 underflow -> int256 conversion)
+		const diffSigned = (filledAmount * priceDiffSigned) / 10n**18n
 		
 		// Calculate available balances after opening (for solvency check)
 		// PartyA: available = (allocated - cvaLf) + upnl + adjustment

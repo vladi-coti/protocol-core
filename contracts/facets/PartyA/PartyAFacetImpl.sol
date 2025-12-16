@@ -240,8 +240,9 @@ library PartyAFacetImpl {
 		quote.quoteStatus = QuoteStatus.CLOSE_PENDING;
 		
 		// Store encrypted values
-		quote.requestedClosePrice = gtClosePrice.offBoardCombined(quote.partyA);
-		quote.quantityToClose = gtQuantityToClose.offBoardCombined(quote.partyA);
+		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
+		quote.requestedClosePrice = gtClosePrice.offBoardCombined(partyAEncryptionAddress);
+		quote.quantityToClose = gtQuantityToClose.offBoardCombined(partyAEncryptionAddress);
 		quote.orderType = orderType;
 		quote.deadline = deadline;
 	}
