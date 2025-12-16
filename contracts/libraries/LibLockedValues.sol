@@ -295,10 +295,10 @@ library LockedValuesOps {
 	) internal returns (GarbledLockedValues memory) {
 		return
 			GarbledLockedValues({
-				cva: MpcCore.mux(condition, trueValue.cva, falseValue.cva),
-				partyAmm: MpcCore.mux(condition, trueValue.partyAmm, falseValue.partyAmm),
-				partyBmm: MpcCore.mux(condition, trueValue.partyBmm, falseValue.partyBmm),
-				lf: MpcCore.mux(condition, trueValue.lf, falseValue.lf)
+				cva: MpcCore.mux(condition, falseValue.cva, trueValue.cva),
+				partyAmm: MpcCore.mux(condition, falseValue.partyAmm, trueValue.partyAmm),
+				partyBmm: MpcCore.mux(condition, falseValue.partyBmm, trueValue.partyBmm),
+				lf: MpcCore.mux(condition, falseValue.lf, trueValue.lf)
 			});
 	}
 

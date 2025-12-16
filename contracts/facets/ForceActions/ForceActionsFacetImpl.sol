@@ -86,6 +86,7 @@ library ForceActionsFacetImpl {
 		gtUint256 gtGapRatio = MpcCore.setPublic256(symbolLayout.forceCloseGapRatio[quote.symbolId]);
 		gtUint256 gtPenalty = MpcCore.setPublic256(maLayout.forceClosePricePenalty);
 		gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e18));
+		gtUint256 gtAveragePrice = MpcCore.setPublic256(sig.averagePrice);
 		
 		if (quote.positionType == PositionType.LONG) {
 			// Calculate encrypted minimum: gtRequestedClosePrice + (gtRequestedClosePrice * gtGapRatio) / 1e18
@@ -102,9 +103,8 @@ library ForceActionsFacetImpl {
 			gtClosePrice = gtRequestedClosePrice.add(gtPenaltyAmount);
 			
 			// Max with average: if gtClosePrice > sig.averagePrice then gtClosePrice else sig.averagePrice
-			gtUint256 gtAveragePrice = MpcCore.setPublic256(sig.averagePrice);
 			gtBool gtClosePriceGtAverage = gtClosePrice.gt(gtAveragePrice);
-			gtClosePrice = MpcCore.mux(gtClosePriceGtAverage, gtClosePrice, gtAveragePrice);
+			gtClosePrice = MpcCore.mux(gtClosePriceGtAverage, gtAveragePrice, gtClosePrice);
 		} else {
 			// Calculate encrypted maximum: gtRequestedClosePrice - (gtRequestedClosePrice * gtGapRatio) / 1e18
 			gtUint256 gtGap = gtRequestedClosePrice.mul(gtGapRatio).div(gtScaleFactor);
@@ -119,14 +119,12 @@ library ForceActionsFacetImpl {
 			gtUint256 gtPenaltyAmount = gtRequestedClosePrice.mul(gtPenalty).div(gtScaleFactor);
 			gtClosePrice = gtRequestedClosePrice.sub(gtPenaltyAmount);
 			
-			// Min with average: if gtClosePrice < sig.averagePrice then gtClosePrice else sig.averagePrice
-			gtUint256 gtAveragePrice = MpcCore.setPublic256(sig.averagePrice);
-			gtBool gtAveragePriceGtClose = gtAveragePrice.gt(gtClosePrice);
-			gtClosePrice = MpcCore.mux(gtAveragePriceGtClose, gtClosePrice, gtAveragePrice);
+			// Min with average: if gtClosePrice > sig.averagePrice then sig.averagePrice else gtClosePrice
+			gtBool gtClosePriceGtAverage = gtClosePrice.gt(gtAveragePrice);
+			gtClosePrice = MpcCore.mux(gtClosePriceGtAverage, gtClosePrice, gtAveragePrice);
 		}
 
 		// Check if closePrice equals averagePrice (decrypt for comparison)
-		gtUint256 gtAveragePrice = MpcCore.setPublic256(sig.averagePrice);
 		gtBool gtClosePriceEqAverage = gtClosePrice.eq(gtAveragePrice);
 		if (MpcCore.decrypt(gtClosePriceEqAverage))
 			require(sig.endTime - sig.startTime >= maLayout.forceCloseMinSigPeriod, "PartyAFacet: Invalid signature period");
@@ -207,7 +205,6 @@ library ForceActionsFacetImpl {
 				
 				// Update PartyB allocated balance with encrypted operations
 				gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
-				gtUint256 gtReserveAmount = MpcCore.setPublic256(reserveAmount);
 				gtUint256 gtNewBalance = gtCurrentBalance.add(gtReserveAmount);
 				accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyB));
 				

@@ -80,7 +80,7 @@ library LibAccount {
 			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
 			gtInt256 mm = MpcCore.toSigned(garbledLockedBalances.partyAmm);
 			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
-			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, negUpnl, mm);
+			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
 			
 			gtInt256 cvaLfPendingTotal = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf).add(garbledPendingLockedBalances.totalForPartyA()));
 			return allocatedBalance.sub(cvaLfPendingTotal).sub(considering_mm);
@@ -109,7 +109,7 @@ library LibAccount {
 			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
 			gtInt256 mm = MpcCore.toSigned(garbledLockedBalances.partyAmm);
 			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
-			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, negUpnl, mm);
+			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
 			
 			gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
 			return allocatedBalance.sub(cvaLf).sub(considering_mm);
@@ -159,7 +159,7 @@ library LibAccount {
 			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
 			gtInt256 mm = MpcCore.toSigned(garbledLockedBalances.partyBmm);
 			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
-			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, negUpnl, mm);
+			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
 			
 			gtInt256 cvaLfPendingTotal = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf).add(garbledPendingLockedBalances.totalForPartyB()));
 			return allocatedBalance.sub(cvaLfPendingTotal).sub(considering_mm);
@@ -189,7 +189,7 @@ library LibAccount {
 			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
 			gtInt256 mm = MpcCore.toSigned(garbledLockedBalances.partyBmm);
 			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
-			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, negUpnl, mm);
+			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
 			
 			gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
 			return allocatedBalance.sub(cvaLf).sub(considering_mm);

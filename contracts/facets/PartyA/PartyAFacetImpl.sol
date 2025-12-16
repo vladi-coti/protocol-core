@@ -67,8 +67,8 @@ library PartyAFacetImpl {
 		// Calculate gt trading price based on order type
 		gtUint256 gtTradingPrice = MpcCore.mux(
 			MpcCore.eq(MpcCore.setPublic256(uint256(orderType)), MpcCore.setPublic256(uint256(OrderType.LIMIT))),
-			gtPrice,
-			MpcCore.setPublic256(upnlSig.price)
+			MpcCore.setPublic256(upnlSig.price),
+			gtPrice
 		);
 
 		// Perform gt validations

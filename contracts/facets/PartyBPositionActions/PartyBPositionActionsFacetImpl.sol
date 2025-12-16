@@ -31,8 +31,8 @@ library PartyBPositionActionsFacetImpl {
 		require(!appLayout.partyBEmergencyStatus[quote.partyB], "PartyBFacet: PartyB is in emergency mode");
 		require(!appLayout.emergencyMode, "PartyBFacet: System is in emergency mode");
 		LibMuonPartyB.verifyPairUpnlAndPrice(upnlSig, quote.partyB, quote.partyA, quote.symbolId);
-		accountLayout.partyANonces[quote.partyA]++;
-		accountLayout.partyBNonces[quote.partyB][quote.partyA]++;
+		accountLayout.partyANonces[quote.partyA] += 1;
+		accountLayout.partyBNonces[quote.partyB][quote.partyA] += 1;
 
 		currentId = LibPartyBPositionsActions.openPosition(quoteId, gtFilledAmount, gtOpenedPrice);
 		LibSolvency.isSolventAfterOpenPosition(
