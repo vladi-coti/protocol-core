@@ -52,7 +52,6 @@ library LibPartyBPositionsActions {
 
 		// Decrypt quantity for validation
 		gtUint256 gtQuantity = LockedValuesOps.safeOnboard(quote.quantity.ciphertext);
-		uint256 quoteQuantity = MpcCore.decrypt(gtQuantity);
 
 		// Decrypt trading fee RATE stored on quote and scale factor
 		gtUint256 gtTradingFeeRate = LockedValuesOps.safeOnboard(quote.tradingFee.ciphertext);
@@ -80,7 +79,7 @@ library LibPartyBPositionsActions {
 		quote.initialOpenedPrice = gtOpenedPrice.offBoardCombined(partyAAddr);
 		quote.statusModifyTimestamp = block.timestamp;
 		LibQuote.removeFromPendingQuotes(quote);
-		if (quoteQuantity == MpcCore.decrypt(gtFilledAmount)) {
+		if (MpcCore.decrypt(gtQuantity.eq(gtFilledAmount))) {
 			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, partyAAddr);
 			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, partyBAddr);
 			GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();

@@ -49,58 +49,37 @@ library LibSolvency {
 		// Convert marketPrice to encrypted value for comparison
 		gtUint256 gtMarketPrice = MpcCore.setPublic256(marketPrice);
 		gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e18));
+		gtBool gtOpenedPriceGteMarket = gtOpenedPrice.ge(gtMarketPrice);
 		
 		if (quote.positionType == PositionType.LONG) {
-			// Calculate encrypted difference: filledAmount * (openedPrice - marketPrice) / 1e18
-			// Note: gtDiff can be negative (wrapped) when openedPrice < marketPrice
-			gtUint256 gtDiff = gtFilledAmount.mul(gtOpenedPrice.sub(gtMarketPrice)).div(gtScaleFactor);
-			
 			// Check if openedPrice >= marketPrice using MPC comparison
-			gtBool gtOpenedPriceGteMarket = gtOpenedPrice.ge(gtMarketPrice);
-			
-			// Calculate balance adjustments using MPC mux (conditional selection)
-			gtInt256 gtPartyAAdjustment = MpcCore.mux(
-				gtOpenedPriceGteMarket,
-				gtDiff.toSigned(),        // bit=false (openedPrice < marketPrice): PartyA gains (gtDiff is negative, so +gtDiff is positive)
-				MpcCore.setPublic256(uint256(0)).toSigned().sub(gtDiff.toSigned())  // bit=true (openedPrice >= marketPrice): PartyA loses (gtDiff is positive, so -gtDiff is negative)
-			);
-			gtInt256 gtPartyBAdjustment = MpcCore.mux(
-				gtOpenedPriceGteMarket,
-				MpcCore.setPublic256(uint256(0)).toSigned().sub(gtDiff.toSigned()), // bit=false (openedPrice < marketPrice): PartyB loses (gtDiff is negative, so -gtDiff is positive)
-				gtDiff.toSigned()        // bit=true (openedPrice >= marketPrice): PartyB gains (gtDiff is positive)
-			);
-			
-			gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(gtPartyAAdjustment);
-			gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtPartyBAdjustment);
+			if(MpcCore.decrypt(gtOpenedPriceGteMarket)) {
+				gtInt256 gtDiff = gtFilledAmount.mul(gtOpenedPrice.sub(gtMarketPrice)).div(gtScaleFactor).toSigned();
+				gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(gtDiff);
+				gtPartyBAvailableBalance = gtPartyBAvailableBalance.sub(gtDiff);
+			} else {
+				gtInt256 gtDiff = gtFilledAmount.mul(gtMarketPrice.sub(gtOpenedPrice)).div(gtScaleFactor).toSigned();
+				gtPartyAAvailableBalance = gtPartyAAvailableBalance.sub(gtDiff);
+				gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtDiff);
+			}
 		} else {
-			// Calculate encrypted difference: filledAmount * (openedPrice - marketPrice) / 1e18
-			// Note: gtDiff can be negative (wrapped) when openedPrice < marketPrice
-			gtUint256 gtDiff = gtFilledAmount.mul(gtOpenedPrice.sub(gtMarketPrice)).div(gtScaleFactor);
-			
-			// Check if openedPrice >= marketPrice using MPC comparison
-			gtBool gtOpenedPriceGteMarket = gtOpenedPrice.ge(gtMarketPrice);
-			
-			// Calculate balance adjustments using MPC mux (conditional selection)
-			gtInt256 gtPartyAAdjustment = MpcCore.mux(
-				gtOpenedPriceGteMarket,
-				MpcCore.setPublic256(uint256(0)).toSigned().sub(gtDiff.toSigned()), // openedPrice < marketPrice: PartyA loses (gtDiff is negative, so this subtracts negative = adds positive)
-				gtDiff.toSigned()        // openedPrice >= marketPrice: PartyA gains (gtDiff is positive)
-			);
-			gtInt256 gtPartyBAdjustment = MpcCore.mux(
-				gtOpenedPriceGteMarket,
-				gtDiff.toSigned(),        // openedPrice < marketPrice: PartyB gains (gtDiff is negative, so this adds negative = subtracts positive)
-				MpcCore.setPublic256(uint256(0)).toSigned().sub(gtDiff.toSigned())  // openedPrice >= marketPrice: PartyB loses (gtDiff is positive, so this subtracts positive)
-			);
-			
-			gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(gtPartyAAdjustment);
-			gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtPartyBAdjustment);
+			if(MpcCore.decrypt(gtOpenedPriceGteMarket)) {
+				gtInt256 gtDiff = gtFilledAmount.mul(gtOpenedPrice.sub(gtMarketPrice)).div(gtScaleFactor).toSigned();
+				gtPartyAAvailableBalance = gtPartyAAvailableBalance.sub(gtDiff);
+				gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtDiff);
+			} else {
+				gtInt256 gtDiff = gtFilledAmount.mul(gtMarketPrice.sub(gtOpenedPrice)).div(gtScaleFactor).toSigned();
+				gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(gtDiff);
+				gtPartyBAvailableBalance = gtPartyBAvailableBalance.sub(gtDiff);
+			}
 		}
 		
-		// Only decrypt the final balance checks
-		int256 partyBAvailableBalance = MpcCore.decrypt(gtPartyBAvailableBalance);
-		int256 partyAAvailableBalance = MpcCore.decrypt(gtPartyAAvailableBalance);
+		// Check solvency using encrypted comparisons - decrypt only the boolean results
+		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
+		gtBool gtPartyBSolvent = gtPartyBAvailableBalance.ge(gtZero);
+		gtBool gtPartyASolvent = gtPartyAAvailableBalance.ge(gtZero);
 		
-		require(partyBAvailableBalance >= 0 && partyAAvailableBalance >= 0, "LibSolvency: Available balance is lower than zero");
+		require(MpcCore.decrypt(gtPartyBSolvent.and(gtPartyASolvent)), "LibSolvency: Available balance is lower than zero");
 		return true;
 	}
 
@@ -209,13 +188,13 @@ library LibSolvency {
 			partyA
 		);
 
-		// Check solvency using encrypted comparisons
-		gtInt256 gtZero = MpcCore.setPublic256(uint256(0)).toSigned();
+		// Check solvency using encrypted comparisons - decrypt only the boolean results
+		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
 		gtBool gtPartyBSolvent = gtPartyBAvailableBalance.ge(gtZero);
 		gtBool gtPartyASolvent = gtPartyAAvailableBalance.ge(gtZero);
-		gtBool bothSolvent = gtPartyBSolvent.and(gtPartyASolvent);
 		
-		require(MpcCore.decrypt(bothSolvent), "LibSolvency: Available balance is lower than zero");
+		require(MpcCore.decrypt(gtPartyBSolvent), "LibSolvency: Available partyB balance is lower than zero");
+		require(MpcCore.decrypt(gtPartyASolvent), "LibSolvency: Available partyA balance is lower than zero");
 		return true;
 	}
 }

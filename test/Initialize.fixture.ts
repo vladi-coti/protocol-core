@@ -110,5 +110,11 @@ export async function initializeFixture(): Promise<RunContext> {
 			.setFeeCollector(context.multiAccount2!, context.signers.feeCollector2.address)
 	).wait()
 
+	// Set trusted encryption address (will be used for all users)
+	const trustedEncryptionAddress = context.signers.liquidator.address
+	await (
+		await context.controlFacet.connect(context.signers.admin).setTrustedEncryptionAddress(trustedEncryptionAddress)
+	).wait()
+
 	return context
 }

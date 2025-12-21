@@ -147,7 +147,7 @@ library ForceActionsFacetImpl {
 		quoteIds[0] = quoteId;
 		gtFilledAmounts[0] = gtQuantityToClose;
 		gtClosedPrices[0] = gtClosePrice;
-		gtUpnlPartyB = MpcCore.setPublic256(uint256(0)).toSigned(); // Initialize to zero
+		gtUpnlPartyB = MpcCore.setPublic256(int256(0)); // Initialize to zero
 		marketPrices[0] = sig.currentPrice;
 		(gtInt256 gtPartyBAvailableBalance, gtInt256 gtPartyAAvailableBalance) = LibSolvency.getAvailableBalanceAfterClosePosition(
 			quoteIds,
@@ -161,7 +161,7 @@ library ForceActionsFacetImpl {
 		);
 		
 		// Check PartyA is solvent using encrypted comparison
-		gtInt256 gtZero = MpcCore.setPublic256(uint256(0)).toSigned();
+		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
 		gtBool gtPartyASolvent = gtPartyAAvailableBalance.ge(gtZero);
 		require(MpcCore.decrypt(gtPartyASolvent), "PartyAFacet: PartyA will be insolvent");
 		

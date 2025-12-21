@@ -66,12 +66,12 @@ library LibAccount {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		gtInt256 allocatedBalance = MpcCore.toSigned(LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext));
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
-		
+
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
 		GarbledLockedValues memory garbledPendingLockedBalances = accountLayout.pendingLockedBalances[partyA].onBoard();
-		
+
 		gtInt256 totalLocked = MpcCore.toSigned(garbledLockedBalances.totalForPartyA().add(garbledPendingLockedBalances.totalForPartyA()));
-		
+
 		if (upnl >= 0) {
 			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
 			return allocatedBalance.add(gtUpnl).sub(totalLocked);
@@ -81,8 +81,10 @@ library LibAccount {
 			gtInt256 mm = MpcCore.toSigned(garbledLockedBalances.partyAmm);
 			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
 			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
-			
-			gtInt256 cvaLfPendingTotal = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf).add(garbledPendingLockedBalances.totalForPartyA()));
+
+			gtInt256 cvaLfPendingTotal = MpcCore.toSigned(
+				garbledLockedBalances.cva.add(garbledLockedBalances.lf).add(garbledPendingLockedBalances.totalForPartyA())
+			);
 			return allocatedBalance.sub(cvaLfPendingTotal).sub(considering_mm);
 		}
 	}
@@ -97,10 +99,10 @@ library LibAccount {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		gtInt256 allocatedBalance = MpcCore.toSigned(LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext));
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
-		
+
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
 		gtInt256 totalLocked = MpcCore.toSigned(garbledLockedBalances.totalForPartyA());
-		
+
 		if (upnl >= 0) {
 			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
 			return allocatedBalance.add(gtUpnl).sub(totalLocked);
@@ -110,7 +112,7 @@ library LibAccount {
 			gtInt256 mm = MpcCore.toSigned(garbledLockedBalances.partyAmm);
 			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
 			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
-			
+
 			gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
 			return allocatedBalance.sub(cvaLf).sub(considering_mm);
 		}
@@ -124,13 +126,13 @@ library LibAccount {
 	 */
 	function partyAAvailableBalanceForLiquidation(int256 upnl, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		gtInt256 allocatedBalanceEncrypted = MpcCore.toSigned(LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext));
+		gtInt256 allocatedBalance = MpcCore.toSigned(LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext));
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
-		
+
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
 		gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
-		
-		gtInt256 freeBalance = allocatedBalanceEncrypted.sub(cvaLf);
+
+		gtInt256 freeBalance = allocatedBalance.sub(cvaLf);
 		return freeBalance.add(gtUpnl);
 	}
 
@@ -145,12 +147,12 @@ library LibAccount {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		gtInt256 allocatedBalance = MpcCore.toSigned(LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext));
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
-		
+
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
 		GarbledLockedValues memory garbledPendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA].onBoard();
-		
+
 		gtInt256 totalLocked = MpcCore.toSigned(garbledLockedBalances.totalForPartyB().add(garbledPendingLockedBalances.totalForPartyB()));
-		
+
 		if (upnl >= 0) {
 			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
 			return allocatedBalance.add(gtUpnl).sub(totalLocked);
@@ -160,8 +162,10 @@ library LibAccount {
 			gtInt256 mm = MpcCore.toSigned(garbledLockedBalances.partyBmm);
 			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
 			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
-			
-			gtInt256 cvaLfPendingTotal = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf).add(garbledPendingLockedBalances.totalForPartyB()));
+
+			gtInt256 cvaLfPendingTotal = MpcCore.toSigned(
+				garbledLockedBalances.cva.add(garbledLockedBalances.lf).add(garbledPendingLockedBalances.totalForPartyB())
+			);
 			return allocatedBalance.sub(cvaLfPendingTotal).sub(considering_mm);
 		}
 	}
@@ -177,10 +181,10 @@ library LibAccount {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		gtInt256 allocatedBalance = MpcCore.toSigned(LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext));
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
-		
+
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
 		gtInt256 totalLocked = MpcCore.toSigned(garbledLockedBalances.totalForPartyB());
-		
+
 		if (upnl >= 0) {
 			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
 			return allocatedBalance.add(gtUpnl).sub(totalLocked);
@@ -190,7 +194,7 @@ library LibAccount {
 			gtInt256 mm = MpcCore.toSigned(garbledLockedBalances.partyBmm);
 			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
 			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
-			
+
 			gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
 			return allocatedBalance.sub(cvaLf).sub(considering_mm);
 		}
@@ -205,12 +209,14 @@ library LibAccount {
 	 */
 	function partyBAvailableBalanceForLiquidation(int256 upnl, address partyB, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		gtInt256 allocatedBalanceEncrypted = MpcCore.toSigned(LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext));
+		gtInt256 allocatedBalanceEncrypted = MpcCore.toSigned(
+			LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext)
+		);
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
-		
+
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
 		gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
-		
+
 		gtInt256 freeBalance = allocatedBalanceEncrypted.sub(cvaLf);
 		return freeBalance.add(gtUpnl);
 	}
@@ -223,21 +229,23 @@ library LibAccount {
 	function initializePartyA(address partyA) internal {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		address encryptionAddress = getUserEncryptionAddress(partyA);
-		
+
 		// Initialize Party A locked balances if uninitialized
 		LockedValues storage lockedBalances = accountLayout.lockedBalances[partyA];
 		LockedValues storage pendingLockedBalances = accountLayout.pendingLockedBalances[partyA];
-		
+
 		if (lockedBalances.isUninitialized()) {
 			lockedBalances.initializeToZeros(encryptionAddress);
 		}
 		if (pendingLockedBalances.isUninitialized()) {
 			pendingLockedBalances.initializeToZeros(encryptionAddress);
 		}
-		
+
 		// Initialize Party A allocated balance if uninitialized (contains zeros)
-		if (ctUint128.unwrap(accountLayout.allocatedBalances[partyA].ciphertext.ciphertextHigh) == 0 && 
-			ctUint128.unwrap(accountLayout.allocatedBalances[partyA].ciphertext.ciphertextLow) == 0) {
+		if (
+			ctUint128.unwrap(accountLayout.allocatedBalances[partyA].ciphertext.ciphertextHigh) == 0 &&
+			ctUint128.unwrap(accountLayout.allocatedBalances[partyA].ciphertext.ciphertextLow) == 0
+		) {
 			gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
 			accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtZero, encryptionAddress);
 		}
@@ -252,21 +260,23 @@ library LibAccount {
 	function initializePartyB(address partyB, address partyA) internal {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		address encryptionAddress = getUserEncryptionAddress(partyB);
-		
+
 		// Initialize Party B locked balances for this Party A if uninitialized
 		LockedValues storage lockedBalances = accountLayout.partyBLockedBalances[partyB][partyA];
 		LockedValues storage pendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA];
 		SettlementState storage settlementState = accountLayout.settlementStates[partyA][partyB];
-		
+
 		if (lockedBalances.isUninitialized()) {
 			lockedBalances.initializeToZeros(encryptionAddress);
 			pendingLockedBalances.initializeToZeros(encryptionAddress);
 			initializeToZeros(settlementState, getUserEncryptionAddress(partyA));
 		}
-		
+
 		// Initialize Party B allocated balance for this Party A if uninitialized (contains zeros)
-		if (ctUint128.unwrap(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext.ciphertextHigh) == 0 && 
-			ctUint128.unwrap(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext.ciphertextLow) == 0) {
+		if (
+			ctUint128.unwrap(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext.ciphertextHigh) == 0 &&
+			ctUint128.unwrap(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext.ciphertextLow) == 0
+		) {
 			gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
 			accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtZero, encryptionAddress);
 		}
