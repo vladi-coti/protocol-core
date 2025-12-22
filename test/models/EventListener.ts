@@ -17,7 +17,8 @@ import {
 	OpenPositionForPartyBEvent,
 	RequestToCancelCloseRequestEvent,
 	RequestToCancelQuoteEvent,
-	RequestToClosePositionEvent,
+	RequestToClosePositionForPartyAEvent,
+	RequestToClosePositionForPartyBEvent,
 	SendQuoteForPartyAEvent,
 	SendQuoteForPartyBEvent,
 	UnlockQuoteEvent,
@@ -42,7 +43,8 @@ export class EventListener {
 		[Event.SEND_QUOTE_FOR_PARTY_A, new Subject<SendQuoteForPartyAEvent.OutputObject>()],
 		[Event.SEND_QUOTE_FOR_PARTY_B, new Subject<SendQuoteForPartyBEvent.OutputObject>()],
 		[Event.REQUEST_TO_CANCEL_QUOTE, new Subject<RequestToCancelQuoteEvent.OutputObject>()],
-		[Event.REQUEST_TO_CLOSE_POSITION, new Subject<RequestToClosePositionEvent.OutputObject>()],
+		[Event.REQUEST_TO_CLOSE_POSITION_FOR_PARTY_A, new Subject<RequestToClosePositionForPartyAEvent.OutputObject>()],
+		[Event.REQUEST_TO_CLOSE_POSITION_FOR_PARTY_B, new Subject<RequestToClosePositionForPartyBEvent.OutputObject>()],
 		[Event.REQUEST_TO_CANCEL_CLOSE_REQUEST, new Subject<RequestToCancelCloseRequestEvent.OutputObject>()],
 		[Event.LOCK_QUOTE, new Subject<LockQuoteEvent.OutputObject>()],
 		[Event.UNLOCK_QUOTE, new Subject<UnlockQuoteEvent.OutputObject>()],
@@ -88,18 +90,9 @@ export class EventListener {
 			this.eventTrackQueues.get(Event.DEALLOCATE_PARTYA)!.next(value)
 		})
 
-		// Listen for SendQuoteForPartyA event (encrypted version)
 		context.partyAFacet.on(context.partyAFacet.filters.SendQuoteForPartyA, async (...args) => {
 			let value: SendQuoteForPartyAEvent.OutputObject = (args[args.length - 1]! as any).args
 			this.eventTrackQueues.get(Event.SEND_QUOTE_FOR_PARTY_A)!.next(value)
-			this.queues.get(QuoteStatus.PENDING)!.next(value.quoteId)
-		})
-		
-		// Listen for SendQuoteForPartyB event (encrypted version)
-		context.partyAFacet.on(context.partyAFacet.filters.SendQuoteForPartyB, async (...args) => {
-			let value: SendQuoteForPartyBEvent.OutputObject = (args[args.length - 1]! as any).args
-			// This event is for Party B, but we track it for the same quote
-			this.eventTrackQueues.get(Event.SEND_QUOTE_FOR_PARTY_B)!.next(value)
 			this.queues.get(QuoteStatus.PENDING)!.next(value.quoteId)
 		})
 		context.partyAFacet.on(context.partyAFacet.filters.RequestToCancelQuote, async (...args) => {
@@ -107,9 +100,11 @@ export class EventListener {
 			this.eventTrackQueues.get(Event.REQUEST_TO_CANCEL_QUOTE)!.next(value)
 			this.queues.get(QuoteStatus.CANCEL_PENDING)!.next(value.quoteId)
 		})
-		context.partyAFacet.on(context.partyAFacet.filters.RequestToClosePosition, async (...args) => {
-			let value: RequestToClosePositionEvent.OutputObject = (args[args.length - 1]! as any).args //FIXME: Will probably not work
-			this.eventTrackQueues.get(Event.REQUEST_TO_CLOSE_POSITION)!.next(value)
+		context.partyAFacet.on(context.partyAFacet.filters.RequestToClosePositionForPartyB, async (...args) => {
+			let value: RequestToClosePositionForPartyBEvent.OutputObject = (args[args.length - 1]! as any).args
+			logger.detailedEventDebug("RequestToClosePositionForPartyB event received")
+			logger.detailedEventDebug(value)
+			this.eventTrackQueues.get(Event.REQUEST_TO_CLOSE_POSITION_FOR_PARTY_B)!.next(value)
 			this.queues.get(QuoteStatus.CLOSE_PENDING)!.next(value.quoteId)
 		})
 		context.partyAFacet.on(context.partyAFacet.filters.RequestToCancelCloseRequest, async (...args) => {

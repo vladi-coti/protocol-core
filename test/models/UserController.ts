@@ -89,70 +89,45 @@ export class UserController {
 		if (pendingQuotes.length >= 10) throw new ManagedError("Too many open quotes")
 
 		const orderType = pick([OrderType.MARKET, OrderType.LIMIT])
-		console.log("UserController::sendQuote: orderType: ", orderType)
 		const positionType = pick([PositionType.SHORT, PositionType.LONG])
-		console.log("UserController::sendQuote: positionType: ", positionType)
 		const symbol: SymbolStructOutput = pick(await getSymbols(this.manager.context))
-		console.log("UserController::sendQuote: symbol: ", symbol)
 		let symbolQP = this.manager.symbolManager.getSymbolQuantityPrecision(Number(symbol.symbolId))
 		let symbolPP = this.manager.symbolManager.getSymbolPricePrecision(Number(symbol.symbolId))
-		console.log("UserController::sendQuote: symbolQP: ", symbolQP)
-		console.log("UserController::sendQuote: symbolPP: ", symbolPP)
 		const price = await getPrice()
-		console.log("UserController::sendQuote: price: ", price)
 		const upnl = await this.user.getUpnl()
-		console.log("UserController::sendQuote: upnl: ", upnl)
 		const availableForQuote = await this.user.getAvailableBalanceForQuote(upnl)
-		console.log("UserController::sendQuote: availableForQuote: ", availableForQuote)
 		if (availableForQuote < symbol.minAcceptableQuoteValue) throw new ManagedError("Insufficient funds available")
 
 		const lockedAmount = randomBigNumber(min(availableForQuote, maxLockedAmountForQuote), symbol.minAcceptableQuoteValue)
-		console.log("UserController::sendQuote: lockedAmount: ", lockedAmount)
 		// Ensure LF is well above minimum to account for encrypted validation rounding
 		const minLfRequired = unDecimal(lockedAmount * symbol.minAcceptablePortionLF)
-		console.log("UserController::sendQuote: minLfRequired: ", minLfRequired)
 		const lf = randomBigNumber(unDecimal(lockedAmount * decimal(5n, 17)), minLfRequired * 2n) // Use 2x minimum to be safe
-		console.log("UserController::sendQuote: lf: ", lf)
 		const cva = randomBigNumberRatio(lockedAmount - lf, 0.2)
-		console.log("UserController::sendQuote: cva: ", cva)
 		const mm = lockedAmount - lf - cva
-		console.log("UserController::sendQuote: mm: ", mm)
 		// Double-check that mm is positive (should always be, but just in case)
 		if (mm <= 0n) {
 			throw new ManagedError("Random data lead to invalid quote... This request will be rejected")
 		}
-		console.log("UserController::sendQuote: mm is positive")
 		let requestPrice =
 			orderType == OrderType.MARKET
 				? price + randomBigNumberRatio(price, 0.1) * (positionType == PositionType.LONG ? 1n : -1n)
 				: price + randomBigNumberRatio(price, 0.1) * (positionType == PositionType.SHORT ? 1n : -1n)
 		requestPrice = roundToPrecision(requestPrice, symbolPP)
-		console.log("UserController::sendQuote: requestPrice: ", requestPrice)
 		let notionalPrice =
 			orderType == OrderType.MARKET ? price : price + randomBigNumberRatio(price, 0.1) * (positionType == PositionType.SHORT ? 1n : -1n)
 		notionalPrice = roundToPrecision(notionalPrice, symbolPP)
-		console.log("UserController::sendQuote: notionalPrice: ", notionalPrice)
 		const leverage = safeDiv(symbol.maxLeverage * 9n, 10n) //10% safe margin
 		let quantity
 		try {
-			console.log("UserController::sendQuote: trying to calculate quantity")
 			quantity = roundToPrecision(safeDiv(lockedAmount * leverage, price), symbolQP)
 		} catch (ex) {
-			console.log("UserController::sendQuote: error calculating quantity: ", ex)
 			throw new ManagedError("Random data lead to invalid quote... This request will be rejected")
 		}
-		console.log("UserController::sendQuote: quantity: ", quantity)
 		const notional = unDecimal(quantity * notionalPrice)
-		console.log("UserController::sendQuote: notional: ", notional)
 		const tradingFee = unDecimal(symbol.tradingFee * notional)
-		console.log("UserController::sendQuote: tradingFee: ", tradingFee)
 		if (availableForQuote - tradingFee < symbol.minAcceptableQuoteValue) throw new ManagedError("Insufficient funds available for tradingFee")
-		console.log("UserController::sendQuote: availableForQuote - tradingFee: ", availableForQuote - tradingFee)
-		console.log("UserController::sendQuote: symbol.minAcceptableQuoteValue: ", symbol.minAcceptableQuoteValue)
 		if (availableForQuote - tradingFee < lockedAmount)
 			throw new ManagedError("Random data lead to invalid quote... This request will be rejected")
-		console.log("UserController::sendQuote: availableForQuote - tradingFee < lockedAmount: ", availableForQuote - tradingFee < lockedAmount)
-		console.log("UserController::sendQuote: lockedAmount: ", lockedAmount)
 		const { quoteId: id } = await this.user.sendQuote(
 			Builder<QuoteRequest>()
 				.partyBWhiteList([this.context.signers.hedger.address])
@@ -171,11 +146,10 @@ export class UserController {
 				.maxFundingRate(0n)
 				.build(),
 		)
-		console.log("UserController::sendQuote: deadline: " + (await this.context.viewFacet.getQuote(id)).deadline)
-		console.log("UserController::sendQuote: quoteId: " + id)
 
-		if (randomBigNumber(100n, 1n) <= 110n) {
+		if (randomBigNumber(100n, 1n) <= 10n) {
 			this.checkpoint.addBlockedQuotes(id)
+			console.log(`UserController::sendQuote: Quote ${id} marked as blocked`)
 		}
 	}
 

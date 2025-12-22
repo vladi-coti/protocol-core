@@ -11,7 +11,7 @@ import fsPromise from "fs/promises"
 import {QuoteCheckpoint} from "./models/quoteCheckpoint"
 
 const ACTION_LOOP_INTERVAL_MS = 10000 // 10 seconds between actions
-const ACTION_LOOP_DURATION_MS = 600000 // 10 minutes total duration
+const ACTION_LOOP_DURATION_MS = 60 * 60 * 1000 // 1 hour total duration
 
 export function shouldBehaveLikeFuzzTest(): void {
 	beforeEach(async function () {

@@ -102,7 +102,6 @@ export class User {
 				}
 			}
 		}
-		console.log("User::setBalances - Completed")
 	}
 
 	public async setNativeBalance(amount: bigint) {
@@ -154,13 +153,12 @@ export class User {
 		const [basicParams, encryptedParams, upnlSig] = await this.buildQuoteCalldataArgs(request)
 
 		const tx = await this.context.partyAFacet.connect(this.signer).sendQuote(basicParams, encryptedParams, upnlSig)
-		console.log("User::::SendQuote: " + tx.hash)
 		const receipt = await tx.wait()
 
 		let quoteId: bigint = 0n
 		let partyBEvent: SendQuoteForPartyBEvent.OutputObject | undefined
 		if (receipt && receipt.logs) {
-			console.log("User::::Receipt gas used: " + receipt.gasUsed.toString())
+			console.log("User::sendQuote::Receipt gas used: " + receipt.gasUsed.toString())
 		
 			const SendQuoteForPartyA = receipt.logs.find((log: any): log is EventLog => {
 				return (log as EventLog).eventName === "SendQuoteForPartyA"
@@ -168,17 +166,12 @@ export class User {
 
 			if (SendQuoteForPartyA && SendQuoteForPartyA.args) {
 				const id = SendQuoteForPartyA.args.quoteId
-				console.log("User::::SendQuote: " + id)
 				quoteId = id
 				const args = SendQuoteForPartyA.args as any[]
 				const values = this.formatEncryptedQuoteValues(args[6]) as SendQuoteForPartyBEvent.OutputObject["values"]
-				console.log("User::::SendQuote openedPrice: ", await this.decryptUint256(values.price))
-				console.log("User::::SendQuote quantity: ", await this.decryptUint256(values.quantity))
 			}
 
 			const quote = await this.context.viewFacet.getQuote(quoteId)
-			console.log("User::::Quote: requestedOpenPrice: ", await this.decryptUint256(quote.requestedOpenPrice.userCiphertext))
-			console.log("User::::Quote: quantity: ", await this.decryptUint256(quote.quantity.userCiphertext))
 
 			const SendQuoteForPartyB = receipt.logs.find((log: any): log is EventLog => {
 				return (log as EventLog).eventName === "SendQuoteForPartyB"
@@ -199,7 +192,6 @@ export class User {
 					values: this.formatEncryptedQuoteValues(rawValues),
 					deadline: args[7]
 				} as SendQuoteForPartyBEvent.OutputObject
-				console.log("User::::SendQuoteForPartyBEvent: ", partyBEvent.quoteId)
 			}
 		}
 		if (quoteId == 0n) {
