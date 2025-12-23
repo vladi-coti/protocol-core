@@ -98,7 +98,24 @@ export class UserController {
 		const availableForQuote = await this.user.getAvailableBalanceForQuote(upnl)
 		if (availableForQuote < symbol.minAcceptableQuoteValue) throw new ManagedError("Insufficient funds available")
 
-		const lockedAmount = randomBigNumber(min(availableForQuote, maxLockedAmountForQuote), symbol.minAcceptableQuoteValue)
+		let requestPrice =
+			orderType == OrderType.MARKET
+				? price + randomBigNumberRatio(price, 0.1) * (positionType == PositionType.LONG ? 1n : -1n)
+				: price + randomBigNumberRatio(price, 0.1) * (positionType == PositionType.SHORT ? 1n : -1n)
+		requestPrice = roundToPrecision(requestPrice, symbolPP)
+		
+		// For MARKET orders, account for price adjustment when opening position
+		// Locked values get scaled by openedPrice/requestedOpenPrice, so we need extra margin
+		// Worst case: openedPrice can be up to ~10% different from requestedPrice
+		// Use a safety margin of 1.2x (20% extra) to account for price adjustments
+		// decimal(12n, 17) = 1.2 (12 * 10^17 / 10^18)
+		const priceAdjustmentMargin = orderType == OrderType.MARKET ? decimal(12n, 17) : decimal(1n) // 1.2x for MARKET, 1x for LIMIT
+		const minLockedAmountWithMargin = (symbol.minAcceptableQuoteValue * priceAdjustmentMargin) / decimal(1n)
+		const minLockedAmount = minLockedAmountWithMargin > symbol.minAcceptableQuoteValue ? minLockedAmountWithMargin : symbol.minAcceptableQuoteValue
+		const lockedAmount = randomBigNumber(
+			min(availableForQuote, maxLockedAmountForQuote), 
+			minLockedAmount
+		)
 		// Ensure LF is well above minimum to account for encrypted validation rounding
 		const minLfRequired = unDecimal(lockedAmount * symbol.minAcceptablePortionLF)
 		const lf = randomBigNumber(unDecimal(lockedAmount * decimal(5n, 17)), minLfRequired * 2n) // Use 2x minimum to be safe
@@ -108,11 +125,6 @@ export class UserController {
 		if (mm <= 0n) {
 			throw new ManagedError("Random data lead to invalid quote... This request will be rejected")
 		}
-		let requestPrice =
-			orderType == OrderType.MARKET
-				? price + randomBigNumberRatio(price, 0.1) * (positionType == PositionType.LONG ? 1n : -1n)
-				: price + randomBigNumberRatio(price, 0.1) * (positionType == PositionType.SHORT ? 1n : -1n)
-		requestPrice = roundToPrecision(requestPrice, symbolPP)
 		let notionalPrice =
 			orderType == OrderType.MARKET ? price : price + randomBigNumberRatio(price, 0.1) * (positionType == PositionType.SHORT ? 1n : -1n)
 		notionalPrice = roundToPrecision(notionalPrice, symbolPP)
