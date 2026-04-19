@@ -112,6 +112,12 @@ library AccountFacetImpl {
 		gtBool gtSufficientBalance = gtOriginBalance.ge(gtAmount);
 		require(MpcCore.decrypt(gtSufficientBalance), "PartyBFacet: Insufficient locked balance");
 
+		// Self-transfers are a no-op. Preserve the original sequential semantics
+		// instead of re-reading and overwriting the same encrypted balance slot.
+		if (origin == recipient) {
+			return;
+		}
+
 		// Update encrypted balances
 		gtUint256 gtNewOriginBalance = gtOriginBalance.sub(gtAmount);
 		gtUint256 gtRecipientBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[msg.sender][recipient].ciphertext);

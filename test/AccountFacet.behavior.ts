@@ -235,6 +235,20 @@ export function shouldBehaveLikeAccountFacet(): void {
 
 				expect(newAllocatedBalanceOfPartyB).to.be.equal(decimal(120n) - decimal(50n))
 			})
+
+			it("should not mint balance on self transferAllocation", async () => {
+				const partyA = await user.getAddress()
+				const beforeAllocatedBalance = await hedger.getBalanceInfo(partyA)
+
+				await expect(
+					context.accountFacet
+						.connect(context.signers.hedger)
+						.transferAllocation(decimal(50n), partyA, partyA, await getDummySingleUpnlSig()),
+				).to.not.be.reverted
+
+				const afterAllocatedBalance = await hedger.getBalanceInfo(partyA)
+				expect(afterAllocatedBalance.allocatedBalances).to.equal(beforeAllocatedBalance.allocatedBalances)
+			})
 		})
 	})
 
