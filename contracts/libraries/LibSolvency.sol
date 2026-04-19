@@ -55,22 +55,22 @@ library LibSolvency {
 			// Check if openedPrice >= marketPrice using MPC comparison
 			if(MpcCore.decrypt(gtOpenedPriceGteMarket)) {
 				gtInt256 gtDiff = gtFilledAmount.mul(gtOpenedPrice.sub(gtMarketPrice)).div(gtScaleFactor).toSigned();
-				gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(gtDiff);
-				gtPartyBAvailableBalance = gtPartyBAvailableBalance.sub(gtDiff);
-			} else {
-				gtInt256 gtDiff = gtFilledAmount.mul(gtMarketPrice.sub(gtOpenedPrice)).div(gtScaleFactor).toSigned();
 				gtPartyAAvailableBalance = gtPartyAAvailableBalance.sub(gtDiff);
 				gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtDiff);
+			} else {
+				gtInt256 gtDiff = gtFilledAmount.mul(gtMarketPrice.sub(gtOpenedPrice)).div(gtScaleFactor).toSigned();
+				gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(gtDiff);
+				gtPartyBAvailableBalance = gtPartyBAvailableBalance.sub(gtDiff);
 			}
 		} else {
 			if(MpcCore.decrypt(gtOpenedPriceGteMarket)) {
 				gtInt256 gtDiff = gtFilledAmount.mul(gtOpenedPrice.sub(gtMarketPrice)).div(gtScaleFactor).toSigned();
-				gtPartyAAvailableBalance = gtPartyAAvailableBalance.sub(gtDiff);
-				gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtDiff);
-			} else {
-				gtInt256 gtDiff = gtFilledAmount.mul(gtMarketPrice.sub(gtOpenedPrice)).div(gtScaleFactor).toSigned();
 				gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(gtDiff);
 				gtPartyBAvailableBalance = gtPartyBAvailableBalance.sub(gtDiff);
+			} else {
+				gtInt256 gtDiff = gtFilledAmount.mul(gtMarketPrice.sub(gtOpenedPrice)).div(gtScaleFactor).toSigned();
+				gtPartyAAvailableBalance = gtPartyAAvailableBalance.sub(gtDiff);
+				gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtDiff);
 			}
 		}
 		
