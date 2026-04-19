@@ -1,6 +1,7 @@
 import { task, types } from "hardhat/config"
 
-import { FacetCutAction, getSelectors } from "../utils/diamondCut"
+import { FacetCutAction } from "../utils/diamondCut"
+import { getFacetSelectors } from "../utils/facetSelectors"
 import { writeData } from "../utils/fs"
 import { generateGasReport } from "../utils/gas"
 import { DEPLOYMENT_LOG_FILE, FacetNames } from "./constants"
@@ -75,7 +76,7 @@ task("deploy:diamond", "Deploys the Diamond contract")
 			cut.push({
 				facetAddress: await facet.getAddress(),
 				action: FacetCutAction.Add,
-				functionSelectors: getSelectors(ethers, facet as any).selectors,
+				functionSelectors: getFacetSelectors(ethers, facetName, facet as any),
 			})
 
 			deployedFacets.push({

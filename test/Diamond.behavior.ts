@@ -2,6 +2,7 @@ import { assert, expect } from "chai"
 import { ethers } from "hardhat"
 
 import { FacetCutAction, getSelectors } from "../tasks/utils/diamondCut"
+import { FacetNames } from "../tasks/deploy/constants"
 import { initializeFixture } from "./Initialize.fixture"
 import { RunContext } from "./models/RunContext"
 import { loadFixtureCompatible } from "./utils/testHelpers"
@@ -31,24 +32,32 @@ export function shouldBehaveLikeDiamond(): void {
 	const addresses: string[] = []
 	let selectors: string[] = []
 	let result: string[] = []
+	let viewFacetAddress = ""
+
+	async function getFacetAddressForFunction(context: RunContext, contractName: string, functionName: string) {
+		const facet = await ethers.getContractFactory(contractName)
+		const [selector] = getSelectors(ethers, facet as any).get([functionName])
+		return context.diamondLoupeFacet.facetAddress(selector)
+	}
 
 	before(async function () {
 		this.context = await loadFixtureCompatible(initializeFixture)
 	})
 
-	it("should have 14 facets", async function () {
+	it("should have the expected number of facets", async function () {
 		const context: RunContext = this.context
 		for (const address of await context.diamondLoupeFacet.facetAddresses()) {
 			addresses.push(address)
 		}
-		assert.equal(addresses.length, 14)
+		assert.equal(addresses.length, FacetNames.length + 1)
 	})
 
 	it("facets should have the right function selectors -- call to facetFunctionSelectors function", async function () {
 		const context: RunContext = this.context
 		// DiamondLoupeFacet
 		selectors = getSelectors(ethers, context.diamondLoupeFacet as any).selectors
-		result = await context.diamondLoupeFacet.facetFunctionSelectors(addresses[3])
+		const diamondLoupeFacetAddress = await getFacetAddressForFunction(context, "DiamondLoupeFacet", "facets")
+		result = await context.diamondLoupeFacet.facetFunctionSelectors(diamondLoupeFacetAddress)
 		expect(haveSameMembers(result, selectors)).to.be.true
 	})
 
@@ -56,7 +65,9 @@ export function shouldBehaveLikeDiamond(): void {
 		const context: RunContext = this.context
 		const viewFacet = await ethers.getContractFactory("ViewFacet")
 		const selectors = getSelectors(ethers, viewFacet as any).get(["balanceOf(address)"])
-		const viewFacetAddress = addresses[7]
+		if (!viewFacetAddress) {
+			viewFacetAddress = await getFacetAddressForFunction(context, "ViewFacet", "balanceOf(address)")
+		}
 
 		const tx = await context.diamondCutFacet.diamondCut(
 			[
@@ -82,7 +93,9 @@ export function shouldBehaveLikeDiamond(): void {
 	it("should add the getAccountBalance() function back", async function () {
 		const context: RunContext = this.context
 		const viewFacet = await ethers.getContractFactory("ViewFacet")
-		const viewFacetAddress = addresses[7]
+		if (!viewFacetAddress) {
+			viewFacetAddress = await getFacetAddressForFunction(context, "ViewFacet", "balanceOf(address)")
+		}
 
 		const tx = await context.diamondCutFacet.diamondCut(
 			[

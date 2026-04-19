@@ -1,5 +1,6 @@
 import { ethers } from "hardhat"
-import { FacetCutAction, getSelectors } from "../../tasks/utils/diamondCut"
+import { FacetCutAction } from "../../tasks/utils/diamondCut"
+import { getFacetSelectors } from "../../tasks/utils/facetSelectors"
 
 interface FacetConfig {
 	name: string
@@ -26,7 +27,7 @@ export async function generateDiamondCut(config: DiamondCutConfig) {
 
 	for (const facet of config.facets) {
 		const facetFactory = await ethers.getContractFactory(facet.name)
-		const selectors = getSelectors(ethers, facetFactory).selectors
+		const selectors = getFacetSelectors(ethers, facet.name, facetFactory)
 		newFacets[facet.name] = {
 			address: facet.address,
 			selectors: selectors,
