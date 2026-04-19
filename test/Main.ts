@@ -1,3 +1,4 @@
+import "./utils/revertedWith"
 import { shouldBehaveLikeFuzzTest } from "./FuzzTest.behavior"
 import { shouldBehaveLikeSettleAndForceClosePosition } from "./SettleAndForceClosePosition.behavior"
 import { shouldBehaveLikeFeeDistributor } from "./FeeDistributor.behavior"
