@@ -23,16 +23,16 @@ library PartyBQuoteActionsFacetImpl {
 		// Initialize locked balances to encrypted zeros if uninitialized
 		_ensureInitializedPartyBLockedBalances(msg.sender, quote.partyA);
 		
-		// Get encrypted available balance and decrypt
+		// Only decrypt the final predicates, not the underlying balance magnitudes.
 		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, quote.partyA);
-		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
-		require(availableBalance >= 0, "PartyBFacet: Available balance is lower than zero");
+		gtBool gtAvailableBalanceNonNegative = LibAccount.isNonNegative(gtAvailableBalance);
+		require(MpcCore.decrypt(gtAvailableBalanceNonNegative), "PartyBFacet: Available balance is lower than zero");
 		
-		// Get encrypted totalForPartyB and decrypt
+		// Keep the sufficiency check in the encrypted domain.
 		GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
 		gtUint256 gtTotalForPartyB = gtLockedValues.totalForPartyB();
-		uint256 totalForPartyB = MpcCore.decrypt(gtTotalForPartyB);
-		require(uint256(availableBalance) >= totalForPartyB, "PartyBFacet: insufficient available balance");
+		gtBool gtAvailableBalanceSufficient = LibAccount.isAtLeastAmount(gtAvailableBalance, gtTotalForPartyB);
+		require(MpcCore.decrypt(gtAvailableBalanceSufficient), "PartyBFacet: insufficient available balance");
 		
 		LibPartyBQuoteActions.lockQuote(quoteId);
 	}

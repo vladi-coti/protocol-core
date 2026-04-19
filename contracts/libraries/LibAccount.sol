@@ -242,6 +242,27 @@ library LibAccount {
 	}
 
 	/**
+	 * @notice Checks whether an encrypted signed balance is non-negative.
+	 * @param gtAvailableBalance The encrypted signed balance.
+	 * @return Whether the balance is greater than or equal to zero.
+	 */
+	function isNonNegative(gtInt256 gtAvailableBalance) internal returns (gtBool) {
+		return gtAvailableBalance.ge(MpcCore.setPublic256(int256(0)));
+	}
+
+	/**
+	 * @notice Checks whether an encrypted signed balance covers an encrypted unsigned amount.
+	 * @dev Callers should separately guard non-negativity when they need a distinct revert reason.
+	 *      Reinterpreting a non-negative signed value as unsigned preserves the magnitude.
+	 * @param gtAvailableBalance The encrypted signed balance.
+	 * @param gtAmount The encrypted unsigned amount to compare against.
+	 * @return Whether the balance is greater than or equal to the amount.
+	 */
+	function isAtLeastAmount(gtInt256 gtAvailableBalance, gtUint256 gtAmount) internal returns (gtBool) {
+		return MpcCore.fromSigned(gtAvailableBalance).ge(gtAmount);
+	}
+
+	/**
 	 * @notice Initializes Party A encrypted values to encrypted zeros if uninitialized.
 	 * @dev This function checks and initializes Party A encrypted storage in a single call.
 	 * @param partyA The address of Party A whose encrypted values should be initialized.

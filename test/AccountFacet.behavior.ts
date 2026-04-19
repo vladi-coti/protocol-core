@@ -194,6 +194,9 @@ export function shouldBehaveLikeAccountFacet(): void {
 				await user.setup()
 				await user.setBalances(decimal(500n), decimal(500n), decimal(500n))
 
+				user2 = new User(context, context.signers.user2)
+				await user2.setup()
+
 				hedger = new Hedger(context, context.signers.hedger)
 				await hedger.setup()
 				await hedger.setBalances(decimal(700n), decimal(700n))
@@ -248,6 +251,14 @@ export function shouldBehaveLikeAccountFacet(): void {
 
 				const afterAllocatedBalance = await hedger.getBalanceInfo(partyA)
 				expect(afterAllocatedBalance.allocatedBalances).to.equal(beforeAllocatedBalance.allocatedBalances)
+			})
+
+			it("should fail transferAllocation when partyB would be liquidatable", async () => {
+				await expect(
+					context.accountFacet
+						.connect(context.signers.hedger)
+						.transferAllocation(decimal(101n), await user.getAddress(), await user2.getAddress(), await getDummySingleUpnlSig()),
+				).to.be.revertedWith("PartyBFacet: Will be liquidatable")
 			})
 		})
 	})

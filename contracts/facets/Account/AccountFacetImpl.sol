@@ -77,9 +77,10 @@ library AccountFacetImpl {
 		
 		LibMuonAccount.verifyPartyAUpnl(upnlSig, msg.sender);
 		gtInt256 gtAvailableBalance = LibAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
-		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
-		require(availableBalance >= 0, "AccountFacet: Available balance is lower than zero");
-		require(uint256(availableBalance) >= amount, "AccountFacet: partyA will be liquidatable");
+		gtBool gtAvailableBalanceNonNegative = LibAccount.isNonNegative(gtAvailableBalance);
+		require(MpcCore.decrypt(gtAvailableBalanceNonNegative), "AccountFacet: Available balance is lower than zero");
+		gtBool gtAvailableBalanceCoversAmount = LibAccount.isAtLeastAmount(gtAvailableBalance, gtAmount);
+		require(MpcCore.decrypt(gtAvailableBalanceCoversAmount), "AccountFacet: partyA will be liquidatable");
 
 		// Update encrypted balance
 		gtUint256 gtNewBalance = gtCurrentBalance.sub(gtAmount);
@@ -102,13 +103,14 @@ library AccountFacetImpl {
 		
 		LibMuonAccount.verifyPartyBUpnl(upnlSig, msg.sender, origin);
 		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, origin);
-		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
-		require(availableBalance >= 0, "PartyBFacet: Available balance is lower than zero");
-		require(uint256(availableBalance) >= amount, "PartyBFacet: Will be liquidatable");
+		gtUint256 gtAmount = MpcCore.setPublic256(amount);
+		gtBool gtAvailableBalanceNonNegative = LibAccount.isNonNegative(gtAvailableBalance);
+		require(MpcCore.decrypt(gtAvailableBalanceNonNegative), "PartyBFacet: Available balance is lower than zero");
+		gtBool gtAvailableBalanceCoversAmount = LibAccount.isAtLeastAmount(gtAvailableBalance, gtAmount);
+		require(MpcCore.decrypt(gtAvailableBalanceCoversAmount), "PartyBFacet: Will be liquidatable");
 
 		// Check sufficient balance using encrypted comparison
 		gtUint256 gtOriginBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[msg.sender][origin].ciphertext);
-		gtUint256 gtAmount = MpcCore.setPublic256(amount);
 		gtBool gtSufficientBalance = gtOriginBalance.ge(gtAmount);
 		require(MpcCore.decrypt(gtSufficientBalance), "PartyBFacet: Insufficient locked balance");
 
@@ -174,9 +176,10 @@ library AccountFacetImpl {
 		
 		LibMuonAccount.verifyPartyBUpnl(upnlSig, msg.sender, partyA);
 		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, partyA);
-		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
-		require(availableBalance >= 0, "AccountFacet: Available balance is lower than zero");
-		require(uint256(availableBalance) >= amount, "AccountFacet: Will be liquidatable");
+		gtBool gtAvailableBalanceNonNegative = LibAccount.isNonNegative(gtAvailableBalance);
+		require(MpcCore.decrypt(gtAvailableBalanceNonNegative), "AccountFacet: Available balance is lower than zero");
+		gtBool gtAvailableBalanceCoversAmount = LibAccount.isAtLeastAmount(gtAvailableBalance, gtAmount);
+		require(MpcCore.decrypt(gtAvailableBalanceCoversAmount), "AccountFacet: Will be liquidatable");
 
 		// Update encrypted balance
 		gtUint256 gtNewBalance = gtCurrentBalance.sub(gtAmount);
