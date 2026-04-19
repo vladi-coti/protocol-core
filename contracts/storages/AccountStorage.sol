@@ -63,6 +63,7 @@ library AccountStorage {
 		// partyA => partyB => SettlementState
 		mapping(address => mapping(address => SettlementState)) settlementStates;
 		mapping(address => uint256) reserveVault;
+		mapping(address => utUint256) encryptedReserveVault;
 		// User encryption address management
 		mapping(address => address) userEncryptionAddress;
 		address trustedEncryptionAddress;

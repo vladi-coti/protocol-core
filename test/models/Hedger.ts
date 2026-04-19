@@ -66,7 +66,11 @@ export class Hedger {
 	}
 
 	public async balanceOfReserveVault(): Promise<bigint> {
-		return await this.context.viewFacet.connect(this.signer).balanceOfReserveVault(await this.signer.getAddress())
+		return await decryptUint256(
+			this.context,
+			await this.context.viewFacet.connect(this.signer).balanceOfReserveVault(await this.signer.getAddress()),
+			this.signer,
+		)
 	}
 
 	public async setNativeBalance(amount: bigint) {

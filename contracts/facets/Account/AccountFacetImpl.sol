@@ -193,13 +193,20 @@ library AccountFacetImpl {
 		require(amount <= accountLayout.balances[msg.sender], "AccountFacet: Insufficient balance");
 		require(MAStorage.layout().partyBStatus[partyB], "AccountFacet: Should be partyB");
 		accountLayout.balances[msg.sender] -= amount;
-		accountLayout.reserveVault[partyB] += amount;
+		gtUint256 gtCurrentReserveVault = LibAccount.initializeReserveVault(partyB);
+		gtUint256 gtAmount = MpcCore.setPublic256(amount);
+		gtUint256 gtNewReserveVault = gtCurrentReserveVault.add(gtAmount);
+		accountLayout.encryptedReserveVault[partyB] = MpcCore.offBoardCombined(gtNewReserveVault, LibAccount.getUserEncryptionAddress(partyB));
 	}
 
 	function withdrawFromReserveVault(uint256 amount) internal {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		require(amount > 0 && amount <= accountLayout.reserveVault[msg.sender], "AccountFacet: Insufficient balance");
-		accountLayout.reserveVault[msg.sender] -= amount;
+		require(amount > 0, "AccountFacet: Insufficient balance");
+		gtUint256 gtCurrentReserveVault = LibAccount.initializeReserveVault(msg.sender);
+		gtUint256 gtAmount = MpcCore.setPublic256(amount);
+		require(MpcCore.decrypt(gtCurrentReserveVault.ge(gtAmount)), "AccountFacet: Insufficient balance");
+		gtUint256 gtNewReserveVault = gtCurrentReserveVault.sub(gtAmount);
+		accountLayout.encryptedReserveVault[msg.sender] = MpcCore.offBoardCombined(gtNewReserveVault, LibAccount.getUserEncryptionAddress(msg.sender));
 		accountLayout.balances[msg.sender] += amount;
 		accountLayout.withdrawCooldown[msg.sender] = block.timestamp;
 	}
@@ -227,6 +234,8 @@ library AccountFacetImpl {
         accountLayout.lockedBalances[user] = LockedValuesOps.offBoard(gtLocked, newEncryptionAddress);
         GarbledLockedValues memory gtPendingLocked = LockedValuesOps.onBoard(accountLayout.pendingLockedBalances[user]);
         accountLayout.pendingLockedBalances[user] = LockedValuesOps.offBoard(gtPendingLocked, newEncryptionAddress);
+		gtUint256 gtReserveVault = LibAccount.initializeReserveVault(user);
+		accountLayout.encryptedReserveVault[user] = MpcCore.offBoardCombined(gtReserveVault, newEncryptionAddress);
 
         // Re-encrypt all quotes owned by user
         QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();

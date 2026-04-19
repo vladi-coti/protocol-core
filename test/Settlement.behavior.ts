@@ -11,6 +11,7 @@ import {expect} from "chai"
 import {getDummySettlementSig, getDummySingleUpnlSig} from "./utils/SignatureUtils"
 import {QuoteSettlementDataStructOutput} from "../src/types/contracts/facets/Settlement/ISettlementFacet"
 import {QuoteData} from "./models/types"
+import {EventLog} from "ethers"
 
 export function shouldBehaveLikeSettlement(): void {
 	let context: RunContext, user: User, user2: User, hedger: Hedger, hedger2: Hedger
@@ -240,5 +241,39 @@ export function shouldBehaveLikeSettlement(): void {
 		expect((await user.getBalanceInfo()).allocatedBalances).to.be.eq(beforeAllocatedPartyA + unDecimal((decryptedQuote1Quantity + decryptedQuote2Quantity) * decimal(5n, 17)))
 		expect((await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances).to.be.eq(beforeAllocatedPartyB - unDecimal(decryptedQuote1Quantity * decimal(5n, 17)))
 		expect((await hedger2.getBalanceInfo(await user.getAddress())).allocatedBalances).to.be.eq(beforeAllocatedPartyB2 - unDecimal(decryptedQuote2Quantity * decimal(5n, 17)))
+	})
+
+	it("Should emit encrypted partyB balances in SettleUpnl", async function () {
+		const settlementSig = getDummySettlementSig(0n, [0n], [
+			{
+				quoteId: shortHedger1.quoteId,
+				currentPrice: 0n,
+				partyBUpnlIndex: 0n,
+			} as QuoteSettlementDataStructOutput,
+		])
+		const tx = await context.settlementFacet.connect(context.signers.hedger).settleUpnl(
+			await settlementSig,
+			[decimal(5n, 17)],
+			await user.getAddress(),
+		)
+		const receipt = await tx.wait()
+		const event = receipt!.logs.find((log: any): log is EventLog => (log as EventLog).eventName === "SettleUpnl")
+
+		expect(event).to.not.be.undefined
+
+		const emittedBalanceTuple = event!.args.newPartyBsAllocatedBalances[0] as [bigint, bigint]
+		expect(emittedBalanceTuple).to.have.length(2)
+
+		const storedBalance = await context.viewFacet.allocatedBalanceOfPartyB(await hedger.getAddress(), await user.getAddress())
+		expect(emittedBalanceTuple[0]).to.equal(storedBalance.ciphertextHigh)
+		expect(emittedBalanceTuple[1]).to.equal(storedBalance.ciphertextLow)
+
+		const emittedBalance = {
+			ciphertextHigh: emittedBalanceTuple[0],
+			ciphertextLow: emittedBalanceTuple[1],
+		}
+
+		const decryptedEmittedBalance = await decryptUint256(context, emittedBalance, context.signers.hedger)
+		expect(decryptedEmittedBalance).to.equal((await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances)
 	})
 }

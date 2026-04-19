@@ -324,6 +324,37 @@ library LibAccount {
 	}
 
 	/**
+	 * @notice Initializes or migrates Party B reserve vault storage into encrypted form.
+	 * @param partyB The address of Party B.
+	 * @return gtReserveBalance The encrypted reserve vault balance.
+	 */
+	function initializeReserveVault(address partyB) internal returns (gtUint256 gtReserveBalance) {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		address encryptionAddress = getUserEncryptionAddress(partyB);
+		utUint256 storage encryptedReserveVault = accountLayout.encryptedReserveVault[partyB];
+		uint256 legacyReserveVault = accountLayout.reserveVault[partyB];
+
+		if (legacyReserveVault > 0) {
+			gtReserveBalance = MpcCore.setPublic256(legacyReserveVault);
+			encryptedReserveVault.ciphertext = MpcCore.offBoard(gtReserveBalance);
+			encryptedReserveVault.userCiphertext = MpcCore.offBoardToUser(gtReserveBalance, encryptionAddress);
+			accountLayout.reserveVault[partyB] = 0;
+			return gtReserveBalance;
+		}
+
+		if (
+			ctUint128.unwrap(encryptedReserveVault.ciphertext.ciphertextHigh) == 0 &&
+			ctUint128.unwrap(encryptedReserveVault.ciphertext.ciphertextLow) == 0
+		) {
+			gtReserveBalance = MpcCore.setPublic256(uint256(0));
+			accountLayout.encryptedReserveVault[partyB] = MpcCore.offBoardCombined(gtReserveBalance, encryptionAddress);
+			return gtReserveBalance;
+		}
+
+		return LockedValuesOps.safeOnboard(encryptedReserveVault.ciphertext);
+	}
+
+	/**
 	 * @notice Initializes SettlementState storage to encrypted zeros for a user.
 	 * @param self The SettlementState storage struct to initialize.
 	 * @param encryptionAddress The encryption address of the party.

@@ -13,6 +13,6 @@ interface SettlementFacetEvents {
 		uint256[] updatedPrices,
 		address partyA,
 		ctUint256 newPartyAAllocatedBalance,
-		uint256[] newPartyBsAllocatedBalances
+		ctUint256[] newPartyBsAllocatedBalances
 	);
 }

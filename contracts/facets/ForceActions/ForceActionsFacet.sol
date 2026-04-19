@@ -106,10 +106,8 @@ contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceAct
 			ctInt256 memory ctUpnlPartyB = MpcCore.offBoardToUser(gtUpnlPartyB, partyBEncryptionAddress);
 			emit LiquidatePartyB(msg.sender, quote.partyB, quote.partyA, ctPartyBAllocatedBalance, ctUpnlPartyB);
 		} else {
-			// Decrypt for event emission
-			uint256 partyBAllocatedBalance = MpcCore.decrypt(gtPartyBAllocatedBalance);
-			uint256[] memory newPartyBsAllocatedBalances = new uint256[](1);
-			newPartyBsAllocatedBalances[0] = partyBAllocatedBalance;
+			ctUint256[] memory newPartyBsAllocatedBalances = new ctUint256[](1);
+			newPartyBsAllocatedBalances[0] = AccountStorage.layout().partyBAllocatedBalances[quote.partyB][quote.partyA].userCiphertext;
 			// Prepare encrypted allocated balance for the event
 			ctUint256 memory ctAllocatedBalance = AccountStorage.layout().allocatedBalances[msg.sender].userCiphertext;
 			

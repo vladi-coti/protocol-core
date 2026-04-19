@@ -135,7 +135,7 @@ library ForceActionsFacetImpl {
 		}
 		accountLayout.partyANonces[quote.partyA] += 1;
 		accountLayout.partyBNonces[quote.partyB][quote.partyA] += 1;
-		uint256 reserveAmount = accountLayout.reserveVault[quote.partyB];
+		gtUint256 gtReserveAmount = LibAccount.initializeReserveVault(quote.partyB);
 
 		// Get encrypted quantityToClose
 		gtUint256 gtQuantityToClose = LockedValuesOps.safeOnboard(quote.quantityToClose.ciphertext);
@@ -174,22 +174,18 @@ library ForceActionsFacetImpl {
 			LibQuote.closeQuote(quote, gtQuantityToClose, gtClosePrice);
 		} else {
 			// Check if PartyB has enough reserve using encrypted comparison
-			gtUint256 gtReserveAmount = MpcCore.setPublic256(reserveAmount);
 			gtInt256 gtWithReserve = gtPartyBAvailableBalance.add(gtReserveAmount.toSigned());
 			gtBool gtCanUseReserve = gtWithReserve.ge(gtZero);
 			if (MpcCore.decrypt(gtCanUseReserve)) {
 				// Calculate available amount using encrypted operations
 				// available = -partyBAvailableBalance (negate to get the deficit amount)
 				gtInt256 gtNegBalance = gtZero.sub(gtPartyBAvailableBalance);
-				
-				// Decrypt only for reserve vault update (public storage)
-				int256 negBalance = MpcCore.decrypt(gtNegBalance);
-				uint256 available = uint256(negBalance);
-				accountLayout.reserveVault[quote.partyB] -= available;
+				gtUint256 gtAvailableAmount = gtNegBalance.fromSigned();
+				gtUint256 gtNewReserveBalance = gtReserveAmount.sub(gtAvailableAmount);
+				accountLayout.encryptedReserveVault[quote.partyB] = MpcCore.offBoardCombined(gtNewReserveBalance, LibAccount.getUserEncryptionAddress(quote.partyB));
 				
 				// Update PartyB allocated balance with encrypted operations
 				gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
-				gtUint256 gtAvailableAmount = MpcCore.setPublic256(available);
 				gtUint256 gtNewBalance = gtCurrentBalance.add(gtAvailableAmount);
 				accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyB));
 				
@@ -201,7 +197,7 @@ library ForceActionsFacetImpl {
 				}
 				LibQuote.closeQuote(quote, gtQuantityToClose, gtClosePrice);
 			} else {
-				accountLayout.reserveVault[quote.partyB] = 0;
+				accountLayout.encryptedReserveVault[quote.partyB] = MpcCore.offBoardCombined(MpcCore.setPublic256(uint256(0)), LibAccount.getUserEncryptionAddress(quote.partyB));
 				
 				// Update PartyB allocated balance with encrypted operations
 				gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);

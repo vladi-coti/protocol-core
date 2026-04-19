@@ -29,11 +29,10 @@ contract SettlementFacet is Accessibility, Pausable, ISettlementFacet {
 		// Prepare encrypted allocated balance for the event
 		ctUint256 memory ctAllocatedBalance = AccountStorage.layout().allocatedBalances[partyA].userCiphertext;
 		
-		// Convert utUint256[] to uint256[] for the event
-		uint256[] memory decryptedBalances = new uint256[](newPartyBsAllocatedBalances.length);
+		// Preserve partyB balances as ciphertext in the event.
+		ctUint256[] memory encryptedBalances = new ctUint256[](newPartyBsAllocatedBalances.length);
 		for (uint256 i = 0; i < newPartyBsAllocatedBalances.length; i++) {
-			gtUint256 gtBalance = LockedValuesOps.safeOnboard(newPartyBsAllocatedBalances[i].ciphertext);
-			decryptedBalances[i] = MpcCore.decrypt(gtBalance);
+			encryptedBalances[i] = newPartyBsAllocatedBalances[i].userCiphertext;
 		}
 		
 		emit SettleUpnl(
@@ -41,7 +40,7 @@ contract SettlementFacet is Accessibility, Pausable, ISettlementFacet {
 			updatedPrices,
 			partyA,
 			ctAllocatedBalance,
-			decryptedBalances
+			encryptedBalances
 		);
 	}
 }

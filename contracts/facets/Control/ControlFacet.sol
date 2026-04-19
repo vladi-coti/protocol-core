@@ -14,6 +14,7 @@ import "../../storages/SymbolStorage.sol";
 import "../../storages/AccountStorage.sol";
 import "./IControlFacet.sol";
 import "../../libraries/LibDiamond.sol";
+import "../../libraries/LibAccount.sol";
 import "../../storages/BridgeStorage.sol";
 
 contract ControlFacet is Accessibility, Ownable, IControlFacet {
@@ -63,6 +64,7 @@ contract ControlFacet is Accessibility, Ownable, IControlFacet {
 		require(partyB != address(0), "ControlFacet: Zero address");
 		require(!MAStorage.layout().partyBStatus[partyB], "ControlFacet: Address is already registered");
 		MAStorage.layout().partyBStatus[partyB] = true;
+		LibAccount.initializeReserveVault(partyB);
 		MAStorage.layout().partyBList.push(partyB);
 		emit RegisterPartyB(partyB);
 	}
