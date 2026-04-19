@@ -127,9 +127,29 @@ library LibAccount {
 	function partyAAvailableBalanceForLiquidation(int256 upnl, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		gtInt256 allocatedBalance = MpcCore.toSigned(LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext));
+		return _partyAAvailableBalanceForLiquidation(upnl, allocatedBalance, partyA);
+	}
+
+	/**
+	 * @notice Calculates the available balance for liquidation for Party A using an explicit allocated balance snapshot.
+	 * @param upnl The unrealized profit and loss (unencrypted).
+	 * @param allocatedBalance The allocated balance snapshot to use.
+	 * @param partyA The address of Party A.
+	 * @return The available balance for liquidation for Party A (encrypted).
+	 */
+	function partyAAvailableBalanceForLiquidation(int256 upnl, uint256 allocatedBalance, address partyA) internal returns (gtInt256) {
+		gtInt256 gtAllocatedBalance = MpcCore.setPublic256(allocatedBalance).toSigned();
+		return _partyAAvailableBalanceForLiquidation(upnl, gtAllocatedBalance, partyA);
+	}
+
+	function _partyAAvailableBalanceForLiquidation(
+		int256 upnl,
+		gtInt256 allocatedBalance,
+		address partyA
+	) private returns (gtInt256) {
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
 
-		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
+		GarbledLockedValues memory garbledLockedBalances = AccountStorage.layout().lockedBalances[partyA].onBoard();
 		gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
 
 		gtInt256 freeBalance = allocatedBalance.sub(cvaLf);

@@ -68,6 +68,46 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 			).to.be.revertedWith("LiquidationFacet: PartyA is solvent")
 		})
 
+		it("Should use the deferred liquidation snapshot allocated balance", async function () {
+			const partyA = await user.getAddress()
+			const liquidatorSigner = context.signers.liquidator
+			const price = decimal(8n)
+			const symbolIds = [1n]
+			const prices = [price]
+			const snapshotBalanceInfo = await user.getBalanceInfo()
+			const snapshotAllocatedBalance = snapshotBalanceInfo.allocatedBalances
+			const cvaLf = snapshotBalanceInfo.lockedCva + snapshotBalanceInfo.lockedLf
+			const upnl = await user.getUpnl(async () => price)
+			const totalUnrealizedLoss = await user.getTotalUnrealisedLoss(async () => price)
+			const snapshotAvailableBalance = snapshotAllocatedBalance - cvaLf + upnl
+
+			expect(snapshotAvailableBalance).to.be.lessThan(0n)
+
+			const topUpAmount = -snapshotAvailableBalance + decimal(1n)
+			await context.accountFacet.connect(context.signers.user).allocate(topUpAmount)
+
+			const currentAllocatedBalance = (await user.getBalanceInfo()).allocatedBalances
+			const currentAvailableBalance = currentAllocatedBalance - cvaLf + upnl
+			expect(currentAvailableBalance).to.be.greaterThan(0n)
+
+			const deferredSig = await getDummyLiquidationSig(
+				"0x11",
+				upnl,
+				symbolIds,
+				prices,
+				totalUnrealizedLoss,
+				snapshotAllocatedBalance,
+			)
+
+			await (
+				await context.liquidationFacet.connect(liquidatorSigner).deferredLiquidatePartyA(partyA, deferredSig)
+			).wait()
+
+			expect(await context.viewFacet.isPartyALiquidated(partyA)).to.be.equal(true)
+			const liquidationState = await user.getLiquidatedStateOfPartyA()
+			expect(liquidationState.liquidationId).to.be.equal("0x11")
+		})
+
 		it("Should liquidate pending quotes", async function () {
 			await user.liquidateAndSetSymbolPrices([1n], [decimal(8n)])
 			await user.liquidatePendingPositions()

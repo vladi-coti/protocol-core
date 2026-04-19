@@ -31,6 +31,7 @@ library DeferredLiquidationFacetImpl {
 
 		gtInt256 gtLiquidationAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
 			liquidationSig.upnl,
+			liquidationSig.liquidationAllocatedBalance,
 			partyA
 		);
 		int256 liquidationAvailableBalance = MpcCore.decrypt(gtLiquidationAvailableBalance);
