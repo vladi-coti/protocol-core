@@ -15,8 +15,9 @@ import "../ForceActions/ForceActionsFacetEvents.sol";
 import "../ForceActions/ForceActionsFacetImpl.sol";
 import "../PartyBPositionActions/IPartyBPositionActionsEvents.sol";
 import "../PartyBPositionActions/PartyBPositionActionsFacetImpl.sol";
+import "./IRecoveryActionsFacet.sol";
 
-contract RecoveryActionsFacet is Accessibility, Pausable, ForceActionsFacetEvents, IPartyBPositionActionsEvents {
+contract RecoveryActionsFacet is Accessibility, Pausable, IRecoveryActionsFacet {
 	using MpcCore for gtUint256;
 
 	function forceCancelQuote(uint256 quoteId) external notLiquidated(quoteId) whenNotPartyAActionsPaused {

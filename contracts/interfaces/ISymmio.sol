@@ -8,6 +8,7 @@ import "../facets/Account/IAccountFacet.sol";
 import "../facets/Control/IControlFacet.sol";
 import "../facets/FundingRate/IFundingRateFacet.sol";
 import "../facets/liquidation/ILiquidationFacet.sol";
+import "../facets/liquidation/ILiquidationResolutionFacet.sol";
 import "../facets/PartyA/IPartyAFacet.sol";
 import "../facets/Bridge/IBridgeFacet.sol";
 import "../facets/ViewFacet/IViewFacet.sol";
@@ -17,6 +18,7 @@ import "../facets/PartyBQuoteActions/IPartyBQuoteActionsFacet.sol";
 import "../facets/PartyBPositionActions/IPartyBPositionActionsFacet.sol";
 import "../facets/PartyBGroupActions/IPartyBGroupActionsFacet.sol";
 import "../facets/ForceActions/IForceActionsFacet.sol";
+import "../facets/RecoveryActions/IRecoveryActionsFacet.sol";
 import "../facets/Settlement/ISettlementFacet.sol";
 
 interface ISymmio is
@@ -26,11 +28,13 @@ interface ISymmio is
 	IBridgeFacet,
 	ISettlementFacet,
 	IForceActionsFacet,
+	IRecoveryActionsFacet,
 	IPartyBQuoteActionsFacet,
 	IPartyBGroupActionsFacet,
 	IPartyBPositionActionsFacet,
 	IPartyAFacet,
 	ILiquidationFacet,
+	ILiquidationResolutionFacet,
 	IViewFacet,
 	IDiamondCut,
 	IDiamondLoupe

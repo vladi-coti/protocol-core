@@ -140,51 +140,6 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 	}
 
 	/**
-	 * @notice Settles liquidation for Party A with specified Party Bs.
-	 * @param partyA The address of Party A to settle liquidation for.
-	 * @param partyBs An array of addresses representing Party Bs involved in the settlement.
-	 */
-	function settlePartyALiquidation(address partyA, address[] memory partyBs) external whenNotLiquidationPaused {
-		// FIXME: commented out because it's pushes the contract size over the limit
-		
-		// (gtInt256[] memory settleAmounts, bytes memory liquidationId) = LiquidationFacetImpl.settlePartyALiquidation(partyA, partyBs);
-		// address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
-		// ctInt256[] memory encryptedSettleAmounts = new ctInt256[](settleAmounts.length);
-		// for (uint256 i = 0; i < settleAmounts.length; i++) {
-		// 	encryptedSettleAmounts[i] = MpcCore.offBoardToUser(settleAmounts[i], partyAEncryptionAddress);
-		// }
-		// emit SettlePartyALiquidation(partyA, partyBs, encryptedSettleAmounts, liquidationId);
-		// if (!MAStorage.layout().liquidationStatus[partyA]) {
-		// 	emit FullyLiquidatedPartyA(partyA, liquidationId);
-		// }
-	}
-
-	/**
-	 * @notice Resolves a liquidation dispute for Party A with specified Party Bs and settlement amounts.
-	 * @param partyA The address of Party A involved in the dispute.
-	 * @param partyBs An array of addresses representing Party Bs involved in the dispute.
-	 * @param amounts An array of settlement amounts corresponding to Party Bs.
-	 * @param disputed A boolean indicating whether the liquidation was disputed.
-	 */
-	function resolveLiquidationDispute(
-		address partyA,
-		address[] memory partyBs,
-		int256[] memory amounts,
-		bool disputed
-	) external onlyRole(LibAccessibility.DISPUTE_ROLE) {
-		// FIXME: commented out because it's pushes the contract size over the limit
-
-		// bytes memory liquidationId = LiquidationFacetImpl.resolveLiquidationDispute(partyA, partyBs, amounts, disputed);
-		// address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
-		// ctInt256[] memory encryptedAmounts = new ctInt256[](amounts.length);
-		// for (uint256 i = 0; i < amounts.length; i++) {
-		// 	gtInt256 gtAmount = MpcCore.setPublic256(amounts[i]);
-		// 	encryptedAmounts[i] = MpcCore.offBoardToUser(gtAmount, partyAEncryptionAddress);
-		// }
-		// emit ResolveLiquidationDispute(partyA, partyBs, encryptedAmounts, disputed, liquidationId);
-	}
-
-	/**
 	 * @notice Liquidates Party B with respect to a Party A.
 	 * @param partyB The address of Party B to be liquidated.
 	 * @param partyA The address of Party A related to the liquidation.

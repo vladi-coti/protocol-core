@@ -8,21 +8,6 @@ type SelectorOverride = {
 }
 
 export const FACET_SELECTOR_OVERRIDES: Record<string, SelectorOverride> = {
-	ForceActionsFacet: {
-		exclude: ["forceCancelQuote"],
-	},
-	PartyBPositionActionsFacet: {
-		exclude: ["emergencyClosePosition"],
-	},
-	LiquidationFacet: {
-		exclude: ["settlePartyALiquidation", "resolveLiquidationDispute"],
-	},
-	RecoveryActionsFacet: {
-		include: ["forceCancelQuote", "emergencyClosePosition"],
-	},
-	LiquidationResolutionFacet: {
-		include: ["settlePartyALiquidation", "resolveLiquidationDispute"],
-	},
 }
 
 export function getFacetSelectors(

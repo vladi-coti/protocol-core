@@ -12,6 +12,4 @@ interface IPartyBPositionActionsFacet is IPartyBPositionActionsEvents {
 	function fillCloseRequest(uint256 quoteId, PrivateClosePositionParams calldata encryptedCloseParams, PairUpnlAndPriceSig memory upnlSig) external;
 
 	function acceptCancelCloseRequest(uint256 quoteId) external;
-
-	function emergencyClosePosition(uint256 quoteId, PairUpnlAndPriceSig memory upnlSig) external;
 }

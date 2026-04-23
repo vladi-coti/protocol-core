@@ -8,8 +8,6 @@ import "../../storages/MuonStorage.sol";
 import "./ForceActionsFacetEvents.sol";
 
 interface IForceActionsFacet is ForceActionsFacetEvents {
-	function forceCancelQuote(uint256 quoteId) external;
-
 	function forceCancelCloseRequest(uint256 quoteId) external;
 
 	function forceClosePosition(uint256 quoteId, HighLowPriceSig memory sig) external;

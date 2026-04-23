@@ -315,7 +315,7 @@ export class Hedger {
 			})
 		)
 		await runTx(
-			this.context.partyBPositionActionsFacet
+			this.context.recoveryActionsFacet
 				.connect(this.signer)
 				.emergencyClosePosition(id, await getDummyPairUpnlAndPriceSig(BigInt(request.price), BigInt(request.upnlPartyA), BigInt(request.upnlPartyB)))
 		)

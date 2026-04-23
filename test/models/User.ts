@@ -240,7 +240,7 @@ export class User {
 				userUpnl: await this.getUpnl(),
 			}),
 		)
-		await runTx(this.context.forceActionsFacet.connect(this.signer).forceCancelQuote(id))
+		await runTx(this.context.symmio.connect(this.signer).forceCancelQuote(id))
 		logger.info(`User::::ForceCancelQuote: ${id}`)
 	}
 
@@ -475,7 +475,7 @@ export class User {
 		partyB: Wallet = this.context.signers.hedger,
 		liquidator: Wallet = this.context.signers.liquidator,
 	): Promise<void> {
-		await this.context.liquidationFacet.connect(liquidator).settlePartyALiquidation(await this.getAddress(), [await partyB.getAddress()])
+		await this.context.symmio.connect(liquidator).settlePartyALiquidation(await this.getAddress(), [await partyB.getAddress()])
 	}
 
 	public async getLiquidatedStateOfPartyA() {

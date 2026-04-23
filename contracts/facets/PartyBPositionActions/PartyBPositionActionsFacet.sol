@@ -99,35 +99,4 @@ contract PartyBPositionActionsFacet is Accessibility, Pausable, IPartyBPositionA
 		PartyBPositionActionsFacetImpl.acceptCancelCloseRequest(quoteId);
 		emit AcceptCancelCloseRequest(quoteId, QuoteStatus.OPENED, QuoteStorage.layout().closeIds[quoteId]);
 	}
-
-	/**
-	 * @notice Allows Party B to emergency close a position for the specified quote.
-	 * @param quoteId The ID of the quote for which the position is emergency closed.
-	 * @param upnlSig The Muon signature containing the unrealized profit and loss (UPNL) and the closing price.
-	 */
-	function emergencyClosePosition(
-		uint256 quoteId,
-		PairUpnlAndPriceSig memory upnlSig
-	) external whenNotPartyBActionsPaused onlyPartyBOfQuote(quoteId) notLiquidated(quoteId) {
-		// FIXME: commented out because it's pushes the contract size over the limit
-		
-		// QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		// Quote storage quote = quoteLayout.quotes[quoteId];
-		
-		// // Encrypt quoteOpenAmount for event
-		// gtUint256 gtFilledAmount = LibQuote.quoteOpenAmount(quote);
-		// address partyAAddr = LibAccount.getUserEncryptionAddress(quote.partyA);
-		// ctUint256 memory filledAmount = MpcCore.offBoardToUser(gtFilledAmount, partyAAddr);
-		
-		// PartyBPositionActionsFacetImpl.emergencyClosePosition(quoteId, upnlSig);
-		// emit EmergencyClosePosition(
-		// 	quoteId,
-		// 	quote.partyA,
-		// 	quote.partyB,
-		// 	filledAmount,
-		// 	upnlSig.price,
-		// 	quote.quoteStatus,
-		// 	quoteLayout.closeIds[quoteId]
-		// );
-	}
 }

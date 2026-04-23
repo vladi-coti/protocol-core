@@ -1,6 +1,7 @@
 import {time} from "@nomicfoundation/hardhat-network-helpers"
 import {JsonSerializer} from "typescript-json-serializer"
 import {Wallet, ctUint256} from "@coti-io/coti-ethers"
+import {ethers} from "hardhat"
 
 import {OrderType, QuoteStatus} from "../models/Enums"
 import {RunContext} from "../models/RunContext"
@@ -44,7 +45,11 @@ export async function getBlockTimestamp(additional: bigint = 0n): Promise<bigint
 		return BigInt(await time.latest()) + 1n + additional
 	}
 	if (network.name === "coti-testnet" || network.name === "soda-testnet" || network.name === "private-testnet") {
-		return BigInt(Math.floor(Date.now() / 1000)) + 1n + additional
+		const latestBlock = await ethers.provider.getBlock("latest")
+		if (!latestBlock) {
+			throw new Error(`Unable to read latest block timestamp on network ${network.name}`)
+		}
+		return BigInt(latestBlock.timestamp) + 1n + additional
 	}
 	return 1722859307n
 }

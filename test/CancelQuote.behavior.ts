@@ -193,6 +193,7 @@ export function shouldBehaveLikeCancelQuote(): void {
 			it("Should force cancel quote", async function () {
 				await expect(user.forceCancelQuote(1)).to.be.revertedWith("PartyAFacet: Invalid state")
 				await user.requestToCancelQuote(1)
+				expect((await context.viewFacet.getQuote(1)).quoteStatus).to.be.eq(QuoteStatus.CANCEL_PENDING)
 				await expect(user.forceCancelQuote(1)).to.be.revertedWith("PartyAFacet: Cooldown not reached")
 				await timeCompatible.increase(300)
 				await user.forceCancelQuote(1)

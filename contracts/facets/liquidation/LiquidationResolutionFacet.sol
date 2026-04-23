@@ -10,9 +10,10 @@ import "../../libraries/LibAccount.sol";
 import "../../utils/Pausable.sol";
 import "../../utils/Accessibility.sol";
 import "./ILiquidationEvents.sol";
+import "./ILiquidationResolutionFacet.sol";
 import "./LiquidationFacetImpl.sol";
 
-contract LiquidationResolutionFacet is Pausable, Accessibility, ILiquidationEvents {
+contract LiquidationResolutionFacet is Pausable, Accessibility, ILiquidationResolutionFacet {
 	function settlePartyALiquidation(address partyA, address[] memory partyBs) external whenNotLiquidationPaused {
 		(gtInt256[] memory settleAmounts, bytes memory liquidationId) = LiquidationFacetImpl.settlePartyALiquidation(partyA, partyBs);
 		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);

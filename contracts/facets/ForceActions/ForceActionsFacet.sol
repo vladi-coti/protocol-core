@@ -14,16 +14,6 @@ import "../Settlement/SettlementFacetEvents.sol";
 contract ForceActionsFacet is Accessibility, Pausable, IPartiesEvents, IForceActionsFacet, SettlementFacetEvents {
 	using MpcCore for gtUint256;
 	using LockedValuesOps for LockedValues;
-	/**
-	 * @notice Forces the cancellation of the specified quote when partyB is not responsive for a certian amount of time(ForceCancelCooldown).
-	 * @param quoteId The ID of the quote to be canceled.
-	 */
-	function forceCancelQuote(uint256 quoteId) external notLiquidated(quoteId) whenNotPartyAActionsPaused {
-		// FIXME: commented out because it's pushes the contract size over the limit
-
-		// ForceActionsFacetImpl.forceCancelQuote(quoteId);
-		// emit ForceCancelQuote(quoteId, QuoteStatus.CANCELED);
-	}
 
 	/**
 	 * @notice Forces the cancellation of the close request associated with the specified quote when partyB is not responsive for a certain amount of time(ForceCancelCloseCooldown).
