@@ -12,6 +12,7 @@ import {getDummySettlementSig, getDummySingleUpnlSig} from "./utils/SignatureUti
 import {QuoteSettlementDataStructOutput} from "../src/types/contracts/facets/Settlement/ISettlementFacet"
 import {QuoteData} from "./models/types"
 import {EventLog} from "ethers"
+import {ethers} from "hardhat"
 
 export function shouldBehaveLikeSettlement(): void {
 	let context: RunContext, user: User, user2: User, hedger: Hedger, hedger2: Hedger
@@ -275,5 +276,59 @@ export function shouldBehaveLikeSettlement(): void {
 
 		const decryptedEmittedBalance = await decryptUint256(context, emittedBalance, context.signers.hedger)
 		expect(decryptedEmittedBalance).to.equal((await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances)
+	})
+
+	it("Should emit BalanceChangePartyB amounts encrypted for PartyB", async function () {
+		const beforeAllocatedPartyB = (await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances
+
+		// Disable trusted mode so the event keying is observable.
+		await (await context.controlFacet.connect(context.signers.admin).setTrustedEncryptionAddress(ethers.ZeroAddress)).wait()
+
+		const settlementSig = getDummySettlementSig(0n, [0n], [
+			{
+				quoteId: shortHedger1.quoteId,
+				currentPrice: 0n,
+				partyBUpnlIndex: 0n,
+			} as QuoteSettlementDataStructOutput,
+		])
+		const tx = await context.settlementFacet.connect(context.signers.hedger).settleUpnl(
+			await settlementSig,
+			[decimal(5n, 17)],
+			await user.getAddress(),
+		)
+		const receipt = await tx.wait()
+		const sharedEventsInterface = new ethers.Interface([
+			"event BalanceChangePartyB(address indexed partyB, address indexed partyA, tuple(uint256 ciphertextHigh, uint256 ciphertextLow) amount, uint8 _type)",
+		])
+		const event = receipt!.logs
+			.map((log) => {
+				try {
+					return sharedEventsInterface.parseLog(log)
+				} catch {
+					return null
+				}
+			})
+			.find((log) => log?.name === "BalanceChangePartyB")
+
+		expect(event).to.not.be.undefined
+
+		const afterAllocatedBalance = await context.viewFacet.allocatedBalanceOfPartyB(await hedger.getAddress(), await user.getAddress())
+		const afterAllocatedPartyB = await context.signers.hedger.decryptUint256(afterAllocatedBalance)
+		const expectedAmount = beforeAllocatedPartyB - afterAllocatedPartyB
+		expect(expectedAmount).to.be.gt(0n)
+
+		const emittedAmount = event!.args.amount
+		const partyBDecryptedAmount = await context.signers.hedger.decryptUint256(emittedAmount)
+		expect(partyBDecryptedAmount).to.equal(expectedAmount)
+
+		let partyACouldDecryptCorrectly = false
+		try {
+			const partyADecryptedAmount = await context.signers.user.decryptUint256(emittedAmount)
+			partyACouldDecryptCorrectly = partyADecryptedAmount === expectedAmount
+		} catch {
+			partyACouldDecryptCorrectly = false
+		}
+
+		expect(partyACouldDecryptCorrectly).to.equal(false)
 	})
 }
