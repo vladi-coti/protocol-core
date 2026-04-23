@@ -1,5 +1,6 @@
 import {loadFixtureCompatible, timeCompatible} from "./utils/testHelpers"
 import {expect} from "chai"
+import {EventLog, ethers} from "ethers"
 import {initializeFixture} from "./Initialize.fixture"
 import {PositionType, QuoteStatus} from "./models/Enums"
 import {Hedger} from "./models/Hedger"
@@ -8,7 +9,8 @@ import {User} from "./models/User"
 import {limitOpenRequestBuilder, marketOpenRequestBuilder} from "./models/requestModels/OpenRequest"
 import {limitQuoteRequestBuilder, marketQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
 import {OpenPositionValidator} from "./models/validators/OpenPositionValidator"
-import {decryptUint256, decimal, getQuoteQuantity, pausePartyB} from "./utils/Common"
+import {decryptUint256, decimal, getQuoteQuantity, pausePartyB, unDecimal} from "./utils/Common"
+import {getDummyPairUpnlAndPriceSig, getDummySingleUpnlSig} from "./utils/SignatureUtils"
 import {QuoteData} from "./models/types";
 
 export function shouldBehaveLikeOpenPosition(): void {
@@ -255,6 +257,55 @@ export function shouldBehaveLikeOpenPosition(): void {
 				.filledAmount(filledAmount)
 				.build())
 			expect((await context.viewFacet.getQuote(3)).quoteStatus).to.be.eq(QuoteStatus.OPENED)
+		})
+
+		it("Should emit SendQuoteForPartyA values encrypted for PartyA on partial lockAndOpenQuote", async function () {
+			const quoteData = quoteDataArray[3]
+			const quantity = quoteData.partyBEvent
+				? await decryptUint256(context, quoteData.partyBEvent.values.quantity, context.signers.hedger2)
+				: 0n
+			const filledAmount = quantity / 2n
+			const parentQuote = await context.viewFacet.getQuote(quoteData.quoteId)
+			const requestedOpenPrice = await decryptUint256(context, parentQuote.requestedOpenPrice.userCiphertext, context.signers.user)
+			const notional = unDecimal(quantity * requestedOpenPrice)
+			await (await context.accountFacet.connect(context.signers.hedger2).allocateForPartyB(unDecimal(notional * decimal(12n, 17)), parentQuote.partyA)).wait()
+
+			// Disable trusted mode for the final tx so the event keying bug is observable in the test.
+			await (await context.controlFacet.connect(context.signers.admin).setTrustedEncryptionAddress(ethers.ZeroAddress)).wait()
+
+			const openRequest = limitOpenRequestBuilder()
+				.filledAmount(filledAmount)
+				.build()
+			const tx = await context.partyBGroupActionsFacet.connect(context.signers.hedger2).lockAndOpenQuote(
+				quoteData.quoteId,
+				openRequest.filledAmount,
+				openRequest.openPrice,
+				await getDummySingleUpnlSig(BigInt(openRequest.upnlPartyA)),
+				await getDummyPairUpnlAndPriceSig(BigInt(openRequest.price), BigInt(openRequest.upnlPartyA), BigInt(openRequest.upnlPartyB)),
+			)
+			const receipt = await tx.wait()
+			const event = receipt!.logs.find((log: any): log is EventLog => (log as EventLog).eventName === "SendQuoteForPartyA")
+
+			expect(event).to.not.be.undefined
+
+			const args = event!.args as any[]
+			const emittedValues = args[6]
+			const partyADecryptedQuantity = await context.signers.user.decryptUint256(emittedValues.quantity)
+			const partyADecryptedPrice = await context.signers.user.decryptUint256(emittedValues.price)
+			const remainingQuantity = quantity - filledAmount
+
+			expect(partyADecryptedQuantity).to.equal(remainingQuantity)
+			expect(partyADecryptedPrice).to.equal(requestedOpenPrice)
+
+			let partyBCouldDecryptCorrectly = false
+			try {
+				const partyBDecryptedQuantity = await context.signers.hedger2.decryptUint256(emittedValues.quantity)
+				partyBCouldDecryptCorrectly = partyBDecryptedQuantity === remainingQuantity
+			} catch {
+				partyBCouldDecryptCorrectly = false
+			}
+
+			expect(partyBCouldDecryptCorrectly).to.equal(false)
 		})
 	})
 }

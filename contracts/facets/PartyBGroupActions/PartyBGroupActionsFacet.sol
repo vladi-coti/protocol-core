@@ -40,7 +40,7 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 				gtUint256 gtPrice = MpcCore.onBoard(newQuote.requestedOpenPrice.ciphertext);
 				gtUint256 gtQuantity = MpcCore.onBoard(newQuote.quantity.ciphertext);
 				{
-					address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
+					address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(newQuote.partyA);
 					EncryptedQuoteValues memory partyAValues = EncryptedQuoteValues({
 						price: MpcCore.offBoardToUser(gtPrice, partyAEncryptionAddress),
 						marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(pairUpnlSig.price), partyAEncryptionAddress),
