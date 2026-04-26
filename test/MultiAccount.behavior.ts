@@ -159,12 +159,26 @@ export function shouldBehaveLikeMultiAccount() {
 
 				expect(await multiAccount.getAccountsLength(userAddress)).to.be.equal(0)
 
-				await multiAccount.connect(context.signers.user).addAccount("Test")
+				const tx = await multiAccount.connect(context.signers.user).addAccount("Test")
+				const receipt = await tx.wait()
 
 				expect(await multiAccount.getAccountsLength(userAddress)).to.be.equal(1)
 				let createdAccount = (await multiAccount.getAccounts(userAddress, 0, 10))[0]
 				expect(createdAccount.name).to.be.equal("Test")
 				expect(await multiAccount.owners(createdAccount.accountAddress)).to.be.equal(userAddress)
+
+				const encryptionEvent = receipt!.logs
+					.map((log: any) => {
+						try {
+							return context.accountFacet.interface.parseLog(log)
+						} catch {
+							return null
+						}
+					})
+					.find((event: any) => event?.name === "EncryptionAddressChanged")
+				expect(encryptionEvent?.args.user).to.be.equal(createdAccount.accountAddress)
+				expect(encryptionEvent?.args.fromAddress).to.be.equal(createdAccount.accountAddress)
+				expect(encryptionEvent?.args.toAddress).to.be.equal(userAddress)
 			})
 
 			it("Should edit account name", async function () {
@@ -256,8 +270,10 @@ export function shouldBehaveLikeMultiAccount() {
 			})
 
 			it("Should deposit and allocate for account partyA", async () => {
-				const setEncryptionCalldata = context.accountFacet.interface.encodeFunctionData("setEncryptionAddress", [await context.signers.user.getAddress()])
-				await multiAccount.connect(context.signers.user)._call(partyAAccount, [setEncryptionCalldata])
+				await context.controlFacet.connect(context.signers.admin).setTrustedEncryptionAddress(ethers.ZeroAddress)
+				await multiAccount.connect(context.signers.user).addAccount("No trusted encryption")
+				partyAAccount = (await multiAccount.getAccounts(await context.signers.user.getAddress(), 1, 10))[0].accountAddress
+
 				await multiAccount.connect(context.signers.user).depositAndAllocateForAccount(partyAAccount, decimal(100n))
 				const balanceInfo = await context.viewFacet.balanceInfoOfPartyA(partyAAccount)
 				const allocatedBalance = await decryptUint256(context, balanceInfo[0], context.signers.user)
@@ -309,9 +325,6 @@ export function shouldBehaveLikeMultiAccount() {
 			await context.collateral.connect(context.signers.user).approve(await multiAccount.getAddress(), ethers.MaxUint256)
 
 			await multiAccount.connect(context.signers.user).depositAndAllocateForAccount(partyAAccount, decimal(500n))
-
-			const setEncryptionCalldata = context.accountFacet.interface.encodeFunctionData("setEncryptionAddress", [userAddress])
-			await multiAccount.connect(context.signers.user)._call(partyAAccount, [setEncryptionCalldata])
 		})
 
 		it("Should be able to send Quotes", async () => {

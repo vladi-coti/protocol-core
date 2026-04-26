@@ -218,6 +218,8 @@ contract MultiAccount is IMultiAccount, Initializable, PausableUpgradeable, Acce
 		indexOfAccount[account] = accounts[msg.sender].length;
 		accounts[msg.sender].push(Account(account, name));
 		owners[account] = msg.sender;
+		bytes memory _callData = abi.encodeWithSignature("setEncryptionAddress(address)", msg.sender);
+		innerCall(account, _callData);
 		emit AddAccount(msg.sender, account, name);
 	}
 
