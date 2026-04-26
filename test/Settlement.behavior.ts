@@ -289,6 +289,7 @@ export function shouldBehaveLikeSettlement(): void {
 				partyBUpnlIndex: 0n,
 			} as QuoteSettlementDataStructOutput,
 		])
+		await context.controlFacet.connect(context.signers.admin).setTrustedEncryptionAddress(ethers.ZeroAddress)
 		const tx = await context.settlementFacet.connect(context.signers.hedger).settleUpnl(
 			await settlementSig,
 			[decimal(5n, 17)],
@@ -311,8 +312,9 @@ export function shouldBehaveLikeSettlement(): void {
 			ciphertextLow: emittedBalanceTuple[1],
 		}
 
-		const decryptedEmittedBalance = await decryptUint256(context, emittedBalance, context.signers.hedger)
-		expect(decryptedEmittedBalance).to.equal((await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances)
+		const decryptedEmittedBalance = await context.signers.hedger.decryptUint256(emittedBalance)
+		const decryptedStoredBalance = await context.signers.hedger.decryptUint256(storedBalance)
+		expect(decryptedEmittedBalance).to.equal(decryptedStoredBalance)
 	})
 
 	it("Should emit BalanceChangePartyB amounts encrypted for PartyB", async function () {

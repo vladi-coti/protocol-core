@@ -7,12 +7,14 @@ import {RunContext} from "./models/RunContext"
 import {User} from "./models/User"
 import {limitCloseRequestBuilder} from "./models/requestModels/CloseRequest"
 import {limitQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
-import {decimal, getBlockTimestamp, getQuoteQuantity,} from "./utils/Common"
+import {decimal, getBlockTimestamp, getQuoteQuantity} from "./utils/Common"
 import {getDummyHighLowPriceSig, getDummySettlementSig} from "./utils/SignatureUtils"
 import {QuoteStructOutput} from "../src/types/contracts/interfaces/ISymmio"
 import {limitOpenRequestBuilder} from "./models/requestModels/OpenRequest"
 import {QuoteSettlementDataStructOutput} from "../src/types/contracts/facets/Settlement/ISettlementFacet"
 import {expect} from "chai"
+import {EventLog} from "ethers"
+import {ethers} from "hardhat"
 
 export function shouldBehaveLikeSettleAndForceClosePosition(): void {
 	let user: User, hedger: Hedger
@@ -102,9 +104,32 @@ export function shouldBehaveLikeSettleAndForceClosePosition(): void {
 			user.settleAndForceClosePosition(quote1LongOpened.id, highLowSig, settlementSig, [])
 		).to.be.revertedWith("LibQuote: PartyA should first exit its positions that are incurring losses")
 
-		await user.settleAndForceClosePosition(quote1LongOpened.id, highLowSig, settlementSig, [decimal(5n)])
+		await context.controlFacet.connect(context.signers.admin).setTrustedEncryptionAddress(ethers.ZeroAddress)
+		const tx = await context.forceActionsFacet
+			.connect(context.signers.user)
+			.settleAndForceClosePosition(quote1LongOpened.id, highLowSig, settlementSig, [decimal(5n)])
+		const receipt = await tx.wait()
 
 		expect((await context.viewFacet.getQuote(quote1LongOpened.id)).quoteStatus).to.be.eq(QuoteStatus.CLOSED)
-		expect((await context.viewFacet.getQuote(quote2ShortOpened.id)).openedPrice).to.be.eq(decimal(5n))
+		expect(await context.signers.user.decryptUint256((await context.viewFacet.getQuote(quote2ShortOpened.id)).openedPrice.userCiphertext)).to.be.eq(decimal(5n))
+
+		const event = receipt!.logs.find((log: any): log is EventLog => (log as EventLog).eventName === "SettleUpnl")
+		expect(event).to.not.be.undefined
+
+		const emittedBalanceTuple = event!.args.newPartyBsAllocatedBalances[0] as [bigint, bigint]
+		expect(emittedBalanceTuple).to.have.length(2)
+
+		const storedBalance = await context.viewFacet.allocatedBalanceOfPartyB(await hedger.getAddress(), await user.getAddress())
+		expect(emittedBalanceTuple[0]).to.equal(storedBalance.ciphertextHigh)
+		expect(emittedBalanceTuple[1]).to.equal(storedBalance.ciphertextLow)
+
+		const emittedBalance = {
+			ciphertextHigh: emittedBalanceTuple[0],
+			ciphertextLow: emittedBalanceTuple[1],
+		}
+
+		const decryptedByPartyB = await context.signers.hedger.decryptUint256(emittedBalance)
+		const decryptedStoredBalance = await context.signers.hedger.decryptUint256(storedBalance)
+		expect(decryptedByPartyB).to.equal(decryptedStoredBalance)
 	})
 }

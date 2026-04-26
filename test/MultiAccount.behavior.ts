@@ -276,7 +276,7 @@ export function shouldBehaveLikeMultiAccount() {
 
 				await multiAccount.connect(context.signers.user).depositAndAllocateForAccount(partyAAccount, decimal(100n))
 				const balanceInfo = await context.viewFacet.balanceInfoOfPartyA(partyAAccount)
-				const allocatedBalance = await decryptUint256(context, balanceInfo[0], context.signers.user)
+				const allocatedBalance = await context.signers.user.decryptUint256(balanceInfo[0])
 				expect(allocatedBalance).to.be.equal(decimal(100n))
 			})
 
