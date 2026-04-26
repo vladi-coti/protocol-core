@@ -9,8 +9,7 @@ import "../PartyBQuoteActions/IPartyBQuoteActionsEvents.sol";
 interface IPartyBGroupActionsFacet is IPartyBQuoteActionsEvents {
 	function lockAndOpenQuote(
 		uint256 quoteId,
-		uint256 filledAmount,
-		uint256 openedPrice,
+		PrivateOpenPositionParams calldata encryptedParams,
 		SingleUpnlSig memory upnlSig,
 		PairUpnlAndPriceSig memory pairUpnlSig
 	) external;

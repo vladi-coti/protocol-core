@@ -276,12 +276,15 @@ export function shouldBehaveLikeOpenPosition(): void {
 			const openRequest = limitOpenRequestBuilder()
 				.filledAmount(filledAmount)
 				.build()
+			const {encryptedParams, upnlSig} = await hedger2.buildOpenPositionCalldataArgs(
+				openRequest,
+				context.partyBGroupActionsFacet.interface.getFunction("lockAndOpenQuote").selector,
+			)
 			const tx = await context.partyBGroupActionsFacet.connect(context.signers.hedger2).lockAndOpenQuote(
 				quoteData.quoteId,
-				openRequest.filledAmount,
-				openRequest.openPrice,
+				encryptedParams,
 				await getDummySingleUpnlSig(BigInt(openRequest.upnlPartyA)),
-				await getDummyPairUpnlAndPriceSig(BigInt(openRequest.price), BigInt(openRequest.upnlPartyA), BigInt(openRequest.upnlPartyB)),
+				upnlSig,
 			)
 			const receipt = await tx.wait()
 			const event = receipt!.logs.find((log: any): log is EventLog => (log as EventLog).eventName === "SendQuoteForPartyA")

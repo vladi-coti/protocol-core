@@ -15,24 +15,21 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 	/**
 	 * @notice Locks and opens the specified quote with the provided details and signatures.
 	 * @param quoteId The ID of the quote to be locked and opened.
-	 * @param filledAmount PartyB has the option to open the position with either the full amount requested by the user or a specific fraction of it
-	 * @param openedPrice The price at which the position is opened.
+	 * @param encryptedParams Struct containing encrypted filledAmount and openedPrice parameters.
 	 * @param upnlSig The Muon signature containing the single UPNL value used to lock the quote.
 	 * @param pairUpnlSig The Muon signature containing the pair UPNL and price values used to open the position.
 	 */
 	function lockAndOpenQuote(
 		uint256 quoteId,
-		uint256 filledAmount,
-		uint256 openedPrice,
+		PrivateOpenPositionParams calldata encryptedParams,
 		SingleUpnlSig memory upnlSig,
 		PairUpnlAndPriceSig memory pairUpnlSig
-	) external whenNotPartyBActionsPaused onlyPartyB notLiquidated(quoteId) {
+	) external override whenNotPartyBActionsPaused onlyPartyB notLiquidated(quoteId) {
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
 		PartyBQuoteActionsFacetImpl.lockQuote(quoteId, upnlSig);
 		emit LockQuote(quote.partyB, quoteId);
-		// Convert uint256 to gtUint256 for encrypted operations
-		gtUint256 gtFilledAmount = MpcCore.setPublic256(filledAmount);
-		gtUint256 gtOpenedPrice = MpcCore.setPublic256(openedPrice);
+		gtUint256 gtFilledAmount = MpcCore.validateCiphertext(encryptedParams.encryptedFilledAmount);
+		gtUint256 gtOpenedPrice = MpcCore.validateCiphertext(encryptedParams.encryptedOpenedPrice);
 		uint256 newId = PartyBPositionActionsFacetImpl.openPosition(quoteId, gtFilledAmount, gtOpenedPrice, pairUpnlSig);
 		if (newId != 0) {
 			Quote storage newQuote = QuoteStorage.layout().quotes[newId];

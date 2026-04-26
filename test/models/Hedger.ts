@@ -126,15 +126,17 @@ export class Hedger {
 				this.context.accountFacet.connect(this.signer).allocateForPartyB(unDecimal(notional * BigInt(allocateCoefficient)), partyA)
 			)
 		}
+		const {encryptedParams, upnlSig} = await this.buildOpenPositionCalldataArgs(
+			openRequest,
+			this.context.partyBGroupActionsFacet.interface.getFunction("lockAndOpenQuote").selector,
+		)
 		await runTx(
-			this.context.partyBGroupActionsFacet.connect(this.signer)
-				.lockAndOpenQuote(
-					id,
-					openRequest.filledAmount,
-					openRequest.openPrice,
-					await getDummySingleUpnlSig(BigInt(openRequest.upnlPartyA)),
-					await getDummyPairUpnlAndPriceSig(BigInt(openRequest.price), BigInt(openRequest.upnlPartyA), BigInt(openRequest.upnlPartyB))
-				)
+			this.context.partyBGroupActionsFacet.connect(this.signer).lockAndOpenQuote(
+				id,
+				encryptedParams,
+				await getDummySingleUpnlSig(BigInt(openRequest.upnlPartyA)),
+				upnlSig,
+			)
 		)
 	}
 
