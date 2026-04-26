@@ -212,10 +212,16 @@ export function shouldBehaveLikeSettlement(): void {
 		const beforeAllocatedPartyB = (await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances
 		const beforeAllocatedPartyB2 = (await hedger2.getBalanceInfo(await user.getAddress())).allocatedBalances
 
-		const quote1 = await context.viewFacet.getQuote(shortHedger1.quoteId)
-		const quote2 = await context.viewFacet.getQuote(shortHedger2.quoteId)
+		const longQuote = await context.viewFacet.getQuote(longHedger1.quoteId)
+		const shortQuote1 = await context.viewFacet.getQuote(shortHedger1.quoteId)
+		const shortQuote2 = await context.viewFacet.getQuote(shortHedger2.quoteId)
 
-		await hedger.settleUpnl(await user.getAddress(), [decimal(5n, 17), decimal(5n, 17)], getDummySettlementSig(0n, [0n, 0n], [
+		await hedger.settleUpnl(await user.getAddress(), [decimal(15n, 17), decimal(5n, 17), decimal(5n, 17)], getDummySettlementSig(0n, [0n, 0n], [
+			{
+				quoteId: longHedger1.quoteId,
+				currentPrice: decimal(2n),
+				partyBUpnlIndex: 0n
+			} as QuoteSettlementDataStructOutput,
 			{
 				quoteId: shortHedger1.quoteId,
 				currentPrice: 0n,
@@ -231,17 +237,48 @@ export function shouldBehaveLikeSettlement(): void {
 		expect(await context.viewFacet.nonceOfPartyB(await hedger.getAddress(), await user.getAddress())).to.be.eq(beforeNoncePartyB + 1n)
 		expect(await context.viewFacet.nonceOfPartyB(await hedger2.getAddress(), await user.getAddress())).to.be.eq(beforeNoncePartyB2 + 1n)
 
-		const openedPrice1 = await decryptUint256(context, quote1.openedPrice.userCiphertext, context.signers.user)
-		const openedPrice2 = await decryptUint256(context, quote2.openedPrice.userCiphertext, context.signers.user)
-		expect(openedPrice1).to.be.eq(decimal(5n, 17))
-		expect(openedPrice2).to.be.eq(decimal(5n, 17))
+		const updatedLongQuote = await context.viewFacet.getQuote(longHedger1.quoteId)
+		const updatedShortQuote1 = await context.viewFacet.getQuote(shortHedger1.quoteId)
+		const updatedShortQuote2 = await context.viewFacet.getQuote(shortHedger2.quoteId)
+		const openedPriceLong = await decryptUint256(context, updatedLongQuote.openedPrice.userCiphertext, context.signers.user)
+		const openedPriceShort1 = await decryptUint256(context, updatedShortQuote1.openedPrice.userCiphertext, context.signers.user)
+		const openedPriceShort2 = await decryptUint256(context, updatedShortQuote2.openedPrice.userCiphertext, context.signers.user)
+		expect(openedPriceLong).to.be.eq(decimal(15n, 17))
+		expect(openedPriceShort1).to.be.eq(decimal(5n, 17))
+		expect(openedPriceShort2).to.be.eq(decimal(5n, 17))
 
-		const decryptedQuote1Quantity = await decryptUint256(context, quote1.quantity.userCiphertext, context.signers.user)
-		const decryptedQuote2Quantity = await decryptUint256(context, quote2.quantity.userCiphertext, context.signers.user)
+		const decryptedLongQuantity = await decryptUint256(context, longQuote.quantity.userCiphertext, context.signers.user)
+		const decryptedShortQuantity1 = await decryptUint256(context, shortQuote1.quantity.userCiphertext, context.signers.user)
+		const decryptedShortQuantity2 = await decryptUint256(context, shortQuote2.quantity.userCiphertext, context.signers.user)
 		
-		expect((await user.getBalanceInfo()).allocatedBalances).to.be.eq(beforeAllocatedPartyA + unDecimal((decryptedQuote1Quantity + decryptedQuote2Quantity) * decimal(5n, 17)))
-		expect((await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances).to.be.eq(beforeAllocatedPartyB - unDecimal(decryptedQuote1Quantity * decimal(5n, 17)))
-		expect((await hedger2.getBalanceInfo(await user.getAddress())).allocatedBalances).to.be.eq(beforeAllocatedPartyB2 - unDecimal(decryptedQuote2Quantity * decimal(5n, 17)))
+		expect((await user.getBalanceInfo()).allocatedBalances).to.be.eq(beforeAllocatedPartyA + unDecimal((decryptedLongQuantity + decryptedShortQuantity1 + decryptedShortQuantity2) * decimal(5n, 17)))
+		expect((await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances).to.be.eq(beforeAllocatedPartyB - unDecimal((decryptedLongQuantity + decryptedShortQuantity1) * decimal(5n, 17)))
+		expect((await hedger2.getBalanceInfo(await user.getAddress())).allocatedBalances).to.be.eq(beforeAllocatedPartyB2 - unDecimal(decryptedShortQuantity2 * decimal(5n, 17)))
+	})
+
+	it("Should settle long and short losses successfully", async function () {
+		const beforeAllocatedPartyA = (await user.getBalanceInfo()).allocatedBalances
+		const beforeAllocatedPartyB = (await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances
+		const longQuote = await context.viewFacet.getQuote(longHedger1.quoteId)
+		const shortQuote = await context.viewFacet.getQuote(shortHedger1.quoteId)
+		const decryptedLongQuantity = await decryptUint256(context, longQuote.quantity.userCiphertext, context.signers.user)
+		const decryptedShortQuantity = await decryptUint256(context, shortQuote.quantity.userCiphertext, context.signers.user)
+
+		await hedger.settleUpnl(await user.getAddress(), [decimal(5n, 17), decimal(15n, 17)], getDummySettlementSig(0n, [0n], [
+			{
+				quoteId: longHedger1.quoteId,
+				currentPrice: 0n,
+				partyBUpnlIndex: 0n
+			} as QuoteSettlementDataStructOutput,
+			{
+				quoteId: shortHedger1.quoteId,
+				currentPrice: decimal(2n),
+				partyBUpnlIndex: 0n
+			} as QuoteSettlementDataStructOutput
+		]))
+
+		expect((await user.getBalanceInfo()).allocatedBalances).to.be.eq(beforeAllocatedPartyA - unDecimal((decryptedLongQuantity + decryptedShortQuantity) * decimal(5n, 17)))
+		expect((await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances).to.be.eq(beforeAllocatedPartyB + unDecimal((decryptedLongQuantity + decryptedShortQuantity) * decimal(5n, 17)))
 	})
 
 	it("Should emit encrypted partyB balances in SettleUpnl", async function () {

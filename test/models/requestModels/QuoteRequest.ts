@@ -23,7 +23,7 @@ export interface QuoteRequest {
 	upnlSig: Promise<SingleUpnlAndPriceSigStruct>
 }
 
-const limitDefaultQuoteRequest: QuoteRequest = {
+const limitDefaultQuoteRequest = (): QuoteRequest => ({
 	partyBWhiteList: [],
 	symbolId: 1,
 	positionType: PositionType.LONG,
@@ -38,9 +38,9 @@ const limitDefaultQuoteRequest: QuoteRequest = {
 	deadline: getBlockTimestamp(5000n),
 	affiliate: ZeroAddress, //FIXME find a better way
 	upnlSig: getDummySingleUpnlAndPriceSig(decimal(1n)),
-}
+})
 
-const marketDefaultQuoteRequest: QuoteRequest = {
+const marketDefaultQuoteRequest = (): QuoteRequest => ({
 	partyBWhiteList: [],
 	symbolId: 1,
 	positionType: PositionType.LONG,
@@ -55,7 +55,7 @@ const marketDefaultQuoteRequest: QuoteRequest = {
 	deadline: getBlockTimestamp(5000n),
 	affiliate: ZeroAddress, //FIXME find a better way
 	upnlSig: getDummySingleUpnlAndPriceSig(decimal(1n)),
-}
+})
 
-export const limitQuoteRequestBuilder = () => Builder(limitDefaultQuoteRequest)
-export const marketQuoteRequestBuilder = () => Builder(marketDefaultQuoteRequest)
+export const limitQuoteRequestBuilder = () => Builder(limitDefaultQuoteRequest())
+export const marketQuoteRequestBuilder = () => Builder(marketDefaultQuoteRequest())
