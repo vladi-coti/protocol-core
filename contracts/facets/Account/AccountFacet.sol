@@ -174,6 +174,13 @@ contract AccountFacet is Accessibility, Pausable, IAccountFacet {
 		emit WithdrawFromReserveVault(msg.sender, amount);
 	}
 
+	/// @notice Moves claimed protocol fee accruals into the caller's withdrawable balance.
+	/// @param amount The amount to claim, specified in 18 decimals.
+	function claimFeeCollectorBalance(uint256 amount) external whenNotAccountingPaused notSuspended(msg.sender) {
+		AccountFacetImpl.claimFeeCollectorBalance(amount);
+		emit ClaimFeeCollectorBalance(msg.sender, amount, AccountStorage.layout().encryptedFeeCollectorBalances[msg.sender].userCiphertext);
+	}
+
 	/**
 	 * @notice Sets the encryption address to be used for the caller and re-encrypts existing state.
 	 * @dev This function sets `AccountStorage.userEncryptionAddress[msg.sender] = newEncryptionAddress` and

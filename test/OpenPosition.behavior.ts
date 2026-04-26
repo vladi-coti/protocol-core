@@ -9,7 +9,7 @@ import {User} from "./models/User"
 import {limitOpenRequestBuilder, marketOpenRequestBuilder} from "./models/requestModels/OpenRequest"
 import {limitQuoteRequestBuilder, marketQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
 import {OpenPositionValidator} from "./models/validators/OpenPositionValidator"
-import {decryptUint256, decimal, getQuoteQuantity, pausePartyB, unDecimal} from "./utils/Common"
+import {decryptUint256, decimal, getQuoteQuantity, getTradingFeeForQuoteWithFilledAmount, pausePartyB, unDecimal} from "./utils/Common"
 import {getDummyPairUpnlAndPriceSig, getDummySingleUpnlSig} from "./utils/SignatureUtils"
 import {QuoteData} from "./models/types";
 
@@ -241,6 +241,28 @@ export function shouldBehaveLikeOpenPosition(): void {
 			fillAmount: filledAmount,
 			beforeOutput: beforeOut,
 		})
+	})
+
+	it("Should accrue trading fee to encrypted fee collector balance", async function () {
+		await hedger.lockQuote(quoteDataArray[4])
+		const openedPrice = decimal(1n)
+		const filledAmount = await getQuoteQuantity(context, 4n)
+		const expectedTradingFee = await getTradingFeeForQuoteWithFilledAmount(context, 4n, filledAmount)
+		const feeCollector = await context.viewFacet.getFeeCollector(context.multiAccount)
+		const beforePlainBalance = await context.viewFacet.balanceOf(feeCollector)
+
+		await context.controlFacet.connect(context.signers.admin).setTrustedEncryptionAddress(ethers.ZeroAddress)
+		await hedger.openPosition(quoteDataArray[4], marketOpenRequestBuilder().filledAmount(filledAmount).openPrice(openedPrice).price(decimal(1n)).build())
+
+		expect(await context.viewFacet.balanceOf(feeCollector)).to.equal(beforePlainBalance)
+		const encryptedFeeCollectorBalance = await context.viewFacet.feeCollectorBalance(feeCollector)
+		const decryptedFeeCollectorBalance = await context.signers.feeCollector.decryptUint256(encryptedFeeCollectorBalance)
+		expect(decryptedFeeCollectorBalance).to.equal(expectedTradingFee)
+
+		await context.accountFacet.connect(context.signers.feeCollector).claimFeeCollectorBalance(expectedTradingFee)
+		expect(await context.viewFacet.balanceOf(feeCollector)).to.equal(beforePlainBalance + expectedTradingFee)
+		const remainingFeeCollectorBalance = await context.viewFacet.feeCollectorBalance(feeCollector)
+		expect(await context.signers.feeCollector.decryptUint256(remainingFeeCollectorBalance)).to.equal(0n)
 	})
 
 	describe("Group Actions", async function () {

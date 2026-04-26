@@ -23,5 +23,6 @@ interface IAccountEvents {
 	);
 	event DepositToReserveVault(address sender, address partyB, uint256 amount);
 	event WithdrawFromReserveVault(address partyB, uint256 amount);
+	event ClaimFeeCollectorBalance(address feeCollector, uint256 amount, ctUint256 newFeeCollectorBalance);
     event EncryptionAddressChanged(address user, address fromAddress, address toAddress);
 }

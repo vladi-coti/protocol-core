@@ -156,6 +156,15 @@ contract ViewFacet is IViewFacet {
 	}
 
 	/**
+	 * @notice Returns the encrypted fee collector accrual balance.
+	 * @param feeCollector The address of the fee collector.
+	 * @return The encrypted fee collector accrual balance.
+	 */
+	function feeCollectorBalance(address feeCollector) external view returns (ctUint256 memory) {
+		return AccountStorage.layout().encryptedFeeCollectorBalances[feeCollector].userCiphertext;
+	}
+
+	/**
 	 * @notice Returns the allocated balances of Party Bs for a specific Party A.
 	 * @param partyA The address of Party A.
 	 * @param partyBs The addresses of Party Bs.

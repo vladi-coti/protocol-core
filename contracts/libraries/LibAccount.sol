@@ -355,6 +355,58 @@ library LibAccount {
 	}
 
 	/**
+	 * @notice Initializes Party A reimbursement storage into encrypted form if needed.
+	 * @param partyA The address of Party A.
+	 * @return gtReimbursement The encrypted reimbursement balance.
+	 */
+	function initializePartyAReimbursement(address partyA) internal returns (gtUint256 gtReimbursement) {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		address encryptionAddress = getUserEncryptionAddress(partyA);
+		utUint256 storage encryptedReimbursement = accountLayout.encryptedPartyAReimbursement[partyA];
+		uint256 legacyReimbursement = accountLayout.partyAReimbursement[partyA];
+
+		if (legacyReimbursement > 0) {
+			gtReimbursement = MpcCore.setPublic256(legacyReimbursement);
+			accountLayout.encryptedPartyAReimbursement[partyA] = MpcCore.offBoardCombined(gtReimbursement, encryptionAddress);
+			accountLayout.partyAReimbursement[partyA] = 0;
+			return gtReimbursement;
+		}
+
+		if (
+			ctUint128.unwrap(encryptedReimbursement.ciphertext.ciphertextHigh) == 0 &&
+			ctUint128.unwrap(encryptedReimbursement.ciphertext.ciphertextLow) == 0
+		) {
+			gtReimbursement = MpcCore.setPublic256(uint256(0));
+			accountLayout.encryptedPartyAReimbursement[partyA] = MpcCore.offBoardCombined(gtReimbursement, encryptionAddress);
+			return gtReimbursement;
+		}
+
+		return LockedValuesOps.safeOnboard(encryptedReimbursement.ciphertext);
+	}
+
+	/**
+	 * @notice Initializes fee collector accrual storage into encrypted form if needed.
+	 * @param feeCollector The address receiving protocol fees.
+	 * @return gtFeeBalance The encrypted fee collector balance.
+	 */
+	function initializeFeeCollectorBalance(address feeCollector) internal returns (gtUint256 gtFeeBalance) {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		address encryptionAddress = getUserEncryptionAddress(feeCollector);
+		utUint256 storage encryptedFeeBalance = accountLayout.encryptedFeeCollectorBalances[feeCollector];
+
+		if (
+			ctUint128.unwrap(encryptedFeeBalance.ciphertext.ciphertextHigh) == 0 &&
+			ctUint128.unwrap(encryptedFeeBalance.ciphertext.ciphertextLow) == 0
+		) {
+			gtFeeBalance = MpcCore.setPublic256(uint256(0));
+			accountLayout.encryptedFeeCollectorBalances[feeCollector] = MpcCore.offBoardCombined(gtFeeBalance, encryptionAddress);
+			return gtFeeBalance;
+		}
+
+		return LockedValuesOps.safeOnboard(encryptedFeeBalance.ciphertext);
+	}
+
+	/**
 	 * @notice Initializes SettlementState storage to encrypted zeros for a user.
 	 * @param self The SettlementState storage struct to initialize.
 	 * @param encryptionAddress The encryption address of the party.

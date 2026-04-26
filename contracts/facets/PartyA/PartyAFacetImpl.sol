@@ -156,17 +156,13 @@ library PartyAFacetImpl {
 		quoteLayout.partyAPendingQuotes[msg.sender].push(currentId);
 		quoteLayout.quotes[currentId] = privateQuote;
 
-		// Only decrypt trading fee when we need to deduct it from allocated balances
-		uint256 fee = MpcCore.decrypt(gtTradingFee);
-		
 		// Update allocated balance with encrypted operations
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
-		gtUint256 gtFeeAmount = MpcCore.setPublic256(fee);
-		gtUint256 gtNewBalance = gtCurrentBalance.sub(gtFeeAmount);
+		gtUint256 gtNewBalance = gtCurrentBalance.sub(gtTradingFee);
 		accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(msg.sender));
 		
 		// Emit encrypted event
-		ctUint256 memory ctFeeAmount = MpcCore.offBoardToUser(gtFeeAmount, LibAccount.getUserEncryptionAddress(msg.sender));
+		ctUint256 memory ctFeeAmount = MpcCore.offBoardToUser(gtTradingFee, LibAccount.getUserEncryptionAddress(msg.sender));
 		emit SharedEvents.BalanceChangePartyA(msg.sender, ctFeeAmount, SharedEvents.BalanceChangeType.PLATFORM_FEE_OUT);
 	}
 
@@ -181,18 +177,16 @@ library PartyAFacetImpl {
 		} else if (quote.quoteStatus == QuoteStatus.PENDING) {
 			quote.quoteStatus = QuoteStatus.CANCELED;
 			
-			// Get encrypted trading fee and decrypt for balance update
+			// Refund the encrypted trading fee without revealing quantity * price.
 			gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
-			uint256 fee = MpcCore.decrypt(gtFee);
 			
 			// Update allocated balance with encrypted operations
 			gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
-			gtUint256 gtFeeAmount = MpcCore.setPublic256(fee);
-			gtUint256 gtNewBalance = gtCurrentBalance.add(gtFeeAmount);
+			gtUint256 gtNewBalance = gtCurrentBalance.add(gtFee);
 			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 			
 			// Emit encrypted event
-			ctUint256 memory ctFeeAmount = MpcCore.offBoardToUser(gtFeeAmount, LibAccount.getUserEncryptionAddress(quote.partyA));
+			ctUint256 memory ctFeeAmount = MpcCore.offBoardToUser(gtFee, LibAccount.getUserEncryptionAddress(quote.partyA));
 			emit SharedEvents.BalanceChangePartyA(quote.partyA, ctFeeAmount, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 			
 			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));

@@ -9,6 +9,7 @@ export const FacetNames = [
 	"ViewFacet",
 	"FundingRateFacet",
 	"ForceActionsFacet",
+	"ForceCloseFacet",
 	"RecoveryActionsFacet",
 	"SettlementFacet",
 	"PartyBPositionActionsFacet",

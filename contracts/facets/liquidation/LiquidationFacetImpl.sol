@@ -119,8 +119,9 @@ library LiquidationFacetImpl {
                 accountLayout.partyBPendingLockedBalances[quote.partyB][partyA] = gtZeroLockedB.offBoard(partyBEncryptionAddress);
             }
             gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
-            uint256 fee = MpcCore.decrypt(gtFee);
-            accountLayout.partyAReimbursement[partyA] += fee;
+            gtUint256 gtCurrentReimbursement = LibAccount.initializePartyAReimbursement(partyA);
+            gtUint256 gtNewReimbursement = gtCurrentReimbursement.add(gtFee);
+            accountLayout.encryptedPartyAReimbursement[partyA] = MpcCore.offBoardCombined(gtNewReimbursement, partyAEncryptionAddress);
             
             // Emit encrypted event
             ctUint256 memory ctFee = MpcCore.offBoardToUser(gtFee, partyAEncryptionAddress);
@@ -416,10 +417,11 @@ library LiquidationFacetImpl {
             ctUint256 memory ctAllocatedBalance = MpcCore.offBoardToUser(gtAllocatedBalance, partyAEncryptionAddress);
             emit SharedEvents.BalanceChangePartyA(partyA, ctAllocatedBalance, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
             
-            // Set allocated balance to reimbursement amount
-            gtUint256 gtReimbursement = MpcCore.setPublic256(accountLayout.partyAReimbursement[partyA]);
+            // Set allocated balance to encrypted reimbursement amount.
+            gtUint256 gtReimbursement = LibAccount.initializePartyAReimbursement(partyA);
             accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtReimbursement, partyAEncryptionAddress);
             accountLayout.partyAReimbursement[partyA] = 0;
+            accountLayout.encryptedPartyAReimbursement[partyA] = MpcCore.offBoardCombined(MpcCore.setPublic256(uint256(0)), partyAEncryptionAddress);
             // Set locked balances to zero
             GarbledLockedValues memory gtZeroLocked = LockedValuesOps.makeZero();
             accountLayout.lockedBalances[partyA] = gtZeroLocked.offBoard(partyAEncryptionAddress);

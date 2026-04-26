@@ -60,6 +60,8 @@ library AccountStorage {
 		mapping(address => mapping(uint256 => Price)) symbolsPrices;
 		mapping(address => address[]) liquidators;
 		mapping(address => uint256) partyAReimbursement;
+		mapping(address => utUint256) encryptedPartyAReimbursement;
+		mapping(address => utUint256) encryptedFeeCollectorBalances;
 		// partyA => partyB => SettlementState
 		mapping(address => mapping(address => SettlementState)) settlementStates;
 		mapping(address => uint256) reserveVault;

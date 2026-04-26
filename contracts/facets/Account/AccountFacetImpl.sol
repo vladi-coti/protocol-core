@@ -211,6 +211,20 @@ library AccountFacetImpl {
 		accountLayout.withdrawCooldown[msg.sender] = block.timestamp;
 	}
 
+	function claimFeeCollectorBalance(uint256 amount) internal {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		require(amount > 0, "AccountFacet: Insufficient balance");
+		gtUint256 gtCurrentFeeBalance = LibAccount.initializeFeeCollectorBalance(msg.sender);
+		gtUint256 gtAmount = MpcCore.setPublic256(amount);
+		require(MpcCore.decrypt(gtCurrentFeeBalance.ge(gtAmount)), "AccountFacet: Insufficient fee balance");
+		gtUint256 gtNewFeeBalance = gtCurrentFeeBalance.sub(gtAmount);
+		accountLayout.encryptedFeeCollectorBalances[msg.sender] = MpcCore.offBoardCombined(
+			gtNewFeeBalance,
+			LibAccount.getUserEncryptionAddress(msg.sender)
+		);
+		accountLayout.balances[msg.sender] += amount;
+	}
+
 	function setEncryptionAddress(address user, address newEncryptionAddress) internal {
         AccountStorage.Layout storage accountLayout = AccountStorage.layout();
         address currentMapped = accountLayout.userEncryptionAddress[user];
@@ -236,6 +250,10 @@ library AccountFacetImpl {
         accountLayout.pendingLockedBalances[user] = LockedValuesOps.offBoard(gtPendingLocked, newEncryptionAddress);
 		gtUint256 gtReserveVault = LibAccount.initializeReserveVault(user);
 		accountLayout.encryptedReserveVault[user] = MpcCore.offBoardCombined(gtReserveVault, newEncryptionAddress);
+		gtUint256 gtFeeCollectorBalance = LibAccount.initializeFeeCollectorBalance(user);
+		accountLayout.encryptedFeeCollectorBalances[user] = MpcCore.offBoardCombined(gtFeeCollectorBalance, newEncryptionAddress);
+		gtUint256 gtPartyAReimbursement = LibAccount.initializePartyAReimbursement(user);
+		accountLayout.encryptedPartyAReimbursement[user] = MpcCore.offBoardCombined(gtPartyAReimbursement, newEncryptionAddress);
 
         // Re-encrypt all quotes owned by user
         QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();

@@ -66,7 +66,11 @@ library LibPartyBPositionsActions {
 			require(MpcCore.decrypt(gtQuantity.eq(gtFilledAmount)), "PartyBFacet: Invalid filledAmount");
 			gtFee = gtFilledAmount.mul(LockedValuesOps.safeOnboard(quote.marketPrice.ciphertext)).mul(gtTradingFeeRate).div(gtScaleFactor);
 		}
-		accountLayout.balances[feeCollector] += MpcCore.decrypt(gtFee);
+		gtUint256 gtFeeCollectorBalance = LibAccount.initializeFeeCollectorBalance(feeCollector);
+		accountLayout.encryptedFeeCollectorBalances[feeCollector] = MpcCore.offBoardCombined(
+			gtFeeCollectorBalance.add(gtFee),
+			LibAccount.getUserEncryptionAddress(feeCollector)
+		);
 		
 		gtBool gtOpenedPriceValid = quote.positionType == PositionType.LONG
 			? gtOpenedPrice.le(gtRequestedOpenPrice)

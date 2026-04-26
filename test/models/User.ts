@@ -328,7 +328,7 @@ export class User {
 				userUpnl: await this.getUpnl(),
 			}),
 		)
-		await runTx(this.context.forceActionsFacet.connect(this.signer).forceClosePosition(id, signature))
+		await runTx(this.context.forceCloseFacet.connect(this.signer).forceClosePosition(id, signature))
 		logger.info(`User::::ForceClosePosition: ${id}`)
 	}
 
@@ -342,7 +342,7 @@ export class User {
 				userUpnl: await this.getUpnl(),
 			}),
 		)
-		await runTx(this.context.forceActionsFacet.connect(this.signer).settleAndForceClosePosition(id, highLowPriceSigStruct, settleSig, updatedPrices))
+		await runTx(this.context.forceCloseFacet.connect(this.signer).settleAndForceClosePosition(id, highLowPriceSigStruct, settleSig, updatedPrices))
 		logger.info(`User::::SettleAndForceClosePosition: ${id}`)
 	}
 

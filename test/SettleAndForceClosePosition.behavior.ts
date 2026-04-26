@@ -105,7 +105,7 @@ export function shouldBehaveLikeSettleAndForceClosePosition(): void {
 		).to.be.revertedWith("LibQuote: PartyA should first exit its positions that are incurring losses")
 
 		await context.controlFacet.connect(context.signers.admin).setTrustedEncryptionAddress(ethers.ZeroAddress)
-		const tx = await context.forceActionsFacet
+		const tx = await context.forceCloseFacet
 			.connect(context.signers.user)
 			.settleAndForceClosePosition(quote1LongOpened.id, highLowSig, settlementSig, [decimal(5n)])
 		const receipt = await tx.wait()
