@@ -50,28 +50,31 @@ library LibSolvency {
 		gtUint256 gtMarketPrice = MpcCore.setPublic256(marketPrice);
 		gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e18));
 		gtBool gtOpenedPriceGteMarket = gtOpenedPrice.ge(gtMarketPrice);
+		gtUint256 gtPriceDiff = MpcCore.max(gtOpenedPrice, gtMarketPrice).sub(MpcCore.min(gtOpenedPrice, gtMarketPrice));
+		gtInt256 gtDiff = gtFilledAmount.mul(gtPriceDiff).div(gtScaleFactor).toSigned();
 		
 		if (quote.positionType == PositionType.LONG) {
-			// Check if openedPrice >= marketPrice using MPC comparison
-			if(MpcCore.decrypt(gtOpenedPriceGteMarket)) {
-				gtInt256 gtDiff = gtFilledAmount.mul(gtOpenedPrice.sub(gtMarketPrice)).div(gtScaleFactor).toSigned();
-				gtPartyAAvailableBalance = gtPartyAAvailableBalance.sub(gtDiff);
-				gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtDiff);
-			} else {
-				gtInt256 gtDiff = gtFilledAmount.mul(gtMarketPrice.sub(gtOpenedPrice)).div(gtScaleFactor).toSigned();
-				gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(gtDiff);
-				gtPartyBAvailableBalance = gtPartyBAvailableBalance.sub(gtDiff);
-			}
+			gtPartyAAvailableBalance = MpcCore.mux(
+				gtOpenedPriceGteMarket,
+				gtPartyAAvailableBalance.add(gtDiff),
+				gtPartyAAvailableBalance.sub(gtDiff)
+			);
+			gtPartyBAvailableBalance = MpcCore.mux(
+				gtOpenedPriceGteMarket,
+				gtPartyBAvailableBalance.sub(gtDiff),
+				gtPartyBAvailableBalance.add(gtDiff)
+			);
 		} else {
-			if(MpcCore.decrypt(gtOpenedPriceGteMarket)) {
-				gtInt256 gtDiff = gtFilledAmount.mul(gtOpenedPrice.sub(gtMarketPrice)).div(gtScaleFactor).toSigned();
-				gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(gtDiff);
-				gtPartyBAvailableBalance = gtPartyBAvailableBalance.sub(gtDiff);
-			} else {
-				gtInt256 gtDiff = gtFilledAmount.mul(gtMarketPrice.sub(gtOpenedPrice)).div(gtScaleFactor).toSigned();
-				gtPartyAAvailableBalance = gtPartyAAvailableBalance.sub(gtDiff);
-				gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtDiff);
-			}
+			gtPartyAAvailableBalance = MpcCore.mux(
+				gtOpenedPriceGteMarket,
+				gtPartyAAvailableBalance.sub(gtDiff),
+				gtPartyAAvailableBalance.add(gtDiff)
+			);
+			gtPartyBAvailableBalance = MpcCore.mux(
+				gtOpenedPriceGteMarket,
+				gtPartyBAvailableBalance.add(gtDiff),
+				gtPartyBAvailableBalance.sub(gtDiff)
+			);
 		}
 		
 		// Check solvency using encrypted comparisons - decrypt only the boolean results

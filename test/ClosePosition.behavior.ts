@@ -1,5 +1,6 @@
 import {loadFixtureCompatible, timeCompatible} from "./utils/testHelpers"
 import {expect} from "chai"
+import {ethers} from "hardhat"
 
 import {initializeFixture} from "./Initialize.fixture"
 import {OrderType, PositionType, QuoteStatus} from "./models/Enums"
@@ -10,6 +11,7 @@ import {limitCloseRequestBuilder, marketCloseRequestBuilder} from "./models/requ
 import {limitQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
 import {
 	decimal,
+	decryptUint256,
 	getBlockTimestamp,
 	getQuoteQuantity,
 	getTotalLockedValuesForQuoteIds,
@@ -19,7 +21,7 @@ import {
 	unDecimal,
 } from "./utils/Common"
 import {CloseRequestValidator} from "./models/validators/CloseRequestValidator"
-import {limitFillCloseRequestBuilder, marketFillCloseRequestBuilder} from "./models/requestModels/FillCloseRequest"
+import {FillCloseRequest, limitFillCloseRequestBuilder, marketFillCloseRequestBuilder} from "./models/requestModels/FillCloseRequest"
 import {FillCloseRequestValidator} from "./models/validators/FillCloseRequestValidator"
 import {CancelCloseRequestValidator} from "./models/validators/CancelCloseRequestValidator"
 import {AcceptCancelCloseRequestValidator} from "./models/validators/AcceptCancelCloseRequestValidator"
@@ -29,6 +31,77 @@ export function shouldBehaveLikeClosePosition(): void {
 	let user: User, hedger: Hedger, hedger2: Hedger
 	let context: RunContext
 	let quoteDataArray: {[key: string]: QuoteData} = {}
+	const realizedPnlIn = 4n
+	const realizedPnlOut = 5n
+	const sharedEventsInterface = new ethers.Interface([
+		"event BalanceChangePartyA(address indexed partyA, tuple(uint256 ciphertextHigh, uint256 ciphertextLow) amount, uint8 _type)",
+		"event BalanceChangePartyB(address indexed partyB, address indexed partyA, tuple(uint256 ciphertextHigh, uint256 ciphertextLow) amount, uint8 _type)",
+	])
+
+	async function fillCloseAndGetReceipt(quoteId: bigint, request: FillCloseRequest) {
+		const {encryptedParams, upnlSig} = await hedger.buildFillCloseRequestCalldataArgs(request)
+		const tx = await context.partyBPositionActionsFacet.connect(context.signers.hedger).fillCloseRequest(quoteId, encryptedParams, upnlSig)
+		const receipt = await tx.wait()
+		if (!receipt) throw new Error("FillCloseRequest failed")
+		return receipt
+	}
+
+	function getPnlEventLogs(receipt: any): any[] {
+		return receipt.logs
+			.map((log: any) => {
+				try {
+					return sharedEventsInterface.parseLog(log)
+				} catch {
+					return null
+				}
+			})
+			.filter((log: any) => {
+				if (!log || (log.name !== "BalanceChangePartyA" && log.name !== "BalanceChangePartyB")) return false
+				const eventType = getBalanceChangeType(log)
+				return eventType === realizedPnlIn || eventType === realizedPnlOut
+			})
+	}
+
+	function getBalanceChangeAmount(log: any) {
+		return log.args.amount
+	}
+
+	function getBalanceChangeType(log: any): bigint {
+		return BigInt(log.args._type)
+	}
+
+	function pnlEventShape(receipt: any): string[] {
+		return getPnlEventLogs(receipt).map(log => `${log.name}:${getBalanceChangeType(log).toString()}`)
+	}
+
+	async function pnlEventAmounts(receipt: any) {
+		const logs = getPnlEventLogs(receipt)
+		const amounts = {
+			partyAIn: 0n,
+			partyAOut: 0n,
+			partyBIn: 0n,
+			partyBOut: 0n,
+		}
+
+		for (const log of logs) {
+			const amount = await decryptUint256(context, getBalanceChangeAmount(log), context.signers.user)
+			const eventType = getBalanceChangeType(log)
+			if (log.name === "BalanceChangePartyA" && eventType === realizedPnlIn) amounts.partyAIn = amount
+			if (log.name === "BalanceChangePartyA" && eventType === realizedPnlOut) amounts.partyAOut = amount
+			if (log.name === "BalanceChangePartyB" && eventType === realizedPnlIn) amounts.partyBIn = amount
+			if (log.name === "BalanceChangePartyB" && eventType === realizedPnlOut) amounts.partyBOut = amount
+		}
+
+		return amounts
+	}
+
+	async function quotePnl(quoteId: bigint, closedPrice: bigint): Promise<bigint> {
+		const quote = await context.viewFacet.getQuote(quoteId)
+		const openedPrice = await decryptUint256(context, quote.openedPrice.userCiphertext, context.signers.user)
+		const quantity = await getQuoteQuantity(context, quoteId)
+		const priceDiff = closedPrice > openedPrice ? closedPrice - openedPrice : openedPrice - closedPrice
+		return unDecimal(quantity * priceDiff)
+	}
 
 	beforeEach(async function () {
 		context = await loadFixtureCompatible(initializeFixture)
@@ -197,6 +270,81 @@ export function shouldBehaveLikeClosePosition(): void {
 			quantityToClose: quantityToClose,
 			beforeOutput: beforeOut,
 		})
+	})
+
+	it("ClosePosition - Should keep PnL event shape constant for profit and loss", async function () {
+		const partyA = await user.getAddress()
+		const profitQuantity = await getQuoteQuantity(context, 1n)
+		const profitClosePrice = decimal(11n, 17)
+		const profitPnl = await quotePnl(1n, profitClosePrice)
+		const userBeforeProfit = await user.getBalanceInfo()
+		const hedgerBeforeProfit = await hedger.getBalanceInfo(partyA)
+
+		await user.requestToClosePosition(
+			1,
+			limitCloseRequestBuilder()
+				.quantityToClose(profitQuantity)
+				.closePrice(decimal(1n))
+				.build(),
+		)
+		const profitReceipt = await fillCloseAndGetReceipt(
+			1n,
+			limitFillCloseRequestBuilder()
+				.filledAmount(profitQuantity)
+				.closedPrice(profitClosePrice)
+				.build(),
+		)
+
+		const userAfterProfit = await user.getBalanceInfo()
+		const hedgerAfterProfit = await hedger.getBalanceInfo(partyA)
+		expect(userAfterProfit.allocatedBalances - userBeforeProfit.allocatedBalances).to.equal(profitPnl)
+		expect(hedgerBeforeProfit.allocatedBalances - hedgerAfterProfit.allocatedBalances).to.equal(profitPnl)
+
+		const lossQuantity = await getQuoteQuantity(context, 4n)
+		const lossClosePrice = decimal(9n, 17)
+		const lossPnl = await quotePnl(4n, lossClosePrice)
+		const userBeforeLoss = await user.getBalanceInfo()
+		const hedgerBeforeLoss = await hedger.getBalanceInfo(partyA)
+
+		await user.requestToClosePosition(
+			4,
+			limitCloseRequestBuilder()
+				.quantityToClose(lossQuantity)
+				.closePrice(decimal(8n, 17))
+				.build(),
+		)
+		const lossReceipt = await fillCloseAndGetReceipt(
+			4n,
+			limitFillCloseRequestBuilder()
+				.filledAmount(lossQuantity)
+				.closedPrice(lossClosePrice)
+				.build(),
+		)
+
+		const userAfterLoss = await user.getBalanceInfo()
+		const hedgerAfterLoss = await hedger.getBalanceInfo(partyA)
+		expect(userBeforeLoss.allocatedBalances - userAfterLoss.allocatedBalances).to.equal(lossPnl)
+		expect(hedgerAfterLoss.allocatedBalances - hedgerBeforeLoss.allocatedBalances).to.equal(lossPnl)
+
+		expect(pnlEventShape(profitReceipt)).to.deep.equal(pnlEventShape(lossReceipt))
+		expect(pnlEventShape(profitReceipt)).to.deep.equal([
+			"BalanceChangePartyA:4",
+			"BalanceChangePartyA:5",
+			"BalanceChangePartyB:4",
+			"BalanceChangePartyB:5",
+		])
+
+		const profitAmounts = await pnlEventAmounts(profitReceipt)
+		expect(profitAmounts.partyAIn).to.equal(profitPnl)
+		expect(profitAmounts.partyAOut).to.equal(0n)
+		expect(profitAmounts.partyBIn).to.equal(0n)
+		expect(profitAmounts.partyBOut).to.equal(profitPnl)
+
+		const lossAmounts = await pnlEventAmounts(lossReceipt)
+		expect(lossAmounts.partyAIn).to.equal(0n)
+		expect(lossAmounts.partyAOut).to.equal(lossPnl)
+		expect(lossAmounts.partyBIn).to.equal(lossPnl)
+		expect(lossAmounts.partyBOut).to.equal(0n)
 	})
 
 	it("ClosePosition - Should expire close request", async function () {

@@ -23,6 +23,11 @@ library LiquidationFacetImpl {
     using LockedValuesOps for LockedValues;
     using LockedValuesOps for GarbledLockedValues;
 
+    function _signedPnlDelta(gtBool gtHasMadeProfit, gtInt256 gtProfitAmount, gtInt256 gtLossAmount) private returns (gtInt256) {
+        gtInt256 gtZero = MpcCore.setPublic256(int256(0));
+        return MpcCore.mux(gtHasMadeProfit, gtZero.sub(gtLossAmount), gtProfitAmount);
+    }
+
     function liquidatePartyA(address partyA, LiquidationSig memory liquidationSig) internal {
         MAStorage.Layout storage maLayout = MAStorage.layout();
         AccountStorage.Layout storage accountLayout = AccountStorage.layout();
@@ -186,7 +191,7 @@ library LiquidationFacetImpl {
             gtUint256 gtOpenAmount = LibQuote.quoteOpenAmount(quote);
             gtUint256 gtPrice = MpcCore.setPublic256(accountLayout.symbolsPrices[partyA][quote.symbolId].price);
             
-            (bool hasMadeProfit, gtUint256 gtAmount) = LibQuote.getValueOfQuoteForPartyA(
+            (gtBool gtHasMadeProfit, gtUint256 gtAmount) = LibQuote.getValueOfQuoteForPartyA(
                 gtPrice,
                 gtOpenAmount,
                 quote
@@ -206,17 +211,10 @@ library LiquidationFacetImpl {
                 gtUint256 gtNewCva = gtCurrentCva.add(gtQuoteCva);
                 accountLayout.settlementStates[partyA][quote.partyB].cva = MpcCore.offBoardCombined(gtNewCva, partyAEncryptionAddress);
 
-                if (hasMadeProfit) {
-                    // Convert ctInt256 to gtInt256 using MpcCore.onBoard
-                    gtInt256 gtCurrentActual = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
-                    gtInt256 gtNewActual = gtCurrentActual.add(gtAmount.toSigned());
-                    accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
-                } else {
-                    // Convert ctInt256 to gtInt256 using MpcCore.onBoard
-                    gtInt256 gtCurrentActual = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
-                    gtInt256 gtNewActual = gtCurrentActual.sub(gtAmount.toSigned());
-                    accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
-                }
+                gtInt256 gtAmountDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAmount.toSigned());
+                gtInt256 gtCurrentActual = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
+                gtInt256 gtNewActual = gtCurrentActual.add(gtAmountDelta);
+                accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
                 accountLayout.settlementStates[partyA][quote.partyB].expectedAmount = accountLayout
                     .settlementStates[partyA][quote.partyB].actualAmount;
             } else if (accountLayout.liquidationDetails[partyA].liquidationType == LiquidationType.LATE) {
@@ -228,44 +226,26 @@ library LiquidationFacetImpl {
                 gtUint256 gtNewCva = gtCurrentCva.add(gtAdjustedCva);
                 accountLayout.settlementStates[partyA][quote.partyB].cva = MpcCore.offBoardCombined(gtNewCva, partyAEncryptionAddress);
                 
-                if (hasMadeProfit) {
-                    // Convert ctInt256 to gtInt256 using MpcCore.onBoard
-                    gtInt256 gtCurrentActual = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
-                    gtInt256 gtNewActual = gtCurrentActual.add(gtAmount.toSigned());
-                    accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
-                } else {
-                    // Convert ctInt256 to gtInt256 using MpcCore.onBoard
-                    gtInt256 gtCurrentActual = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
-                    gtInt256 gtNewActual = gtCurrentActual.sub(gtAmount.toSigned());
-                    accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
-                }
+                gtInt256 gtAmountDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAmount.toSigned());
+                gtInt256 gtCurrentActual = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
+                gtInt256 gtNewActual = gtCurrentActual.add(gtAmountDelta);
+                accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
                 accountLayout.settlementStates[partyA][quote.partyB].expectedAmount = accountLayout
                     .settlementStates[partyA][quote.partyB].actualAmount;
             } else if (accountLayout.liquidationDetails[partyA].liquidationType == LiquidationType.OVERDUE) {
-                if (hasMadeProfit) {
-                    // Convert ctInt256 to gtInt256 using MpcCore.onBoard
-                    gtInt256 gtCurrentActual = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
-                    gtInt256 gtNewActual = gtCurrentActual.add(gtAmount.toSigned());
-                    accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
-                    
-                    // Convert ctInt256 to gtInt256 using MpcCore.onBoard
-                    gtInt256 gtCurrentExpected = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].expectedAmount.ciphertext);
-                    gtInt256 gtNewExpected = gtCurrentExpected.add(gtAmount.toSigned());
-                    accountLayout.settlementStates[partyA][quote.partyB].expectedAmount = MpcCore.offBoardCombined(gtNewExpected, partyAEncryptionAddress);
-                } else {
-                    gtUint256 gtTotalUnrealizedLoss = MpcCore.setPublic256(uint256(-accountLayout.liquidationDetails[partyA].totalUnrealizedLoss));
-                    gtInt256 gtAdjustedAmount = gtAmount.sub(gtAmount.mul(gtDeficit).div(gtTotalUnrealizedLoss)).toSigned();
-                    
-                    // Convert ctInt256 to gtInt256 using MpcCore.onBoard
-                    gtInt256 gtCurrentActual = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
-                    gtInt256 gtNewActual = gtCurrentActual.sub(gtAdjustedAmount);
-                    accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
-                    
-                    // Convert ctInt256 to gtInt256 using MpcCore.onBoard
-                    gtInt256 gtCurrentExpected = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].expectedAmount.ciphertext);
-                    gtInt256 gtNewExpected = gtCurrentExpected.sub(gtAmount.toSigned());
-                    accountLayout.settlementStates[partyA][quote.partyB].expectedAmount = MpcCore.offBoardCombined(gtNewExpected, partyAEncryptionAddress);
-                }
+                require(accountLayout.liquidationDetails[partyA].totalUnrealizedLoss < 0, "LiquidationFacet: Invalid unrealized loss");
+                gtUint256 gtTotalUnrealizedLoss = MpcCore.setPublic256(uint256(-accountLayout.liquidationDetails[partyA].totalUnrealizedLoss));
+                gtInt256 gtAdjustedAmount = gtAmount.sub(gtAmount.mul(gtDeficit).div(gtTotalUnrealizedLoss)).toSigned();
+                gtInt256 gtActualDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAdjustedAmount);
+                gtInt256 gtExpectedDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAmount.toSigned());
+
+                gtInt256 gtCurrentActual = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
+                gtInt256 gtNewActual = gtCurrentActual.add(gtActualDelta);
+                accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
+
+                gtInt256 gtCurrentExpected = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].expectedAmount.ciphertext);
+                gtInt256 gtNewExpected = gtCurrentExpected.add(gtExpectedDelta);
+                accountLayout.settlementStates[partyA][quote.partyB].expectedAmount = MpcCore.offBoardCombined(gtNewExpected, partyAEncryptionAddress);
             }
             accountLayout.partyBLockedBalances[quote.partyB][partyA].subQuote(quote, partyBEncryptionAddress);
             

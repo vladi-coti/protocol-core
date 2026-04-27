@@ -129,22 +129,22 @@ library LibQuote {
 	 * @param gtCurrentPrice The encrypted current price of the quote.
 	 * @param gtFilledAmount The encrypted filled amount of the quote.
 	 * @param quote The quote for which to calculate the value.
-	 * @return hasMadeProfit A boolean indicating whether Party A has made a profit.
+	 * @return gtHasMadeProfit An encrypted boolean indicating whether Party A has made a profit.
 	 * @return pnl The profit or loss value for Party A (encrypted).
 	 */
 	function getValueOfQuoteForPartyA(
 		gtUint256 gtCurrentPrice,
 		gtUint256 gtFilledAmount,
 		Quote storage quote
-	) internal returns (bool hasMadeProfit, gtUint256 pnl) {
+	) internal returns (gtBool gtHasMadeProfit, gtUint256 pnl) {
 		gtUint256 gtOpenedPrice = LockedValuesOps.safeOnboard(quote.openedPrice.ciphertext);
 		gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e18));
-		bool isCurrentGreater = MpcCore.decrypt(gtCurrentPrice.gt(gtOpenedPrice));
-		bool isLong = quote.positionType == PositionType.LONG;
-		hasMadeProfit = isLong ? isCurrentGreater : !isCurrentGreater;
-		pnl = isCurrentGreater 
-			? gtCurrentPrice.sub(gtOpenedPrice).mul(gtFilledAmount).div(gtScaleFactor)
-			: gtOpenedPrice.sub(gtCurrentPrice).mul(gtFilledAmount).div(gtScaleFactor);
+		gtBool gtCurrentGreater = gtCurrentPrice.gt(gtOpenedPrice);
+		gtBool gtCurrentLower = gtCurrentPrice.lt(gtOpenedPrice);
+		gtHasMadeProfit = quote.positionType == PositionType.LONG ? gtCurrentGreater : gtCurrentLower;
+
+		gtUint256 gtPriceDiff = MpcCore.max(gtCurrentPrice, gtOpenedPrice).sub(MpcCore.min(gtCurrentPrice, gtOpenedPrice));
+		pnl = gtPriceDiff.mul(gtFilledAmount).div(gtScaleFactor);
 	}
 
 	/**
@@ -228,56 +228,56 @@ library LibQuote {
 			require(MpcCore.decrypt(isZero.or(isAboveMin)), "LibQuote: Remaining quote value is low");
 		}
 
-		// Calculate PNL with encrypted values
-		(bool hasMadeProfit, gtUint256 gtPnl) = getValueOfQuoteForPartyA(gtClosedPrice, gtFilledAmount, quote);
+		// Calculate PNL with encrypted direction and update balances without branching on profit/loss.
+		(gtBool gtHasMadeProfit, gtUint256 gtPnl) = getValueOfQuoteForPartyA(gtClosedPrice, gtFilledAmount, quote);
+		gtInt256 gtZeroInt = MpcCore.setPublic256(int256(0));
+		gtInt256 gtSignedPnl = gtPnl.toSigned();
+		gtInt256 gtPartyADelta = MpcCore.mux(gtHasMadeProfit, gtZeroInt.sub(gtSignedPnl), gtSignedPnl);
+		gtInt256 gtPartyBDelta = MpcCore.mux(gtHasMadeProfit, gtSignedPnl, gtZeroInt.sub(gtSignedPnl));
 
-		if (hasMadeProfit) {
-			// Check PartyB has sufficient balance using encrypted comparison
-			gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
-			gtBool gtSufficientBalance = gtPartyBBalance.ge(gtPnl);
-			require(MpcCore.decrypt(gtSufficientBalance), "LibQuote: PartyA should first exit its positions that are incurring losses");
-			
-			// Update PartyA balance
-			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
-			gtUint256 gtNewPartyABalance = gtPartyABalance.add(gtPnl);
-			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, LibAccount.getUserEncryptionAddress(quote.partyA));
-			
-			// Update PartyB balance
-			gtUint256 gtNewPartyBBalance = gtPartyBBalance.sub(gtPnl);
-			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewPartyBBalance, LibAccount.getUserEncryptionAddress(quote.partyB));
-			
-			// Emit encrypted events for both parties
-			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
-			ctUint256 memory partyAAmount = MpcCore.offBoardToUser(gtPnl, partyAEncryptionAddress);
-			emit SharedEvents.BalanceChangePartyA(quote.partyA, partyAAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
-			
-			address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
-			ctUint256 memory partyBAmount = MpcCore.offBoardToUser(gtPnl, partyBEncryptionAddress);
-			emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, partyBAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
-		} else {
-			// Check PartyA has sufficient balance using encrypted comparison
-			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
-			gtBool gtSufficientBalance = gtPartyABalance.ge(gtPnl);
-			require(MpcCore.decrypt(gtSufficientBalance), "LibQuote: PartyA should first exit its positions that are currently in profit.");
-			
-			// Update PartyA balance
-			gtUint256 gtNewPartyABalance = gtPartyABalance.sub(gtPnl);
-			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, LibAccount.getUserEncryptionAddress(quote.partyA));
-			
-			// Update PartyB balance
-			gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
-			gtUint256 gtNewPartyBBalance = gtPartyBBalance.add(gtPnl);
-			accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewPartyBBalance, LibAccount.getUserEncryptionAddress(quote.partyB));
-			
-			// Emit encrypted events for both parties
-			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
-			ctUint256 memory partyAAmount = MpcCore.offBoardToUser(gtPnl, partyAEncryptionAddress);
-			emit SharedEvents.BalanceChangePartyA(quote.partyA, partyAAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
-			
-			address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
-			ctUint256 memory partyBAmount = MpcCore.offBoardToUser(gtPnl, partyBEncryptionAddress);
-			emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, partyBAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
-		}
+		gtInt256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext).toSigned();
+		gtInt256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext).toSigned();
+		gtInt256 gtNewPartyABalance = gtPartyABalance.add(gtPartyADelta);
+		gtInt256 gtNewPartyBBalance = gtPartyBBalance.add(gtPartyBDelta);
+		require(
+			MpcCore.decrypt(gtNewPartyABalance.ge(gtZeroInt).and(gtNewPartyBBalance.ge(gtZeroInt))),
+			"LibQuote: Insufficient PnL balance"
+		);
+
+		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
+		address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
+		accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(MpcCore.fromSigned(gtNewPartyABalance), partyAEncryptionAddress);
+		accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(
+			MpcCore.fromSigned(gtNewPartyBBalance),
+			partyBEncryptionAddress
+		);
+
+		gtUint256 gtPartyAPnlIn = MpcCore.mux(gtHasMadeProfit, gtZero, gtPnl);
+		gtUint256 gtPartyAPnlOut = MpcCore.mux(gtHasMadeProfit, gtPnl, gtZero);
+		gtUint256 gtPartyBPnlIn = MpcCore.mux(gtHasMadeProfit, gtPnl, gtZero);
+		gtUint256 gtPartyBPnlOut = MpcCore.mux(gtHasMadeProfit, gtZero, gtPnl);
+		emit SharedEvents.BalanceChangePartyA(
+			quote.partyA,
+			MpcCore.offBoardToUser(gtPartyAPnlIn, partyAEncryptionAddress),
+			SharedEvents.BalanceChangeType.REALIZED_PNL_IN
+		);
+		emit SharedEvents.BalanceChangePartyA(
+			quote.partyA,
+			MpcCore.offBoardToUser(gtPartyAPnlOut, partyAEncryptionAddress),
+			SharedEvents.BalanceChangeType.REALIZED_PNL_OUT
+		);
+		emit SharedEvents.BalanceChangePartyB(
+			quote.partyB,
+			quote.partyA,
+			MpcCore.offBoardToUser(gtPartyBPnlIn, partyBEncryptionAddress),
+			SharedEvents.BalanceChangeType.REALIZED_PNL_IN
+		);
+		emit SharedEvents.BalanceChangePartyB(
+			quote.partyB,
+			quote.partyA,
+			MpcCore.offBoardToUser(gtPartyBPnlOut, partyBEncryptionAddress),
+			SharedEvents.BalanceChangeType.REALIZED_PNL_OUT
+		);
 
 		// Update avgClosedPrice: (avgClosedPrice * closedAmount + filledAmount * closedPrice) / (closedAmount + filledAmount)
 		gtUint256 gtAvgClosedPrice = LockedValuesOps.safeOnboard(quote.avgClosedPrice.ciphertext);

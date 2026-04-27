@@ -19,7 +19,7 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 9 | [`report2#5`](report2.md#L13-L16) | fixed | Subaccount created without usable encryption address |
 | 10 | [`report2#6`](report2.md#L17-L20) | fixed | `settleUpnl` / `forceClosePosition` leak balances via decrypt-and-emit |
 | 11 | [`report2#7`](report2.md#L21-L28) | fixed | Trading-fee decrypt leaks `quantity * price` |
-| 12 | [`report2#8`](report2.md#L29-L36) | open | Decrypted profitability comparison leaks PnL direction |
+| 12 | [`report2#8`](report2.md#L29-L36) | fixed | Decrypted profitability comparison leaks PnL direction |
 | 13 | [`report3#1`](report3.md#L1-L17) | fixed | Self-transfer allocation inflation bug |
 | 14 | [`report3#2`](report3.md#L18-L48) | open | Class-level unchecked arithmetic problem |
 | 15 | [`report3#3`](report3.md#L49-L61) | open | `settleUpnl` underflow wraps balances |
