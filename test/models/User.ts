@@ -439,12 +439,12 @@ export class User {
 	}
 
 	public async liquidatePendingPositions(liquidator: Wallet = this.context.signers.liquidator) {
-		await this.context.liquidationFacet.connect(liquidator).liquidatePendingPositionsPartyA(this.getAddress())
+		await this.context.liquidationPositionsFacet.connect(liquidator).liquidatePendingPositionsPartyA(this.getAddress())
 	}
 
 	public async liquidatePositions(positions: BigNumberish[] = [], liquidator: Wallet = this.context.signers.liquidator) {
 		if (positions.length == 0) positions = (await this.getOpenPositions()).map(value => value.id)
-		const tx = await this.context.liquidationFacet.connect(liquidator).liquidatePositionsPartyA(this.getAddress(), positions)
+		const tx = await this.context.liquidationPositionsFacet.connect(liquidator).liquidatePositionsPartyA(this.getAddress(), positions)
 		console.log("User::::LiquidatePositions: " + tx.hash)
 		const receipt = await tx.wait()
 

@@ -154,7 +154,7 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 
 			it("Should fail on partyA being solvent", async function () {
 				let user3 = context.signers.hedger2.getAddress()
-				await expect(context.liquidationFacet.connect(context.signers.liquidator).liquidatePositionsPartyA(user3, [1])).to.be.revertedWith(
+				await expect(context.liquidationPositionsFacet.connect(context.signers.liquidator).liquidatePositionsPartyA(user3, [1])).to.be.revertedWith(
 					"LiquidationFacet: PartyA is solvent",
 				)
 			})

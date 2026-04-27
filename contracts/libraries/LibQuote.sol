@@ -28,7 +28,7 @@ library LibQuote {
 	function quoteOpenAmount(Quote storage quote) internal returns (gtUint256) {
 		gtUint256 gtQuantity = LockedValuesOps.safeOnboard(quote.quantity.ciphertext);
 		gtUint256 gtClosedAmount = LockedValuesOps.safeOnboard(quote.closedAmount.ciphertext);
-		return gtQuantity.sub(gtClosedAmount);
+		return gtQuantity.checkedSub(gtClosedAmount);
 	}
 
 	/**
@@ -143,8 +143,8 @@ library LibQuote {
 		gtBool gtCurrentLower = gtCurrentPrice.lt(gtOpenedPrice);
 		gtHasMadeProfit = quote.positionType == PositionType.LONG ? gtCurrentGreater : gtCurrentLower;
 
-		gtUint256 gtPriceDiff = MpcCore.max(gtCurrentPrice, gtOpenedPrice).sub(MpcCore.min(gtCurrentPrice, gtOpenedPrice));
-		pnl = gtPriceDiff.mul(gtFilledAmount).div(gtScaleFactor);
+		gtUint256 gtPriceDiff = MpcCore.max(gtCurrentPrice, gtOpenedPrice).checkedSub(MpcCore.min(gtCurrentPrice, gtOpenedPrice));
+		pnl = gtPriceDiff.checkedMul(gtFilledAmount).div(gtScaleFactor);
 	}
 
 	/**
@@ -161,10 +161,10 @@ library LibQuote {
 		
 		if (quote.orderType == OrderType.LIMIT) {
 			gtUint256 gtRequestedOpenPrice = LockedValuesOps.safeOnboard(quote.requestedOpenPrice.ciphertext);
-			fee = gtOpenAmount.mul(gtRequestedOpenPrice).mul(gtTradingFee).div(gtScaleFactor);
+			fee = gtOpenAmount.checkedMul(gtRequestedOpenPrice).checkedMul(gtTradingFee).div(gtScaleFactor);
 		} else {
 			gtUint256 gtMarketPrice = LockedValuesOps.safeOnboard(quote.marketPrice.ciphertext);
-			fee = gtOpenAmount.mul(gtMarketPrice).mul(gtTradingFee).div(gtScaleFactor);
+			fee = gtOpenAmount.checkedMul(gtMarketPrice).checkedMul(gtTradingFee).div(gtScaleFactor);
 		}
 	}
 
@@ -186,26 +186,26 @@ library LibQuote {
 		// Check that proportional amounts are not too low
 		gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
 		gtBool cvaIsZero = gtLockedValues.cva.eq(gtZero);
-		gtBool cvaProportionOk = gtLockedValues.cva.mul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
+		gtBool cvaProportionOk = gtLockedValues.cva.checkedMul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
 		require(MpcCore.decrypt(cvaIsZero.or(cvaProportionOk)), "LibQuote: Low filled amount");
 		
 		gtBool partyAmmIsZero = gtLockedValues.partyAmm.eq(gtZero);
-		gtBool partyAmmProportionOk = gtLockedValues.partyAmm.mul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
+		gtBool partyAmmProportionOk = gtLockedValues.partyAmm.checkedMul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
 		require(MpcCore.decrypt(partyAmmIsZero.or(partyAmmProportionOk)), "LibQuote: Low filled amount");
 		
 		gtBool partyBmmIsZero = gtLockedValues.partyBmm.eq(gtZero);
-		gtBool partyBmmProportionOk = gtLockedValues.partyBmm.mul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
+		gtBool partyBmmProportionOk = gtLockedValues.partyBmm.checkedMul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
 		require(MpcCore.decrypt(partyBmmIsZero.or(partyBmmProportionOk)), "LibQuote: Low filled amount");
 		
-		gtBool lfProportionOk = gtLockedValues.lf.mul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
+		gtBool lfProportionOk = gtLockedValues.lf.checkedMul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
 		require(MpcCore.decrypt(lfProportionOk), "LibQuote: Low filled amount");
 		
 		// Calculate remaining locked values after partial close
 		GarbledLockedValues memory gtNewLockedValues = GarbledLockedValues({
-			cva: gtLockedValues.cva.sub(gtLockedValues.cva.mul(gtFilledAmount).div(gtOpenAmount)),
-			lf: gtLockedValues.lf.sub(gtLockedValues.lf.mul(gtFilledAmount).div(gtOpenAmount)),
-			partyAmm: gtLockedValues.partyAmm.sub(gtLockedValues.partyAmm.mul(gtFilledAmount).div(gtOpenAmount)),
-			partyBmm: gtLockedValues.partyBmm.sub(gtLockedValues.partyBmm.mul(gtFilledAmount).div(gtOpenAmount))
+			cva: gtLockedValues.cva.checkedSub(gtLockedValues.cva.checkedMul(gtFilledAmount).div(gtOpenAmount)),
+			lf: gtLockedValues.lf.checkedSub(gtLockedValues.lf.checkedMul(gtFilledAmount).div(gtOpenAmount)),
+			partyAmm: gtLockedValues.partyAmm.checkedSub(gtLockedValues.partyAmm.checkedMul(gtFilledAmount).div(gtOpenAmount)),
+			partyBmm: gtLockedValues.partyBmm.checkedSub(gtLockedValues.partyBmm.checkedMul(gtFilledAmount).div(gtOpenAmount))
 		});
 		
 		// Update storage: subtract old quote values, add new values
@@ -282,14 +282,17 @@ library LibQuote {
 		// Update avgClosedPrice: (avgClosedPrice * closedAmount + filledAmount * closedPrice) / (closedAmount + filledAmount)
 		gtUint256 gtAvgClosedPrice = LockedValuesOps.safeOnboard(quote.avgClosedPrice.ciphertext);
 		gtUint256 gtClosedAmount = LockedValuesOps.safeOnboard(quote.closedAmount.ciphertext);
-		gtUint256 gtNewAvgClosedPrice = gtAvgClosedPrice.mul(gtClosedAmount).add(gtFilledAmount.mul(gtClosedPrice)).div(gtClosedAmount.add(gtFilledAmount));
+		gtUint256 gtNewAvgClosedPrice = gtAvgClosedPrice
+			.checkedMul(gtClosedAmount)
+			.checkedAdd(gtFilledAmount.checkedMul(gtClosedPrice))
+			.div(gtClosedAmount.checkedAdd(gtFilledAmount));
 		quote.avgClosedPrice = MpcCore.offBoardCombined(gtNewAvgClosedPrice, LibAccount.getUserEncryptionAddress(quote.partyA));
 
 		// Update closedAmount and quantityToClose
-		gtUint256 gtNewClosedAmount = gtClosedAmount.add(gtFilledAmount);
+		gtUint256 gtNewClosedAmount = gtClosedAmount.checkedAdd(gtFilledAmount);
 		quote.closedAmount = MpcCore.offBoardCombined(gtNewClosedAmount, LibAccount.getUserEncryptionAddress(quote.partyA));
 		
-		gtUint256 gtNewQuantityToClose = gtQuantityToClose.sub(gtFilledAmount);
+		gtUint256 gtNewQuantityToClose = gtQuantityToClose.checkedSub(gtFilledAmount);
 		quote.quantityToClose = MpcCore.offBoardCombined(gtNewQuantityToClose, LibAccount.getUserEncryptionAddress(quote.partyA));
 
 		// Check if quote is fully closed
@@ -340,7 +343,7 @@ library LibQuote {
 			
 			// Update PartyA balance with encrypted operations
 			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
-			gtUint256 gtNewPartyABalance = gtPartyABalance.add(gtFee);
+			gtUint256 gtNewPartyABalance = gtPartyABalance.checkedAdd(gtFee);
 			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 			
 			// Emit encrypted event for PartyA

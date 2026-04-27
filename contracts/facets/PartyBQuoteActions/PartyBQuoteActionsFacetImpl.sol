@@ -71,7 +71,7 @@ library PartyBQuoteActionsFacetImpl {
 		
 		// Update allocated balance with encrypted operations
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
-		gtUint256 gtNewBalance = gtCurrentBalance.add(gtFeeAmount);
+		gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtFeeAmount);
 		accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 		
 		// Emit encrypted event

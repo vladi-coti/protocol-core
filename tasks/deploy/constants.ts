@@ -3,6 +3,7 @@ export const FacetNames = [
 	"ControlFacet",
 	"DiamondLoupeFacet",
 	"LiquidationFacet",
+	"LiquidationPositionsFacet",
 	"LiquidationResolutionFacet",
 	"PartyAFacet",
 	"BridgeFacet",

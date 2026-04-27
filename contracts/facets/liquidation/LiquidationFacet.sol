@@ -112,34 +112,6 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 	}
 
 	/**
-	 * @notice Liquidates pending positions of Party A.
-	 * @param partyA The address of Party A whose pending positions will be liquidated.
-	 */
-	function liquidatePendingPositionsPartyA(address partyA) external whenNotLiquidationPaused onlyRole(LibAccessibility.LIQUIDATOR_ROLE) {
-		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		uint256[] memory pendingQuotes = quoteLayout.partyAPendingQuotes[partyA];
-		(ctUint256[] memory liquidatedAmounts, bytes memory liquidationId) = LiquidationFacetImpl.liquidatePendingPositionsPartyA(partyA);
-		emit LiquidatePendingPositionsPartyA(msg.sender, partyA, pendingQuotes, liquidatedAmounts, liquidationId);
-	}
-
-	/**
-	 * @notice Liquidates other positions of Party A.
-	 * @param partyA The address of Party A whose positions will be liquidated.
-	 * @param quoteIds An array of quote IDs representing the positions to be liquidated.
-	 */
-	function liquidatePositionsPartyA(
-		address partyA,
-		uint256[] memory quoteIds
-	) external whenNotLiquidationPaused onlyRole(LibAccessibility.LIQUIDATOR_ROLE) {
-		(bool disputed, ctUint256[] memory liquidatedAmounts, uint256[] memory closeIds, bytes memory liquidationId) = LiquidationFacetImpl
-			.liquidatePositionsPartyA(partyA, quoteIds);
-		emit LiquidatePositionsPartyA(msg.sender, partyA, quoteIds, liquidatedAmounts, closeIds, liquidationId);
-		if (disputed) {
-			emit LiquidationDisputed(partyA, liquidationId);
-		}
-	}
-
-	/**
 	 * @notice Liquidates Party B with respect to a Party A.
 	 * @param partyB The address of Party B to be liquidated.
 	 * @param partyA The address of Party A related to the liquidation.
@@ -157,23 +129,5 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 
 		emit LiquidatePartyB(msg.sender, partyB, partyA, ctPartyBAllocatedBalance, ctUpnl);
 		LiquidationFacetImpl.liquidatePartyB(partyB, partyA, upnlSig);
-	}
-
-	/**
-	 * @notice Liquidates positions of Party B the Party A.
-	 * @param partyB The address of Party B whose positions are being liquidated.
-	 * @param partyA The address of Party A related to the liquidation.
-	 * @param priceSig The Muon signature containing the quote price data.
-	 */
-	function liquidatePositionsPartyB(
-		address partyB,
-		address partyA,
-		QuotePriceSig memory priceSig
-	) external whenNotLiquidationPaused onlyRole(LibAccessibility.LIQUIDATOR_ROLE) {
-		(ctUint256[] memory liquidatedAmounts, uint256[] memory closeIds) = LiquidationFacetImpl.liquidatePositionsPartyB(partyB, partyA, priceSig);
-		emit LiquidatePositionsPartyB(msg.sender, partyB, partyA, priceSig.quoteIds, liquidatedAmounts, closeIds);
-		if (QuoteStorage.layout().partyBPositionsCount[partyB][partyA] == 0) {
-			emit FullyLiquidatedPartyB(partyB, partyA);
-		}
 	}
 }

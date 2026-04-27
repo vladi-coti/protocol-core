@@ -160,6 +160,25 @@ export function shouldBehaveLikeSettlement(): void {
 		]))).to.be.revertedWith("LibSettlement: PartyB should be solvent")
 	})
 
+	it("Should revert instead of wrapping when settlement exceeds partyB balance", async function () {
+		const partyA = await user.getAddress()
+		const sig = await getDummySettlementSig(0n, [decimal(100000n)], [
+			{
+				quoteId: longHedger1.quoteId,
+				currentPrice: decimal(100n),
+				partyBUpnlIndex: 0n
+			} as QuoteSettlementDataStructOutput
+		])
+		let reverted = false
+		try {
+			const tx = await context.settlementFacet.connect(context.signers.hedger).settleUpnl(sig, [decimal(50n)], partyA)
+			await tx.wait()
+		} catch {
+			reverted = true
+		}
+		expect(reverted).to.equal(true)
+	})
+
 	it("Should fail if partyB is settling too frequently for the relation of user with another partyB", async function () {
 		await hedger.settleUpnl(await user.getAddress(), [decimal(5n, 17)], getDummySettlementSig(0n, [0n], [
 			{

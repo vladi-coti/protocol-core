@@ -8,6 +8,7 @@ import "../facets/Account/IAccountFacet.sol";
 import "../facets/Control/IControlFacet.sol";
 import "../facets/FundingRate/IFundingRateFacet.sol";
 import "../facets/liquidation/ILiquidationFacet.sol";
+import "../facets/liquidation/ILiquidationPositionsFacet.sol";
 import "../facets/liquidation/ILiquidationResolutionFacet.sol";
 import "../facets/PartyA/IPartyAFacet.sol";
 import "../facets/Bridge/IBridgeFacet.sol";
@@ -34,6 +35,7 @@ interface ISymmio is
 	IPartyBPositionActionsFacet,
 	IPartyAFacet,
 	ILiquidationFacet,
+	ILiquidationPositionsFacet,
 	ILiquidationResolutionFacet,
 	IViewFacet,
 	IDiamondCut,

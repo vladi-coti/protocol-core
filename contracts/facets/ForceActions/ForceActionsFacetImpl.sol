@@ -35,7 +35,7 @@ library ForceActionsFacetImpl {
 		
 		// Update allocated balance with encrypted operations
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
-		gtUint256 gtNewBalance = gtCurrentBalance.add(gtFeeAmount);
+		gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtFeeAmount);
 		accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 		
 		// Emit encrypted event
@@ -90,8 +90,8 @@ library ForceActionsFacetImpl {
 		
 		if (quote.positionType == PositionType.LONG) {
 			// Calculate encrypted minimum: gtRequestedClosePrice + (gtRequestedClosePrice * gtGapRatio) / 1e18
-			gtUint256 gtGap = gtRequestedClosePrice.mul(gtGapRatio).div(gtScaleFactor);
-			gtUint256 gtMinimum = gtRequestedClosePrice.add(gtGap);
+			gtUint256 gtGap = gtRequestedClosePrice.checkedMul(gtGapRatio).div(gtScaleFactor);
+			gtUint256 gtMinimum = gtRequestedClosePrice.checkedAdd(gtGap);
 			
 			// Check require using encrypted comparison
 			gtUint256 gtHighest = MpcCore.setPublic256(sig.highest);
@@ -99,16 +99,16 @@ library ForceActionsFacetImpl {
 			require(MpcCore.decrypt(gtValid), "PartyAFacet: Requested close price not reached");
 			
 			// Calculate closePrice: gtRequestedClosePrice + (gtRequestedClosePrice * gtPenalty) / 1e18
-			gtUint256 gtPenaltyAmount = gtRequestedClosePrice.mul(gtPenalty).div(gtScaleFactor);
-			gtClosePrice = gtRequestedClosePrice.add(gtPenaltyAmount);
+			gtUint256 gtPenaltyAmount = gtRequestedClosePrice.checkedMul(gtPenalty).div(gtScaleFactor);
+			gtClosePrice = gtRequestedClosePrice.checkedAdd(gtPenaltyAmount);
 			
 			// Max with average: if gtClosePrice > sig.averagePrice then gtClosePrice else sig.averagePrice
 			gtBool gtClosePriceGtAverage = gtClosePrice.gt(gtAveragePrice);
 			gtClosePrice = MpcCore.mux(gtClosePriceGtAverage, gtAveragePrice, gtClosePrice);
 		} else {
 			// Calculate encrypted maximum: gtRequestedClosePrice - (gtRequestedClosePrice * gtGapRatio) / 1e18
-			gtUint256 gtGap = gtRequestedClosePrice.mul(gtGapRatio).div(gtScaleFactor);
-			gtUint256 gtMaximum = gtRequestedClosePrice.sub(gtGap);
+			gtUint256 gtGap = gtRequestedClosePrice.checkedMul(gtGapRatio).div(gtScaleFactor);
+			gtUint256 gtMaximum = gtRequestedClosePrice.checkedSub(gtGap);
 			
 			// Check require using encrypted comparison
 			gtUint256 gtLowest = MpcCore.setPublic256(sig.lowest);
@@ -116,8 +116,8 @@ library ForceActionsFacetImpl {
 			require(MpcCore.decrypt(gtValid), "PartyAFacet: Requested close price not reached");
 			
 			// Calculate closePrice: gtRequestedClosePrice - (gtRequestedClosePrice * gtPenalty) / 1e18
-			gtUint256 gtPenaltyAmount = gtRequestedClosePrice.mul(gtPenalty).div(gtScaleFactor);
-			gtClosePrice = gtRequestedClosePrice.sub(gtPenaltyAmount);
+			gtUint256 gtPenaltyAmount = gtRequestedClosePrice.checkedMul(gtPenalty).div(gtScaleFactor);
+			gtClosePrice = gtRequestedClosePrice.checkedSub(gtPenaltyAmount);
 			
 			// Min with average: if gtClosePrice > sig.averagePrice then sig.averagePrice else gtClosePrice
 			gtBool gtClosePriceGtAverage = gtClosePrice.gt(gtAveragePrice);
@@ -181,12 +181,12 @@ library ForceActionsFacetImpl {
 				// available = -partyBAvailableBalance (negate to get the deficit amount)
 				gtInt256 gtNegBalance = gtZero.sub(gtPartyBAvailableBalance);
 				gtUint256 gtAvailableAmount = gtNegBalance.fromSigned();
-				gtUint256 gtNewReserveBalance = gtReserveAmount.sub(gtAvailableAmount);
+				gtUint256 gtNewReserveBalance = gtReserveAmount.checkedSub(gtAvailableAmount);
 				accountLayout.encryptedReserveVault[quote.partyB] = MpcCore.offBoardCombined(gtNewReserveBalance, LibAccount.getUserEncryptionAddress(quote.partyB));
 				
 				// Update PartyB allocated balance with encrypted operations
 				gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
-				gtUint256 gtNewBalance = gtCurrentBalance.add(gtAvailableAmount);
+				gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtAvailableAmount);
 				accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyB));
 				
 				// Emit encrypted event
@@ -201,7 +201,7 @@ library ForceActionsFacetImpl {
 				
 				// Update PartyB allocated balance with encrypted operations
 				gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
-				gtUint256 gtNewBalance = gtCurrentBalance.add(gtReserveAmount);
+				gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtReserveAmount);
 				accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyB));
 				
 				// Emit encrypted event

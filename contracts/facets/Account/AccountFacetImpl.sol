@@ -51,7 +51,7 @@ library AccountFacetImpl {
 		gtUint256 gtLimit = MpcCore.setPublic256(GlobalAppStorage.layout().balanceLimitPerUser);
 		
 		// Check limit using encrypted comparison
-		gtUint256 gtNewBalance = gtCurrentBalance.add(gtAmount);
+		gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtAmount);
 		gtBool gtWithinLimit = gtNewBalance.le(gtLimit);
 		require(MpcCore.decrypt(gtWithinLimit), "AccountFacet: Allocated balance limit reached");
 		
@@ -83,7 +83,7 @@ library AccountFacetImpl {
 		require(MpcCore.decrypt(gtAvailableBalanceCoversAmount), "AccountFacet: partyA will be liquidatable");
 
 		// Update encrypted balance
-		gtUint256 gtNewBalance = gtCurrentBalance.sub(gtAmount);
+		gtUint256 gtNewBalance = gtCurrentBalance.checkedSub(gtAmount);
 		accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(msg.sender));
 		accountLayout.balances[msg.sender] += amount;
 		accountLayout.withdrawCooldown[msg.sender] = block.timestamp;
@@ -121,9 +121,9 @@ library AccountFacetImpl {
 		}
 
 		// Update encrypted balances
-		gtUint256 gtNewOriginBalance = gtOriginBalance.sub(gtAmount);
+		gtUint256 gtNewOriginBalance = gtOriginBalance.checkedSub(gtAmount);
 		gtUint256 gtRecipientBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[msg.sender][recipient].ciphertext);
-		gtUint256 gtNewRecipientBalance = gtRecipientBalance.add(gtAmount);
+		gtUint256 gtNewRecipientBalance = gtRecipientBalance.checkedAdd(gtAmount);
 		
 		accountLayout.partyBAllocatedBalances[msg.sender][origin] = MpcCore.offBoardCombined(gtNewOriginBalance, LibAccount.getUserEncryptionAddress(msg.sender));
 		accountLayout.partyBAllocatedBalances[msg.sender][recipient] = MpcCore.offBoardCombined(gtNewRecipientBalance, LibAccount.getUserEncryptionAddress(msg.sender));
@@ -137,7 +137,7 @@ library AccountFacetImpl {
 		gtUint256 gtAmount = MpcCore.setPublic256(amount);
 		gtUint256 gtLimit = MpcCore.setPublic256(GlobalAppStorage.layout().balanceLimitPerUser);
 		
-		gtUint256 gtNewBalance = gtCurrentBalance.add(gtAmount);
+		gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtAmount);
 		gtBool gtWithinLimit = gtNewBalance.le(gtLimit);
 		require(MpcCore.decrypt(gtWithinLimit), "AccountFacet: Allocated balance limit reached");
 		
@@ -161,7 +161,7 @@ library AccountFacetImpl {
 		// Update encrypted partyB allocated balance
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[msg.sender][partyA].ciphertext);
 		gtUint256 gtAmount = MpcCore.setPublic256(amount);
-		gtUint256 gtNewBalance = gtCurrentBalance.add(gtAmount);
+		gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtAmount);
 		accountLayout.partyBAllocatedBalances[msg.sender][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(msg.sender));
 	}
 
@@ -182,7 +182,7 @@ library AccountFacetImpl {
 		require(MpcCore.decrypt(gtAvailableBalanceCoversAmount), "AccountFacet: Will be liquidatable");
 
 		// Update encrypted balance
-		gtUint256 gtNewBalance = gtCurrentBalance.sub(gtAmount);
+		gtUint256 gtNewBalance = gtCurrentBalance.checkedSub(gtAmount);
 		accountLayout.partyBAllocatedBalances[msg.sender][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(msg.sender));
 		accountLayout.balances[msg.sender] += amount;
 		accountLayout.withdrawCooldown[msg.sender] = block.timestamp;
@@ -195,7 +195,7 @@ library AccountFacetImpl {
 		accountLayout.balances[msg.sender] -= amount;
 		gtUint256 gtCurrentReserveVault = LibAccount.initializeReserveVault(partyB);
 		gtUint256 gtAmount = MpcCore.setPublic256(amount);
-		gtUint256 gtNewReserveVault = gtCurrentReserveVault.add(gtAmount);
+		gtUint256 gtNewReserveVault = gtCurrentReserveVault.checkedAdd(gtAmount);
 		accountLayout.encryptedReserveVault[partyB] = MpcCore.offBoardCombined(gtNewReserveVault, LibAccount.getUserEncryptionAddress(partyB));
 	}
 
@@ -205,7 +205,7 @@ library AccountFacetImpl {
 		gtUint256 gtCurrentReserveVault = LibAccount.initializeReserveVault(msg.sender);
 		gtUint256 gtAmount = MpcCore.setPublic256(amount);
 		require(MpcCore.decrypt(gtCurrentReserveVault.ge(gtAmount)), "AccountFacet: Insufficient balance");
-		gtUint256 gtNewReserveVault = gtCurrentReserveVault.sub(gtAmount);
+		gtUint256 gtNewReserveVault = gtCurrentReserveVault.checkedSub(gtAmount);
 		accountLayout.encryptedReserveVault[msg.sender] = MpcCore.offBoardCombined(gtNewReserveVault, LibAccount.getUserEncryptionAddress(msg.sender));
 		accountLayout.balances[msg.sender] += amount;
 		accountLayout.withdrawCooldown[msg.sender] = block.timestamp;
@@ -217,7 +217,7 @@ library AccountFacetImpl {
 		gtUint256 gtCurrentFeeBalance = LibAccount.initializeFeeCollectorBalance(msg.sender);
 		gtUint256 gtAmount = MpcCore.setPublic256(amount);
 		require(MpcCore.decrypt(gtCurrentFeeBalance.ge(gtAmount)), "AccountFacet: Insufficient fee balance");
-		gtUint256 gtNewFeeBalance = gtCurrentFeeBalance.sub(gtAmount);
+		gtUint256 gtNewFeeBalance = gtCurrentFeeBalance.checkedSub(gtAmount);
 		accountLayout.encryptedFeeCollectorBalances[msg.sender] = MpcCore.offBoardCombined(
 			gtNewFeeBalance,
 			LibAccount.getUserEncryptionAddress(msg.sender)

@@ -76,8 +76,8 @@ library LibSettlement {
 			require(MpcCore.decrypt(gtValidUpdatedPrice), "LibSettlement: Updated price is out of range");
 
 			gtUint256 gtQuoteOpenAmount = LibQuote.quoteOpenAmount(quote);
-			gtUint256 gtPriceDiff = MpcCore.max(gtUpdatedPrice, gtOpenedPrice).sub(MpcCore.min(gtUpdatedPrice, gtOpenedPrice));
-			gtInt256 gtImpact = gtQuoteOpenAmount.mul(gtPriceDiff).div(MpcCore.setPublic256(uint256(1e18))).toSigned();
+			gtUint256 gtPriceDiff = MpcCore.max(gtUpdatedPrice, gtOpenedPrice).checkedSub(MpcCore.min(gtUpdatedPrice, gtOpenedPrice));
+			gtInt256 gtImpact = gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(MpcCore.setPublic256(uint256(1e18))).toSigned();
 			gtInt256 gtSignedImpact;
 
 			if (quote.positionType == PositionType.LONG) {
@@ -116,7 +116,7 @@ library LibSettlement {
 				// Update PartyB balance with encrypted operations
 				gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
 				gtUint256 gtAmount = gtSettlementAmount.fromSigned();
-				gtUint256 gtNewBalance = gtPartyBBalance.sub(gtAmount);
+				gtUint256 gtNewBalance = gtPartyBBalance.checkedSub(gtAmount);
 				accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyB));
 				
 				// Emit encrypted event
@@ -127,7 +127,7 @@ library LibSettlement {
 				// Update PartyB balance with encrypted operations
 				gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
 				gtUint256 gtAmount = gtZeroInt.sub(gtSettlementAmount).fromSigned();
-				gtUint256 gtNewBalance = gtPartyBBalance.add(gtAmount);
+				gtUint256 gtNewBalance = gtPartyBBalance.checkedAdd(gtAmount);
 				accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyB));
 				
 				// Emit encrypted event
@@ -142,7 +142,7 @@ library LibSettlement {
 			// Update PartyA balance with encrypted operations
 			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
 			gtUint256 gtAmount = gtTotalSettlementAmount.fromSigned();
-			gtUint256 gtNewBalance = gtPartyABalance.add(gtAmount);
+			gtUint256 gtNewBalance = gtPartyABalance.checkedAdd(gtAmount);
 			accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyA));
 			
 			// Emit encrypted event
@@ -153,7 +153,7 @@ library LibSettlement {
 			// Update PartyA balance with encrypted operations
 			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
 			gtUint256 gtAmount = gtZeroInt.sub(gtTotalSettlementAmount).fromSigned();
-			gtUint256 gtNewBalance = gtPartyABalance.sub(gtAmount);
+			gtUint256 gtNewBalance = gtPartyABalance.checkedSub(gtAmount);
 			accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyA));
 			
 			// Emit encrypted event

@@ -169,10 +169,10 @@ library LockedValuesOps {
 	function add(GarbledLockedValues memory self, GarbledLockedValues memory a) internal returns (GarbledLockedValues memory) {
 		return
 			GarbledLockedValues({
-				cva: self.cva.add(a.cva),
-				partyAmm: self.partyAmm.add(a.partyAmm),
-				partyBmm: self.partyBmm.add(a.partyBmm),
-				lf: self.lf.add(a.lf)
+				cva: self.cva.checkedAdd(a.cva),
+				partyAmm: self.partyAmm.checkedAdd(a.partyAmm),
+				partyBmm: self.partyBmm.checkedAdd(a.partyBmm),
+				lf: self.lf.checkedAdd(a.lf)
 			});
 	}
 
@@ -185,10 +185,10 @@ library LockedValuesOps {
 	function sub(GarbledLockedValues memory self, GarbledLockedValues memory a) internal returns (GarbledLockedValues memory) {
 		return
 			GarbledLockedValues({
-				cva: self.cva.sub(a.cva),
-				partyAmm: self.partyAmm.sub(a.partyAmm),
-				partyBmm: self.partyBmm.sub(a.partyBmm),
-				lf: self.lf.sub(a.lf)
+				cva: self.cva.checkedSub(a.cva),
+				partyAmm: self.partyAmm.checkedSub(a.partyAmm),
+				partyBmm: self.partyBmm.checkedSub(a.partyBmm),
+				lf: self.lf.checkedSub(a.lf)
 			});
 	}
 
@@ -207,7 +207,7 @@ library LockedValuesOps {
 	 * @return The total encrypted locked balance for Party A.
 	 */
 	function totalForPartyA(GarbledLockedValues memory self) internal returns (gtUint256) {
-		return self.cva.add(self.partyAmm).add(self.lf);
+		return self.cva.checkedAdd(self.partyAmm).checkedAdd(self.lf);
 	}
 
 	/**
@@ -216,7 +216,7 @@ library LockedValuesOps {
 	 * @return The total encrypted locked balance for Party B.
 	 */
 	function totalForPartyB(GarbledLockedValues memory self) internal returns (gtUint256) {
-		return self.cva.add(self.partyBmm).add(self.lf);
+		return self.cva.checkedAdd(self.partyBmm).checkedAdd(self.lf);
 	}
 
 	/**
@@ -227,7 +227,12 @@ library LockedValuesOps {
 	 */
 	function mul(GarbledLockedValues memory self, gtUint256 a) internal returns (GarbledLockedValues memory) {
 		return
-			GarbledLockedValues({ cva: self.cva.mul(a), partyAmm: self.partyAmm.mul(a), partyBmm: self.partyBmm.mul(a), lf: self.lf.mul(a) });
+			GarbledLockedValues({
+				cva: self.cva.checkedMul(a),
+				partyAmm: self.partyAmm.checkedMul(a),
+				partyBmm: self.partyBmm.checkedMul(a),
+				lf: self.lf.checkedMul(a)
+			});
 	}
 
 	/**

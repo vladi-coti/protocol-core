@@ -46,7 +46,7 @@ library DeferredLiquidationFacetImpl {
 			// Update allocated balance with encrypted operations
 			gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
 			gtUint256 gtAvailableBalanceAmount = MpcCore.setPublic256(uint256(availableBalance));
-			gtUint256 gtNewBalance = gtCurrentBalance.sub(gtAvailableBalanceAmount);
+			gtUint256 gtNewBalance = gtCurrentBalance.checkedSub(gtAvailableBalanceAmount);
 			accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyA));
 			
 			accountLayout.partyAReimbursement[partyA] += uint256(availableBalance);

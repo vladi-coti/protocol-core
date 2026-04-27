@@ -61,14 +61,14 @@ library LibPartyBPositionsActions {
 		gtUint256 gtFee;
 		if (quote.orderType == OrderType.LIMIT) {
 			require(MpcCore.decrypt(gtQuantity.ge(gtFilledAmount).and(gtFilledAmount.gt(MpcCore.setPublic256(uint256(0))))), "PartyBFacet: Invalid filledAmount");
-			gtFee = gtFilledAmount.mul(gtRequestedOpenPrice).mul(gtTradingFeeRate).div(gtScaleFactor);
+			gtFee = gtFilledAmount.checkedMul(gtRequestedOpenPrice).checkedMul(gtTradingFeeRate).div(gtScaleFactor);
 		} else {
 			require(MpcCore.decrypt(gtQuantity.eq(gtFilledAmount)), "PartyBFacet: Invalid filledAmount");
-			gtFee = gtFilledAmount.mul(LockedValuesOps.safeOnboard(quote.marketPrice.ciphertext)).mul(gtTradingFeeRate).div(gtScaleFactor);
+			gtFee = gtFilledAmount.checkedMul(LockedValuesOps.safeOnboard(quote.marketPrice.ciphertext)).checkedMul(gtTradingFeeRate).div(gtScaleFactor);
 		}
 		gtUint256 gtFeeCollectorBalance = LibAccount.initializeFeeCollectorBalance(feeCollector);
 		accountLayout.encryptedFeeCollectorBalances[feeCollector] = MpcCore.offBoardCombined(
-			gtFeeCollectorBalance.add(gtFee),
+			gtFeeCollectorBalance.checkedAdd(gtFee),
 			LibAccount.getUserEncryptionAddress(feeCollector)
 		);
 		
@@ -120,7 +120,7 @@ library LibPartyBPositionsActions {
 			
 			// check that new pending position is not minor position
 			if (newStatus != QuoteStatus.CANCELED) {
-				gtUint256 gtRemainingTotal = gtQuoteLockedValues.totalForPartyA().sub(gtFilledLockedValues.totalForPartyA());
+				gtUint256 gtRemainingTotal = gtQuoteLockedValues.totalForPartyA().checkedSub(gtFilledLockedValues.totalForPartyA());
 				require(MpcCore.decrypt(gtRemainingTotal.ge(gtMinValue)), "PartyBFacet: Quote value is low");
 			}
 			
@@ -136,7 +136,7 @@ library LibPartyBPositionsActions {
 				initialOpenedPrice: gtZero.offBoardCombined(partyAAddr),
 				requestedOpenPrice: quote.requestedOpenPrice,
 				marketPrice: quote.marketPrice,
-				quantity: gtQuantity.sub(gtFilledAmount).offBoardCombined(partyAAddr),
+				quantity: gtQuantity.checkedSub(gtFilledAmount).offBoardCombined(partyAAddr),
 				closedAmount: gtZero.offBoardCombined(partyAAddr),
 				lockedValues: gtZeroLocked.offBoard(partyAAddr),
 				initialLockedValues: gtZeroLocked.offBoard(partyAAddr),
@@ -166,7 +166,7 @@ library LibPartyBPositionsActions {
 				
 				address newQuotePartyAAddr = LibAccount.getUserEncryptionAddress(newQuote.partyA);
 				gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[newQuote.partyA].ciphertext);
-				accountLayout.allocatedBalances[newQuote.partyA] = MpcCore.offBoardCombined(gtCurrentBalance.add(gtFeeAmount), newQuotePartyAAddr);
+				accountLayout.allocatedBalances[newQuote.partyA] = MpcCore.offBoardCombined(gtCurrentBalance.checkedAdd(gtFeeAmount), newQuotePartyAAddr);
 				emit SharedEvents.BalanceChangePartyA(newQuote.partyA, MpcCore.offBoardToUser(gtFeeAmount, newQuotePartyAAddr), SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 				accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, partyAAddr);
 				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, partyBAddr);
@@ -188,7 +188,7 @@ library LibPartyBPositionsActions {
 		gtUint256 gtFinalOpenedPrice = LockedValuesOps.safeOnboard(quote.openedPrice.ciphertext);
 		GarbledLockedValues memory gtFinalLockedValues = quote.lockedValues.onBoard();
 		gtUint256 gtFinalTotal = gtFinalLockedValues.totalForPartyA();
-		gtUint256 gtLeverage = gtFinalQuantity.mul(gtFinalOpenedPrice).div(gtFinalTotal);
+		gtUint256 gtLeverage = gtFinalQuantity.checkedMul(gtFinalOpenedPrice).div(gtFinalTotal);
 		gtUint256 gtMaxLeverage = MpcCore.setPublic256(SymbolStorage.layout().symbols[quote.symbolId].maxLeverage);
 		require(MpcCore.decrypt(gtLeverage.le(gtMaxLeverage)), "PartyBFacet: Leverage is high");
 

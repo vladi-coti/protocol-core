@@ -61,18 +61,18 @@ library FundingRateFacetImpl {
 				
 				// Calculate priceDiff encrypted
 				gtUint256 gtRate = MpcCore.setPublic256(uint256(rates[i]));
-				gtUint256 gtPriceDiff = gtOpenedPrice.mul(gtRate).div(gtScaleFactor);
+				gtUint256 gtPriceDiff = gtOpenedPrice.checkedMul(gtRate).div(gtScaleFactor);
 				
 				// Update openedPrice
 				if (quote.positionType == PositionType.LONG) {
-					gtOpenedPrice = gtOpenedPrice.add(gtPriceDiff);
+					gtOpenedPrice = gtOpenedPrice.checkedAdd(gtPriceDiff);
 				} else {
-					gtOpenedPrice = gtOpenedPrice.sub(gtPriceDiff);
+					gtOpenedPrice = gtOpenedPrice.checkedSub(gtPriceDiff);
 				}
 				quote.openedPrice = gtOpenedPrice.offBoardCombined(LibAccount.getUserEncryptionAddress(quote.partyA));
 				
 				// Calculate impact on balances
-				gtInt256 gtImpact = gtQuoteOpenAmount.mul(gtPriceDiff).div(gtScaleFactor).toSigned();
+				gtInt256 gtImpact = gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(gtScaleFactor).toSigned();
 				gtPartyAAvailableBalance = gtPartyAAvailableBalance.sub(gtImpact);
 				gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtImpact);
 			} else {
@@ -80,18 +80,18 @@ library FundingRateFacetImpl {
 				
 				// Calculate priceDiff encrypted
 				gtUint256 gtRate = MpcCore.setPublic256(uint256(-rates[i]));
-				gtUint256 gtPriceDiff = gtOpenedPrice.mul(gtRate).div(gtScaleFactor);
+				gtUint256 gtPriceDiff = gtOpenedPrice.checkedMul(gtRate).div(gtScaleFactor);
 				
 				// Update openedPrice
 				if (quote.positionType == PositionType.LONG) {
-					gtOpenedPrice = gtOpenedPrice.sub(gtPriceDiff);
+					gtOpenedPrice = gtOpenedPrice.checkedSub(gtPriceDiff);
 				} else {
-					gtOpenedPrice = gtOpenedPrice.add(gtPriceDiff);
+					gtOpenedPrice = gtOpenedPrice.checkedAdd(gtPriceDiff);
 				}
 				quote.openedPrice = gtOpenedPrice.offBoardCombined(LibAccount.getUserEncryptionAddress(quote.partyA));
 				
 				// Calculate impact on balances
-				gtInt256 gtImpact = gtQuoteOpenAmount.mul(gtPriceDiff).div(gtScaleFactor).toSigned();
+				gtInt256 gtImpact = gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(gtScaleFactor).toSigned();
 				gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(gtImpact);
 				gtPartyBAvailableBalance = gtPartyBAvailableBalance.sub(gtImpact);
 			}

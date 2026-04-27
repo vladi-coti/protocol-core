@@ -1,5 +1,5 @@
 import {SingleUpnlAndPriceSigStruct} from "../../src/types/contracts/facets/PartyA/PartyAFacet"
-import {QuotePriceSigStruct} from "../../src/types/contracts/facets/liquidation/LiquidationFacet"
+import {QuotePriceSigStruct} from "../../src/types/contracts/facets/liquidation/LiquidationPositionsFacet"
 import {getBlockTimestamp} from "./Common"
 import {PairUpnlSigStructOutput} from "../../src/types/contracts/facets/FundingRate/FundingRateFacet"
 import {HighLowPriceSigStruct} from "../../src/types/contracts/facets/ForceActions/ForceActionsFacet"

@@ -249,7 +249,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 
 			let sig = await getDummyPriceSig([4n, 2n, 1n], [0n, 0n, 0n])
 
-			await context.liquidationFacet.connect(context.signers.liquidator).liquidatePositionsPartyB(hedgerAddress, userAddress, sig)
+			await context.liquidationPositionsFacet.connect(context.signers.liquidator).liquidatePositionsPartyB(hedgerAddress, userAddress, sig)
 
 			expect((await context.viewFacet.getQuote(3)).quoteStatus).to.be.equal(QuoteStatus.PENDING)
 			expect((await context.viewFacet.getQuote(4)).quoteStatus).to.be.equal(QuoteStatus.LIQUIDATED)

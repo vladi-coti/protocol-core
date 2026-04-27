@@ -75,7 +75,7 @@ library LibLiquidation {
 				
 				// Update PartyA balance with encrypted operations
 				gtUint256 gtPartyABalanceFee = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
-				gtUint256 gtNewBalance = gtPartyABalanceFee.add(gtFee);
+				gtUint256 gtNewBalance = gtPartyABalanceFee.checkedAdd(gtFee);
 				accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, partyAEncryptionAddress);
 				
 				// Emit encrypted event
@@ -94,11 +94,11 @@ library LibLiquidation {
 		// Update allocated balances for Party A using encrypted operations
 		gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
 		gtUint256 gtRemainingLf = MpcCore.setPublic256(remainingLf);
-		gtUint256 gtValue = gtPartyBBalance.sub(gtRemainingLf);
+		gtUint256 gtValue = gtPartyBBalance.checkedSub(gtRemainingLf);
 		
 		// Update PartyA balance
 		gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
-		gtUint256 gtNewPartyABalance = gtPartyABalance.add(gtValue);
+		gtUint256 gtNewPartyABalance = gtPartyABalance.checkedAdd(gtValue);
 		accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewPartyABalance, partyAEncryptionAddress);
 		
 		// Emit encrypted event for PartyA
@@ -133,7 +133,7 @@ library LibLiquidation {
 			// Update liquidator balance with encrypted operations
 			gtUint256 gtLiquidatorBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
 			gtUint256 gtLiquidatorShare = MpcCore.setPublic256(liquidatorShare);
-			gtUint256 gtNewLiquidatorBalance = gtLiquidatorBalance.add(gtLiquidatorShare);
+			gtUint256 gtNewLiquidatorBalance = gtLiquidatorBalance.checkedAdd(gtLiquidatorShare);
 			accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewLiquidatorBalance, liquidatorEncryptionAddress);
 			
 			// Emit encrypted event

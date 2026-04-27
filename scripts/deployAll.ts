@@ -7,6 +7,7 @@ async function main() {
 		"ControlFacet",
 		"DiamondLoupeFacet",
 		"LiquidationFacet",
+		"LiquidationPositionsFacet",
 		"PartyAFacet",
 		"BridgeFacet",
 		"ViewFacet",

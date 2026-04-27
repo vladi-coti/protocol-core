@@ -74,7 +74,7 @@ library PartyAFacetImpl {
 		// Perform gt validations
 		gtUint256 gtTotalForPartyA = garbledLockedValues.totalForPartyA();
 
-		gtUint256 minLfRequired = gtTotalForPartyA.mul(MpcCore.setPublic256(symbolLayout.symbols[symbolId].minAcceptablePortionLF)).div(
+		gtUint256 minLfRequired = gtTotalForPartyA.checkedMul(MpcCore.setPublic256(symbolLayout.symbols[symbolId].minAcceptablePortionLF)).div(
 			MpcCore.setPublic256(uint256(1e18))
 		);
 		gtBool lfSufficient = gtLf.ge(minLfRequired);
@@ -83,12 +83,12 @@ library PartyAFacetImpl {
 		gtBool quoteSufficient = gtTotalForPartyA.ge(MpcCore.setPublic256(symbolLayout.symbols[symbolId].minAcceptableQuoteValue));
 
 		// Calculate fee amount now for allocated balance deduction: (quantity * tradingPrice * tradingFeeRate) / 1e36
-		gtUint256 gtTradingFee = gtQuantity.mul(gtTradingPrice).mul(MpcCore.setPublic256(symbolLayout.symbols[symbolId].tradingFee)).div(
+		gtUint256 gtTradingFee = gtQuantity.checkedMul(gtTradingPrice).checkedMul(MpcCore.setPublic256(symbolLayout.symbols[symbolId].tradingFee)).div(
 			MpcCore.setPublic256(uint256(1e36))
 		);
 
 		// Calculate total required balance: totalForPartyA + tradingFee
-		gtUint256 totalRequired = gtTotalForPartyA.add(gtTradingFee);
+		gtUint256 totalRequired = gtTotalForPartyA.checkedAdd(gtTradingFee);
 
 		// Check available balance sufficiency using LibAccount
 		gtInt256 gtAvailableBalance = LibAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
@@ -158,7 +158,7 @@ library PartyAFacetImpl {
 
 		// Update allocated balance with encrypted operations
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
-		gtUint256 gtNewBalance = gtCurrentBalance.sub(gtTradingFee);
+		gtUint256 gtNewBalance = gtCurrentBalance.checkedSub(gtTradingFee);
 		accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(msg.sender));
 		
 		// Emit encrypted event
@@ -182,7 +182,7 @@ library PartyAFacetImpl {
 			
 			// Update allocated balance with encrypted operations
 			gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
-			gtUint256 gtNewBalance = gtCurrentBalance.add(gtFee);
+			gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtFee);
 			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyA));
 			
 			// Emit encrypted event
@@ -219,10 +219,10 @@ library PartyAFacetImpl {
 		gtBool isFullClose = gtQuoteOpenAmount.eq(gtQuantityToClose);
 		if (!MpcCore.decrypt(isFullClose)) {
 			// Calculate remaining value: (openAmount - quantityToClose) * totalForPartyA / openAmount
-			gtUint256 gtRemainingAmount = gtQuoteOpenAmount.sub(gtQuantityToClose);
+			gtUint256 gtRemainingAmount = gtQuoteOpenAmount.checkedSub(gtQuantityToClose);
 			GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
 			gtUint256 gtTotalForPartyA = gtLockedValues.totalForPartyA();
-			gtUint256 gtRemainingValue = gtRemainingAmount.mul(gtTotalForPartyA).div(gtQuoteOpenAmount);
+			gtUint256 gtRemainingValue = gtRemainingAmount.checkedMul(gtTotalForPartyA).div(gtQuoteOpenAmount);
 			gtUint256 gtMinValue = MpcCore.setPublic256(symbolLayout.symbols[quote.symbolId].minAcceptableQuoteValue);
 			
 			gtBool isAboveMin = gtRemainingValue.ge(gtMinValue);

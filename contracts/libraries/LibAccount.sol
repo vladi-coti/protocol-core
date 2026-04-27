@@ -40,7 +40,7 @@ library LibAccount {
 		GarbledLockedValues memory garbledPendingLockedBalances = accountLayout.pendingLockedBalances[partyA].onBoard();
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
 
-		return garbledPendingLockedBalances.totalForPartyA().add(garbledLockedBalances.totalForPartyA());
+		return garbledPendingLockedBalances.totalForPartyA().checkedAdd(garbledLockedBalances.totalForPartyA());
 	}
 
 	/**
@@ -53,7 +53,7 @@ library LibAccount {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		GarbledLockedValues memory garbledPendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA].onBoard();
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
-		return garbledPendingLockedBalances.totalForPartyB().add(garbledLockedBalances.totalForPartyB());
+		return garbledPendingLockedBalances.totalForPartyB().checkedAdd(garbledLockedBalances.totalForPartyB());
 	}
 
 	/**
@@ -70,7 +70,7 @@ library LibAccount {
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
 		GarbledLockedValues memory garbledPendingLockedBalances = accountLayout.pendingLockedBalances[partyA].onBoard();
 
-		gtInt256 totalLocked = MpcCore.toSigned(garbledLockedBalances.totalForPartyA().add(garbledPendingLockedBalances.totalForPartyA()));
+		gtInt256 totalLocked = MpcCore.toSigned(garbledLockedBalances.totalForPartyA().checkedAdd(garbledPendingLockedBalances.totalForPartyA()));
 
 		if (upnl >= 0) {
 			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
@@ -83,7 +83,7 @@ library LibAccount {
 			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
 
 			gtInt256 cvaLfPendingTotal = MpcCore.toSigned(
-				garbledLockedBalances.cva.add(garbledLockedBalances.lf).add(garbledPendingLockedBalances.totalForPartyA())
+				garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf).checkedAdd(garbledPendingLockedBalances.totalForPartyA())
 			);
 			return allocatedBalance.sub(cvaLfPendingTotal).sub(considering_mm);
 		}
@@ -113,7 +113,7 @@ library LibAccount {
 			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
 			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
 
-			gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
+			gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf));
 			return allocatedBalance.sub(cvaLf).sub(considering_mm);
 		}
 	}
@@ -150,7 +150,7 @@ library LibAccount {
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
 
 		GarbledLockedValues memory garbledLockedBalances = AccountStorage.layout().lockedBalances[partyA].onBoard();
-		gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
+		gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf));
 
 		gtInt256 freeBalance = allocatedBalance.sub(cvaLf);
 		return freeBalance.add(gtUpnl);
@@ -171,7 +171,7 @@ library LibAccount {
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
 		GarbledLockedValues memory garbledPendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA].onBoard();
 
-		gtInt256 totalLocked = MpcCore.toSigned(garbledLockedBalances.totalForPartyB().add(garbledPendingLockedBalances.totalForPartyB()));
+		gtInt256 totalLocked = MpcCore.toSigned(garbledLockedBalances.totalForPartyB().checkedAdd(garbledPendingLockedBalances.totalForPartyB()));
 
 		if (upnl >= 0) {
 			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
@@ -184,7 +184,7 @@ library LibAccount {
 			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
 
 			gtInt256 cvaLfPendingTotal = MpcCore.toSigned(
-				garbledLockedBalances.cva.add(garbledLockedBalances.lf).add(garbledPendingLockedBalances.totalForPartyB())
+				garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf).checkedAdd(garbledPendingLockedBalances.totalForPartyB())
 			);
 			return allocatedBalance.sub(cvaLfPendingTotal).sub(considering_mm);
 		}
@@ -215,7 +215,7 @@ library LibAccount {
 			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
 			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
 
-			gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
+			gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf));
 			return allocatedBalance.sub(cvaLf).sub(considering_mm);
 		}
 	}
@@ -235,7 +235,7 @@ library LibAccount {
 		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
 
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
-		gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.add(garbledLockedBalances.lf));
+		gtInt256 cvaLf = MpcCore.toSigned(garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf));
 
 		gtInt256 freeBalance = allocatedBalanceEncrypted.sub(cvaLf);
 		return freeBalance.add(gtUpnl);

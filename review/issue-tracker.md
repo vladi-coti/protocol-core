@@ -21,10 +21,10 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 11 | [`report2#7`](report2.md#L21-L28) | fixed | Trading-fee decrypt leaks `quantity * price` |
 | 12 | [`report2#8`](report2.md#L29-L36) | fixed | Decrypted profitability comparison leaks PnL direction |
 | 13 | [`report3#1`](report3.md#L1-L17) | fixed | Self-transfer allocation inflation bug |
-| 14 | [`report3#2`](report3.md#L18-L48) | open | Class-level unchecked arithmetic problem |
-| 15 | [`report3#3`](report3.md#L49-L61) | open | `settleUpnl` underflow wraps balances |
-| 16 | [`report3#4`](report3.md#L62-L78) | open | `liquidatePartyB` underflow wraps value |
-| 17 | [`report3#5`](report3.md#L79-L93) | open | `sendQuote` balance-check bypass after wrap/reinterpret |
+| 14 | [`report3#2`](report3.md#L18-L48) | fixed | Class-level unchecked arithmetic problem |
+| 15 | [`report3#3`](report3.md#L49-L61) | fixed | `settleUpnl` underflow wraps balances |
+| 16 | [`report3#4`](report3.md#L62-L78) | fixed | `liquidatePartyB` underflow wraps value |
+| 17 | [`report3#5`](report3.md#L79-L93) | fixed | `sendQuote` balance-check bypass after wrap/reinterpret |
 | 18 | [`report3#6`](report3.md#L94-L115) | open | `trustedEncryptionAddress` privacy and migration failure |
 | 19 | [`report3#7`](report3.md#L116-L136) | partial | Full-balance decrypts in normal user flows |
 | 20 | [`report3#8`](report3.md#L137-L151) | open | Corrupted identity fields in `SendQuote*` events |

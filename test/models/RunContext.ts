@@ -11,6 +11,7 @@ import {
 	FundingRateFacet,
 	ISymmio,
 	LiquidationFacet,
+	LiquidationPositionsFacet,
 	LiquidationResolutionFacet,
 	PartyAFacet,
 	PartyBGroupActionsFacet,
@@ -36,6 +37,7 @@ export class RunContext {
 	bridgeFacet!: BridgeFacet
 	viewFacet!: ViewFacet
 	liquidationFacet!: LiquidationFacet
+	liquidationPositionsFacet!: LiquidationPositionsFacet
 	liquidationResolutionFacet!: LiquidationResolutionFacet
 	controlFacet!: ControlFacet
 	fundingRateFacet!: FundingRateFacet
@@ -102,6 +104,7 @@ export async function createRunContext(
 	context.bridgeFacet = await ethers.getContractAt("BridgeFacet", diamond)
 	context.viewFacet = await ethers.getContractAt("ViewFacet", diamond)
 	context.liquidationFacet = await ethers.getContractAt("LiquidationFacet", diamond)
+	context.liquidationPositionsFacet = await ethers.getContractAt("LiquidationPositionsFacet", diamond)
 	context.liquidationResolutionFacet = await ethers.getContractAt("LiquidationResolutionFacet", diamond)
 	context.controlFacet = await ethers.getContractAt("ControlFacet", diamond)
 	context.fundingRateFacet = await ethers.getContractAt("FundingRateFacet", diamond)
