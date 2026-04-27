@@ -1,0 +1,16 @@
+---
+description: Verify tests on the configured testnet by default
+alwaysApply: true
+---
+
+# Test Network Policy
+
+- For this repository, run verification on the configured testnet by default.
+- Do not switch to `--network hardhat` or assume local time-travel unless the user explicitly asks for local-only testing.
+- When tests depend on time or cooldowns, handle real testnet block timestamps instead of assuming local instant time jumps.
+- If a test is slow because it depends on elapsed time, prefer fixing the test helper or wait logic rather than silently changing the network.
+- Be patient with testnet verification: cooldown-based or deployment-heavy tests may legitimately take many minutes, so prefer longer waits and explicit polling over assuming the run is hung too early.
+- When validating new changes on testnet, run the smallest meaningful test set first: target the directly affected behavior file, `describe`, or `it` with `--grep`/`.only`, then broaden only to nearby integration paths or the full suite when the change risk justifies it.
+- On COTI testnet, revert decoding can be misleading: ethers may show empty revert `data`, missing `reason`, or a generic execution revert even when calldata was present.
+- If revert data is missing or ambiguous, inspect the transaction on COTI Scan (`https://testnet.cotiscan.io/`) for any available revert reason or execution details before concluding what failed.
+- Do not infer "empty calldata" or "wrong ABI" from COTI testnet revert output alone; verify by checking the caller code, ABI, selector path, and any parallel evidence before concluding.
