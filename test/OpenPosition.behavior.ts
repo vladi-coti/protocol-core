@@ -222,6 +222,41 @@ export function shouldBehaveLikeOpenPosition(): void {
 		})
 	})
 
+	it("Should emit raw child quote identities while encrypting PartyB values to partyB key on partial open", async function () {
+		const quoteData = quoteDataArray[1]
+		const quantity = quoteData.partyBEvent
+			? await decryptUint256(context, quoteData.partyBEvent.values.quantity, context.signers.hedger)
+			: 0n
+		const filledAmount = quantity / 4n
+		const openRequest = limitOpenRequestBuilder()
+			.filledAmount(filledAmount)
+			.openPrice(decimal(9n, 17))
+			.price(decimal(1n, 17))
+			.build()
+		const {encryptedParams, upnlSig} = await hedger.buildOpenPositionCalldataArgs(openRequest)
+
+		const tx = await context.partyBPositionActionsFacet
+			.connect(context.signers.hedger)
+			.openPosition(quoteData.quoteId, encryptedParams, upnlSig)
+		const receipt = await tx.wait()
+
+		const partyAEvent = receipt!.logs.find((log: any): log is EventLog => (log as EventLog).eventName === "SendQuoteForPartyA")
+		const partyBEvent = receipt!.logs.find((log: any): log is EventLog => (log as EventLog).eventName === "SendQuoteForPartyB")
+
+		expect(partyAEvent).to.not.be.undefined
+		expect(partyBEvent).to.not.be.undefined
+
+		const partyAArgs = partyAEvent!.args as any[]
+		const partyBArgs = partyBEvent!.args as any[]
+		const remainingQuantity = quantity - filledAmount
+
+		expect(partyAArgs[0]).to.equal(context.signers.user.address)
+		expect(partyBArgs[0]).to.equal(context.signers.user.address)
+		expect(partyBArgs[2]).to.equal(context.signers.hedger.address)
+		expect(await context.signers.user.decryptUint256(partyAArgs[6].quantity)).to.equal(remainingQuantity)
+		expect(await context.signers.hedger.decryptUint256(partyBArgs[6].quantity)).to.equal(remainingQuantity)
+	})
+
 	it("OpenPosition - Should run successfully for market", async function () {
 		await hedger.lockQuote(quoteDataArray[4])
 		const validator = new OpenPositionValidator()
@@ -310,15 +345,21 @@ export function shouldBehaveLikeOpenPosition(): void {
 			)
 			const receipt = await tx.wait()
 			const event = receipt!.logs.find((log: any): log is EventLog => (log as EventLog).eventName === "SendQuoteForPartyA")
+			const partyBEvent = receipt!.logs.find((log: any): log is EventLog => (log as EventLog).eventName === "SendQuoteForPartyB")
 
 			expect(event).to.not.be.undefined
+			expect(partyBEvent).to.not.be.undefined
 
 			const args = event!.args as any[]
+			const partyBArgs = partyBEvent!.args as any[]
 			const emittedValues = args[6]
 			const partyADecryptedQuantity = await context.signers.user.decryptUint256(emittedValues.quantity)
 			const partyADecryptedPrice = await context.signers.user.decryptUint256(emittedValues.price)
 			const remainingQuantity = quantity - filledAmount
 
+			expect(args[0]).to.equal(context.signers.user.address)
+			expect(partyBArgs[0]).to.equal(context.signers.user.address)
+			expect(partyBArgs[2]).to.equal(context.signers.hedger2.address)
 			expect(partyADecryptedQuantity).to.equal(remainingQuantity)
 			expect(partyADecryptedPrice).to.equal(requestedOpenPrice)
 

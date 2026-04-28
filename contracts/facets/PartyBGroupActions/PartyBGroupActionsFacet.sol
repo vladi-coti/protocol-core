@@ -49,8 +49,8 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 						tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[newQuote.symbolId].tradingFee), partyAEncryptionAddress)
 					});
 					emit SendQuoteForPartyA(
-						msg.sender,
-						quoteId,
+						newQuote.partyA,
+						newQuote.id,
 						newQuote.partyBsWhiteList,
 						newQuote.symbolId,
 						newQuote.positionType,
@@ -73,9 +73,9 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 							tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[newQuote.symbolId].tradingFee), partyBEncryptionAddress)
 						});
 						emit SendQuoteForPartyB(
-							msg.sender,
-							quoteId,
-							partyBEncryptionAddress,
+							newQuote.partyA,
+							newQuote.id,
+							newQuote.partyBsWhiteList[i],
 							newQuote.symbolId,
 							newQuote.positionType,
 							newQuote.orderType,

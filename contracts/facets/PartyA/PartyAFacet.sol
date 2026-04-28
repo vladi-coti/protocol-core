@@ -105,7 +105,7 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 			emit SendQuoteForPartyB(
 				msg.sender,
 				quoteId,
-				partyBEncryptionAddress,
+				basicParams.partyBsWhiteList[i],
 				basicParams.symbolId,
 				basicParams.positionType,
 				basicParams.orderType,

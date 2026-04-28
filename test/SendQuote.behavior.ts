@@ -106,6 +106,32 @@ export function shouldBehaveLikeSendQuote(): void {
 		await validator.after(context, {user: user, quoteId, beforeOutput: before})
 	})
 
+	it("Should emit raw partyB identity while encrypting SendQuoteForPartyB values to partyB key", async function () {
+		await context.accountFacet.connect(context.signers.hedger).setEncryptionAddress(context.signers.liquidator.address)
+
+		const quantity = decimal(100n)
+		const {partyBEvent} = await user.sendQuote(
+			limitQuoteRequestBuilder()
+				.partyBWhiteList([context.signers.hedger.address])
+				.quantity(quantity)
+				.build(),
+		)
+
+		expect(partyBEvent).to.not.be.undefined
+		expect(partyBEvent!.partyB).to.equal(context.signers.hedger.address)
+		expect(partyBEvent!.partyB).to.not.equal(context.signers.liquidator.address)
+		expect(await context.signers.liquidator.decryptUint256(partyBEvent!.values.quantity)).to.equal(quantity)
+
+		let hedgerCouldDecryptCorrectly = false
+		try {
+			hedgerCouldDecryptCorrectly = await context.signers.hedger.decryptUint256(partyBEvent!.values.quantity) === quantity
+		} catch {
+			hedgerCouldDecryptCorrectly = false
+		}
+
+		expect(hedgerCouldDecryptCorrectly).to.equal(false)
+	})
+
 	it("SendQuote - Should run successfully for market", async function () {
 		let validator = new SendQuoteValidator()
 		const before = await validator.before(context, {user: user})

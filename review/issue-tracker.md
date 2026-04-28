@@ -26,8 +26,8 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 16 | [`report3#4`](report3.md#L62-L78) | fixed | `liquidatePartyB` underflow wraps value |
 | 17 | [`report3#5`](report3.md#L79-L93) | fixed | `sendQuote` balance-check bypass after wrap/reinterpret |
 | 18 | [`report3#6`](report3.md#L94-L115) | fixed | `trustedEncryptionAddress` privacy and migration failure |
-| 19 | [`report3#7`](report3.md#L116-L136) | partial | Full-balance decrypts in normal user flows |
-| 20 | [`report3#8`](report3.md#L137-L151) | open | Corrupted identity fields in `SendQuote*` events |
+| 19 | [`report3#7`](report3.md#L116-L136) | fixed | Full-balance decrypts in normal user flows |
+| 20 | [`report3#8`](report3.md#L137-L151) | fixed | Corrupted identity fields in `SendQuote*` events |
 | 21 | [`report3#9`](report3.md#L152-L168) | partial | Liquidation decrypts settlement amount and partyB balance |
 | 22 | [`report3#10`](report3.md#L169-L184) | open | Raw onboarding of uninitialized settlement ciphertext |
 | 23 | [`report3#11`](report3.md#L185-L192) | open | Wrong `quoteId` / missing open-position event in `lockAndOpenQuote` |
