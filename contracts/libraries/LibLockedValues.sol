@@ -23,6 +23,13 @@ library LockedValuesOps {
 		return MpcCore.onBoard(value);
 	}
 
+	function safeOnboard(ctInt256 memory value) internal returns (gtInt256) {
+		if (ctInt128.unwrap(value.ciphertextHigh) == 0 && ctInt128.unwrap(value.ciphertextLow) == 0) {
+			return MpcCore.setPublic256(int256(0));
+		}
+		return MpcCore.onBoard(value);
+	}
+
 	/**
 	 * @notice Converts a LockedValues struct to a GarbledLockedValues struct.
 	 * @param self The LockedValues struct to be converted.

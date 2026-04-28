@@ -29,7 +29,7 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 19 | [`report3#7`](report3.md#L116-L136) | fixed | Full-balance decrypts in normal user flows |
 | 20 | [`report3#8`](report3.md#L137-L151) | fixed | Corrupted identity fields in `SendQuote*` events |
 | 21 | [`report3#9`](report3.md#L152-L168) | fixed | Liquidation decrypts settlement amount and partyB balance |
-| 22 | [`report3#10`](report3.md#L169-L184) | open | Raw onboarding of uninitialized settlement ciphertext |
+| 22 | [`report3#10`](report3.md#L169-L184) | fixed | Raw onboarding of uninitialized settlement ciphertext |
 | 23 | [`report3#11`](report3.md#L185-L192) | open | Wrong `quoteId` / missing open-position event in `lockAndOpenQuote` |
 | 24 | [`report4#1`](report4.md#L1-L11) | fixed | PartyA liquidation cannot terminate because settlement path is dead |
 | 25 | [`report4#2`](report4.md#L12-L50) | open | Revert oracle over encrypted thresholds |

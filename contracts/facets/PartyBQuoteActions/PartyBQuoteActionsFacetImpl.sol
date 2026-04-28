@@ -102,11 +102,14 @@ library PartyBQuoteActionsFacetImpl {
 		// Check if locked balances are uninitialized (all zeros in ciphertext)
 		LockedValues storage lockedBalances = accountLayout.partyBLockedBalances[partyB][partyA];
 		LockedValues storage pendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA];
+		SettlementState storage settlementState = accountLayout.settlementStates[partyA][partyB];
 		
 		// Initialize locked balances if they contain garbage values
 		if (lockedBalances.isUninitialized()) {
 			lockedBalances.initializeToZeros(LibAccount.getUserEncryptionAddress(partyB));
 			accountLayout.observerPartyBLockedBalances[partyB][partyA] = LibEncryption.offBoardLockedToObserver(lockedBalances.onBoard());
+			LibAccount.initializeToZeros(settlementState, LibAccount.getUserEncryptionAddress(partyA));
+			LibAccount.initializeObserverToZeros(accountLayout.observerSettlementStates[partyA][partyB]);
 		}
 		if (pendingLockedBalances.isUninitialized()) {
 			pendingLockedBalances.initializeToZeros(LibAccount.getUserEncryptionAddress(partyB));
