@@ -26,10 +26,10 @@ library PartyBPositionActionsFacetImpl {
 
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
 
-		require(!accountLayout.suspendedAddresses[quote.partyA], "PartyBFacet: PartyA is suspended");
-		require(!accountLayout.suspendedAddresses[msg.sender], "PartyBFacet: Sender is Suspended");
-		require(!appLayout.partyBEmergencyStatus[quote.partyB], "PartyBFacet: PartyB is in emergency mode");
-		require(!appLayout.emergencyMode, "PartyBFacet: System is in emergency mode");
+		require(!accountLayout.suspendedAddresses[quote.partyA], "PBF:A sus");
+		require(!accountLayout.suspendedAddresses[msg.sender], "PBF:S sus");
+		require(!appLayout.partyBEmergencyStatus[quote.partyB], "PBF:B emg");
+		require(!appLayout.emergencyMode, "PBF:emg");
 		LibMuonPartyB.verifyPairUpnlAndPrice(upnlSig, quote.partyB, quote.partyA, quote.symbolId);
 		accountLayout.partyANonces[quote.partyA] += 1;
 		accountLayout.partyBNonces[quote.partyB][quote.partyA] += 1;
@@ -67,7 +67,7 @@ library PartyBPositionActionsFacetImpl {
 
 	function acceptCancelCloseRequest(uint256 quoteId) internal {
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
-		require(quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING, "PartyBFacet: Invalid state");
+		require(quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING, "PBF:state");
 		quote.statusModifyTimestamp = block.timestamp;
 		quote.quoteStatus = QuoteStatus.OPENED;
 		gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
@@ -82,9 +82,9 @@ library PartyBPositionActionsFacetImpl {
 		Symbol memory symbol = SymbolStorage.layout().symbols[quote.symbolId];
 		require(
 			GlobalAppStorage.layout().emergencyMode || GlobalAppStorage.layout().partyBEmergencyStatus[quote.partyB] || !symbol.isValid,
-			"PartyBFacet: Operation not allowed. Either emergency mode must be active, party B must be in emergency status, or the symbol must be delisted"
+			"PBF:emg close"
 		);
-		require(quote.quoteStatus == QuoteStatus.OPENED || quote.quoteStatus == QuoteStatus.CLOSE_PENDING, "PartyBFacet: Invalid state");
+		require(quote.quoteStatus == QuoteStatus.OPENED || quote.quoteStatus == QuoteStatus.CLOSE_PENDING, "PBF:state");
 		LibMuonPartyB.verifyPairUpnlAndPrice(upnlSig, quote.partyB, quote.partyA, quote.symbolId);
 		
 		// Get encrypted quoteOpenAmount
@@ -101,8 +101,8 @@ library PartyBPositionActionsFacetImpl {
 		gtInt256 gtPartyBAvailable = LibAccount.partyBAvailableBalanceForLiquidation(upnlSig.upnlPartyB, quote.partyB, quote.partyA);
 		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
 		
-		require(MpcCore.decrypt(gtPartyAAvailable.ge(gtZero)), "PartyBFacet: PartyA is insolvent");
-		require(MpcCore.decrypt(gtPartyBAvailable.ge(gtZero)), "PartyBFacet: PartyB should be solvent");
+		require(MpcCore.decrypt(gtPartyAAvailable.ge(gtZero)), "PBF:A insol");
+		require(MpcCore.decrypt(gtPartyBAvailable.ge(gtZero)), "PBF:B insol");
 		
 		accountLayout.partyBNonces[quote.partyB][quote.partyA]++;
 		accountLayout.partyANonces[quote.partyA]++;

@@ -5,6 +5,7 @@
 pragma solidity >=0.8.18;
 
 import "./LibLockedValues.sol";
+import "./LibEncryption.sol";
 import "../storages/AccountStorage.sol";
 
 library LibAccount {
@@ -20,13 +21,7 @@ library LibAccount {
 	 * @return The encryption address for the user.
 	 */
 	function getUserEncryptionAddress(address user) internal view returns (address) {
-		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		// If trustedEncryptionAddress is set, use it for all users
-		if (accountLayout.trustedEncryptionAddress != address(0)) {
-			return accountLayout.trustedEncryptionAddress;
-		}
-		// Otherwise, use the user's specific encryption address or fall back to the user's address
-		return accountLayout.userEncryptionAddress[user] == address(0) ? user : accountLayout.userEncryptionAddress[user];
+		return LibEncryption.getUserEncryptionAddress(user);
 	}
 
 	/**
@@ -277,9 +272,11 @@ library LibAccount {
 
 		if (lockedBalances.isUninitialized()) {
 			lockedBalances.initializeToZeros(encryptionAddress);
+			accountLayout.observerLockedBalances[partyA] = _observerLockedZeros();
 		}
 		if (pendingLockedBalances.isUninitialized()) {
 			pendingLockedBalances.initializeToZeros(encryptionAddress);
+			accountLayout.observerPendingLockedBalances[partyA] = _observerLockedZeros();
 		}
 
 		// Initialize Party A allocated balance if uninitialized (contains zeros)
@@ -289,6 +286,7 @@ library LibAccount {
 		) {
 			gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
 			accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtZero, encryptionAddress);
+			accountLayout.observerAllocatedBalances[partyA] = LibEncryption.offBoardToObserver(gtZero);
 		}
 	}
 
@@ -311,6 +309,9 @@ library LibAccount {
 			lockedBalances.initializeToZeros(encryptionAddress);
 			pendingLockedBalances.initializeToZeros(encryptionAddress);
 			initializeToZeros(settlementState, getUserEncryptionAddress(partyA));
+			accountLayout.observerPartyBLockedBalances[partyB][partyA] = _observerLockedZeros();
+			accountLayout.observerPartyBPendingLockedBalances[partyB][partyA] = _observerLockedZeros();
+			initializeObserverToZeros(accountLayout.observerSettlementStates[partyA][partyB]);
 		}
 
 		// Initialize Party B allocated balance for this Party A if uninitialized (contains zeros)
@@ -320,6 +321,7 @@ library LibAccount {
 		) {
 			gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
 			accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtZero, encryptionAddress);
+			accountLayout.observerPartyBAllocatedBalances[partyB][partyA] = LibEncryption.offBoardToObserver(gtZero);
 		}
 	}
 
@@ -338,6 +340,7 @@ library LibAccount {
 			gtReserveBalance = MpcCore.setPublic256(legacyReserveVault);
 			encryptedReserveVault.ciphertext = MpcCore.offBoard(gtReserveBalance);
 			encryptedReserveVault.userCiphertext = MpcCore.offBoardToUser(gtReserveBalance, encryptionAddress);
+			accountLayout.observerEncryptedReserveVault[partyB] = LibEncryption.offBoardToObserver(gtReserveBalance);
 			accountLayout.reserveVault[partyB] = 0;
 			return gtReserveBalance;
 		}
@@ -348,6 +351,7 @@ library LibAccount {
 		) {
 			gtReserveBalance = MpcCore.setPublic256(uint256(0));
 			accountLayout.encryptedReserveVault[partyB] = MpcCore.offBoardCombined(gtReserveBalance, encryptionAddress);
+			accountLayout.observerEncryptedReserveVault[partyB] = LibEncryption.offBoardToObserver(gtReserveBalance);
 			return gtReserveBalance;
 		}
 
@@ -368,6 +372,7 @@ library LibAccount {
 		if (legacyReimbursement > 0) {
 			gtReimbursement = MpcCore.setPublic256(legacyReimbursement);
 			accountLayout.encryptedPartyAReimbursement[partyA] = MpcCore.offBoardCombined(gtReimbursement, encryptionAddress);
+			accountLayout.observerEncryptedPartyAReimbursement[partyA] = LibEncryption.offBoardToObserver(gtReimbursement);
 			accountLayout.partyAReimbursement[partyA] = 0;
 			return gtReimbursement;
 		}
@@ -378,6 +383,7 @@ library LibAccount {
 		) {
 			gtReimbursement = MpcCore.setPublic256(uint256(0));
 			accountLayout.encryptedPartyAReimbursement[partyA] = MpcCore.offBoardCombined(gtReimbursement, encryptionAddress);
+			accountLayout.observerEncryptedPartyAReimbursement[partyA] = LibEncryption.offBoardToObserver(gtReimbursement);
 			return gtReimbursement;
 		}
 
@@ -400,6 +406,7 @@ library LibAccount {
 		) {
 			gtFeeBalance = MpcCore.setPublic256(uint256(0));
 			accountLayout.encryptedFeeCollectorBalances[feeCollector] = MpcCore.offBoardCombined(gtFeeBalance, encryptionAddress);
+			accountLayout.observerEncryptedFeeCollectorBalances[feeCollector] = LibEncryption.offBoardToObserver(gtFeeBalance);
 			return gtFeeBalance;
 		}
 
@@ -418,5 +425,30 @@ library LibAccount {
 		self.expectedAmount = MpcCore.offBoardCombined(gtZeroInt, encryptionAddress);
 		self.cva = MpcCore.offBoardCombined(gtZeroUint, encryptionAddress);
 		self.pending = false;
+	}
+
+	function initializeObserverToZeros(ObserverSettlementState storage self) internal {
+		gtInt256 gtZeroInt = MpcCore.setPublic256(int256(0));
+		gtUint256 gtZeroUint = MpcCore.setPublic256(uint256(0));
+		self.actualAmount = LibEncryption.offBoardToObserver(gtZeroInt);
+		self.expectedAmount = LibEncryption.offBoardToObserver(gtZeroInt);
+		self.cva = LibEncryption.offBoardToObserver(gtZeroUint);
+	}
+
+	function _observerLockedZeros() private returns (UserLockedValues memory) {
+		gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
+		address observer = LibEncryption.getObserverEncryptionAddress();
+		if (observer == address(0)) {
+			return UserLockedValues({
+				cva: ctUint256({ ciphertextHigh: ctUint128.wrap(0), ciphertextLow: ctUint128.wrap(0) }),
+				lf: ctUint256({ ciphertextHigh: ctUint128.wrap(0), ciphertextLow: ctUint128.wrap(0) }),
+				partyAmm: ctUint256({ ciphertextHigh: ctUint128.wrap(0), ciphertextLow: ctUint128.wrap(0) }),
+				partyBmm: ctUint256({ ciphertextHigh: ctUint128.wrap(0), ciphertextLow: ctUint128.wrap(0) })
+			});
+		}
+		return LockedValuesOps.offBoardToUser(
+			GarbledLockedValues({ cva: gtZero, lf: gtZero, partyAmm: gtZero, partyBmm: gtZero }),
+			observer
+		);
 	}
 }

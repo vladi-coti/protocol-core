@@ -44,6 +44,21 @@ struct UserLockedValues {
 	ctUint256 partyBmm;
 }
 
+struct ObserverQuoteValues {
+	ctUint256 openedPrice;
+	ctUint256 initialOpenedPrice;
+	ctUint256 requestedOpenPrice;
+	ctUint256 marketPrice;
+	ctUint256 quantity;
+	ctUint256 closedAmount;
+	ctUint256 avgClosedPrice;
+	ctUint256 requestedClosePrice;
+	ctUint256 quantityToClose;
+	ctUint256 tradingFee;
+	UserLockedValues initialLockedValues;
+	UserLockedValues lockedValues;
+}
+
 struct GarbledLockedValues {
 	gtUint256 cva;
 	gtUint256 lf;
@@ -141,6 +156,7 @@ library QuoteStorage {
 	struct Layout {
 		mapping(address => uint256[]) quoteIdsOf;
 		mapping(uint256 => Quote) quotes;
+		mapping(uint256 => ObserverQuoteValues) observerQuoteValues;
 		mapping(address => uint256) partyAPositionsCount;
 		mapping(address => mapping(address => uint256)) partyBPositionsCount;
 		mapping(address => uint256[]) partyAPendingQuotes;

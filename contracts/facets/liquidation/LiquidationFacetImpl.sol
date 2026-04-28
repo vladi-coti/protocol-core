@@ -10,6 +10,7 @@ import "../../libraries/LibAccount.sol";
 import "../../libraries/LibQuote.sol";
 import "../../libraries/LibLiquidation.sol";
 import "../../libraries/SharedEvents.sol";
+import "../../libraries/LibEncryption.sol";
 import "../../storages/MAStorage.sol";
 import "../../storages/QuoteStorage.sol";
 import "../../storages/MuonStorage.sol";
@@ -127,6 +128,7 @@ library LiquidationFacetImpl {
             gtUint256 gtCurrentReimbursement = LibAccount.initializePartyAReimbursement(partyA);
             gtUint256 gtNewReimbursement = gtCurrentReimbursement.checkedAdd(gtFee);
             accountLayout.encryptedPartyAReimbursement[partyA] = MpcCore.offBoardCombined(gtNewReimbursement, partyAEncryptionAddress);
+            accountLayout.observerEncryptedPartyAReimbursement[partyA] = LibEncryption.offBoardToObserver(gtNewReimbursement);
             
             // Emit encrypted event
             ctUint256 memory ctFee = MpcCore.offBoardToUser(gtFee, partyAEncryptionAddress);
@@ -142,6 +144,7 @@ library LiquidationFacetImpl {
         // Set pending locked balances to zero
         GarbledLockedValues memory gtZeroLockedA = LockedValuesOps.makeZero();
         accountLayout.pendingLockedBalances[partyA] = gtZeroLockedA.offBoard(partyAEncryptionAddress);
+        accountLayout.observerPendingLockedBalances[partyA] = LibEncryption.offBoardLockedToObserver(gtZeroLockedA);
         delete quoteLayout.partyAPendingQuotes[partyA];
     }
 
@@ -210,13 +213,17 @@ library LiquidationFacetImpl {
                 gtUint256 gtCurrentCva = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].cva.ciphertext);
                 gtUint256 gtNewCva = gtCurrentCva.checkedAdd(gtQuoteCva);
                 accountLayout.settlementStates[partyA][quote.partyB].cva = MpcCore.offBoardCombined(gtNewCva, partyAEncryptionAddress);
+                accountLayout.observerSettlementStates[partyA][quote.partyB].cva = LibEncryption.offBoardToObserver(gtNewCva);
 
                 gtInt256 gtAmountDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAmount.toSigned());
                 gtInt256 gtCurrentActual = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
                 gtInt256 gtNewActual = gtCurrentActual.add(gtAmountDelta);
                 accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
+                accountLayout.observerSettlementStates[partyA][quote.partyB].actualAmount = LibEncryption.offBoardToObserver(gtNewActual);
                 accountLayout.settlementStates[partyA][quote.partyB].expectedAmount = accountLayout
                     .settlementStates[partyA][quote.partyB].actualAmount;
+                accountLayout.observerSettlementStates[partyA][quote.partyB].expectedAmount = accountLayout
+                    .observerSettlementStates[partyA][quote.partyB].actualAmount;
             } else if (accountLayout.liquidationDetails[partyA].liquidationType == LiquidationType.LATE) {
                 gtUint256 gtTotalCva = LockedValuesOps.safeOnboard(accountLayout.lockedBalances[partyA].cva.ciphertext);
                 gtUint256 gtAdjustedCva = gtQuoteCva.checkedSub(gtQuoteCva.checkedMul(gtDeficit).div(gtTotalCva));
@@ -225,13 +232,17 @@ library LiquidationFacetImpl {
                 gtUint256 gtCurrentCva = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].cva.ciphertext);
                 gtUint256 gtNewCva = gtCurrentCva.checkedAdd(gtAdjustedCva);
                 accountLayout.settlementStates[partyA][quote.partyB].cva = MpcCore.offBoardCombined(gtNewCva, partyAEncryptionAddress);
+                accountLayout.observerSettlementStates[partyA][quote.partyB].cva = LibEncryption.offBoardToObserver(gtNewCva);
                 
                 gtInt256 gtAmountDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAmount.toSigned());
                 gtInt256 gtCurrentActual = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
                 gtInt256 gtNewActual = gtCurrentActual.add(gtAmountDelta);
                 accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
+                accountLayout.observerSettlementStates[partyA][quote.partyB].actualAmount = LibEncryption.offBoardToObserver(gtNewActual);
                 accountLayout.settlementStates[partyA][quote.partyB].expectedAmount = accountLayout
                     .settlementStates[partyA][quote.partyB].actualAmount;
+                accountLayout.observerSettlementStates[partyA][quote.partyB].expectedAmount = accountLayout
+                    .observerSettlementStates[partyA][quote.partyB].actualAmount;
             } else if (accountLayout.liquidationDetails[partyA].liquidationType == LiquidationType.OVERDUE) {
                 require(accountLayout.liquidationDetails[partyA].totalUnrealizedLoss < 0, "LiquidationFacet: Invalid unrealized loss");
                 gtUint256 gtTotalUnrealizedLoss = MpcCore.setPublic256(uint256(-accountLayout.liquidationDetails[partyA].totalUnrealizedLoss));
@@ -242,12 +253,17 @@ library LiquidationFacetImpl {
                 gtInt256 gtCurrentActual = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
                 gtInt256 gtNewActual = gtCurrentActual.add(gtActualDelta);
                 accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
+                accountLayout.observerSettlementStates[partyA][quote.partyB].actualAmount = LibEncryption.offBoardToObserver(gtNewActual);
 
                 gtInt256 gtCurrentExpected = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].expectedAmount.ciphertext);
                 gtInt256 gtNewExpected = gtCurrentExpected.add(gtExpectedDelta);
                 accountLayout.settlementStates[partyA][quote.partyB].expectedAmount = MpcCore.offBoardCombined(gtNewExpected, partyAEncryptionAddress);
+                accountLayout.observerSettlementStates[partyA][quote.partyB].expectedAmount = LibEncryption.offBoardToObserver(gtNewExpected);
             }
             accountLayout.partyBLockedBalances[quote.partyB][partyA].subQuote(quote, partyBEncryptionAddress);
+            accountLayout.observerPartyBLockedBalances[quote.partyB][partyA] = LibEncryption.offBoardLockedToObserver(
+                accountLayout.partyBLockedBalances[quote.partyB][partyA].onBoard()
+            );
             
             // Calculate new avgClosedPrice with encrypted values
             gtUint256 gtAvgClosedPrice = LockedValuesOps.safeOnboard(quote.avgClosedPrice.ciphertext);
@@ -259,9 +275,11 @@ library LiquidationFacetImpl {
                 .checkedAdd(gtOpenAmountForAvg.checkedMul(gtLiquidationPrice))
                 .div(gtClosedAmountForAvg.checkedAdd(gtOpenAmountForAvg));
             quote.avgClosedPrice = gtNewAvgClosedPrice.offBoardCombined(partyAEncryptionAddress);
+            quoteLayout.observerQuoteValues[quote.id].avgClosedPrice = LibEncryption.offBoardToObserver(gtNewAvgClosedPrice);
             
             // Set closedAmount = quantity
             quote.closedAmount = gtQuantity.offBoardCombined(partyAEncryptionAddress);
+            quoteLayout.observerQuoteValues[quote.id].closedAmount = LibEncryption.offBoardToObserver(gtQuantity);
 
             LibQuote.removeFromOpenPositions(quote.id);
             quoteLayout.partyAPositionsCount[partyA] -= 1;
@@ -310,6 +328,7 @@ library LiquidationFacetImpl {
         for (uint256 i = 0; i < partyBs.length; i++) {
             gtInt256 gtAmount = MpcCore.setPublic256(uint256(amounts[i])).toSigned();
             accountLayout.settlementStates[partyA][partyBs[i]].actualAmount = MpcCore.offBoardCombined(gtAmount, partyAEncryptionAddress);
+            accountLayout.observerSettlementStates[partyA][partyBs[i]].actualAmount = LibEncryption.offBoardToObserver(gtAmount);
         }
         return accountLayout.liquidationDetails[partyA].liquidationId;
     }
@@ -344,7 +363,7 @@ library LiquidationFacetImpl {
             gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
             gtUint256 gtCva = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][partyB].cva.ciphertext);
             gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtCva);
-            accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, partyBEncryptionAddress);
+            LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtNewBalance);
             
             // Emit encrypted event
             ctUint256 memory ctCva = MpcCore.offBoardToUser(gtCva, partyBEncryptionAddress);
@@ -360,7 +379,7 @@ library LiquidationFacetImpl {
                 gtUint256 gtCurrentBalance2 = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
                 gtUint256 gtPositiveSettleAmount = gtSettleAmount.mul(MpcCore.setPublic256(int256(-1))).fromSigned();
                 gtUint256 gtNewBalance2 = gtCurrentBalance2.checkedAdd(gtPositiveSettleAmount);
-                accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance2, partyBEncryptionAddress);
+                LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtNewBalance2);
                 
                 // Emit encrypted event
                 ctUint256 memory ctSettleAmount = MpcCore.offBoardToUser(gtPositiveSettleAmount, partyBEncryptionAddress);
@@ -372,7 +391,7 @@ library LiquidationFacetImpl {
                 
                 if (MpcCore.decrypt(gtCurrentBalance3.ge(gtPositiveSettleAmount))) {
                     gtUint256 gtNewBalance3 = gtCurrentBalance3.checkedSub(gtPositiveSettleAmount);
-                    accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance3, partyBEncryptionAddress);
+                    LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtNewBalance3);
                     
                     settleAmounts[i] = gtSettleAmount;
                     // Emit encrypted event
@@ -380,7 +399,7 @@ library LiquidationFacetImpl {
                     emit SharedEvents.BalanceChangePartyB(partyB, partyA, ctSettleAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
                 } else {
                     settleAmounts[i] = gtCurrentBalance3.toSigned();
-                    accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtZero.fromSigned(), partyBEncryptionAddress);
+                    LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtZero.fromSigned());
                     
                     // Emit encrypted event
                     ctUint256 memory ctSettleAmountsI = MpcCore.offBoardToUser(gtCurrentBalance3, partyBEncryptionAddress);
@@ -388,6 +407,7 @@ library LiquidationFacetImpl {
                 }
             }
             delete accountLayout.settlementStates[partyA][partyB];
+            delete accountLayout.observerSettlementStates[partyA][partyB];
         }
         if (accountLayout.liquidationDetails[partyA].involvedPartyBCounts == 0) {
             // Prepare allocated balance for event emission
@@ -399,12 +419,14 @@ library LiquidationFacetImpl {
             
             // Set allocated balance to encrypted reimbursement amount.
             gtUint256 gtReimbursement = LibAccount.initializePartyAReimbursement(partyA);
-            accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtReimbursement, partyAEncryptionAddress);
+            LibEncryption.storePartyAAllocatedBalance(accountLayout, partyA, gtReimbursement);
             accountLayout.partyAReimbursement[partyA] = 0;
             accountLayout.encryptedPartyAReimbursement[partyA] = MpcCore.offBoardCombined(MpcCore.setPublic256(uint256(0)), partyAEncryptionAddress);
+            accountLayout.observerEncryptedPartyAReimbursement[partyA] = LibEncryption.offBoardToObserver(MpcCore.setPublic256(uint256(0)));
             // Set locked balances to zero
             GarbledLockedValues memory gtZeroLocked = LockedValuesOps.makeZero();
             accountLayout.lockedBalances[partyA] = gtZeroLocked.offBoard(partyAEncryptionAddress);
+            accountLayout.observerLockedBalances[partyA] = LibEncryption.offBoardLockedToObserver(gtZeroLocked);
 
             uint256 lf = accountLayout.liquidationDetails[partyA].liquidationFee;
             if (lf > 0) {
@@ -414,12 +436,12 @@ library LiquidationFacetImpl {
                 gtUint256 gtCurrentBalance1 = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[accountLayout.liquidators[partyA][0]].ciphertext);
                 gtUint256 gtLf1 = MpcCore.setPublic256(lf / 2);
                 gtUint256 gtNewBalance1 = gtCurrentBalance1.checkedAdd(gtLf1);
-                accountLayout.allocatedBalances[accountLayout.liquidators[partyA][0]] = MpcCore.offBoardCombined(gtNewBalance1, liquidatorEncryptionAddress1);
+                LibEncryption.storePartyAAllocatedBalance(accountLayout, accountLayout.liquidators[partyA][0], gtNewBalance1);
                 
                 gtUint256 gtCurrentBalance2 = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[accountLayout.liquidators[partyA][1]].ciphertext);
                 gtUint256 gtLf2 = MpcCore.setPublic256(lf / 2);
                 gtUint256 gtNewBalance2 = gtCurrentBalance2.checkedAdd(gtLf2);
-                accountLayout.allocatedBalances[accountLayout.liquidators[partyA][1]] = MpcCore.offBoardCombined(gtNewBalance2, liquidatorEncryptionAddress2);
+                LibEncryption.storePartyAAllocatedBalance(accountLayout, accountLayout.liquidators[partyA][1], gtNewBalance2);
                 
                 // Emit encrypted events
                 ctUint256 memory ctLf1 = MpcCore.offBoardToUser(gtLf1, liquidatorEncryptionAddress1);
@@ -480,6 +502,9 @@ library LiquidationFacetImpl {
             quote.statusModifyTimestamp = block.timestamp;
 
             accountLayout.lockedBalances[partyA].subQuote(quote, partyAEncryptionAddress);
+            accountLayout.observerLockedBalances[partyA] = LibEncryption.offBoardLockedToObserver(
+                accountLayout.lockedBalances[partyA].onBoard()
+            );
 
             // Calculate new avgClosedPrice with encrypted values
             gtUint256 gtAvgClosedPriceB = LockedValuesOps.safeOnboard(quote.avgClosedPrice.ciphertext);
@@ -491,10 +516,12 @@ library LiquidationFacetImpl {
                 .checkedAdd(gtOpenAmountB.checkedMul(gtPriceB))
                 .div(gtClosedAmountB.checkedAdd(gtOpenAmountB));
             quote.avgClosedPrice = gtNewAvgClosedPriceB.offBoardCombined(partyAEncryptionAddress);
+            quoteLayout.observerQuoteValues[quote.id].avgClosedPrice = LibEncryption.offBoardToObserver(gtNewAvgClosedPriceB);
             
             // Set closedAmount = quantity
             gtUint256 gtQuantityB = LockedValuesOps.safeOnboard(quote.quantity.ciphertext);
             quote.closedAmount = gtQuantityB.offBoardCombined(partyAEncryptionAddress);
+            quoteLayout.observerQuoteValues[quote.id].closedAmount = LibEncryption.offBoardToObserver(gtQuantityB);
 
             LibQuote.removeFromOpenPositions(quote.id);
             quoteLayout.partyAPositionsCount[partyA] -= 1;
@@ -508,7 +535,7 @@ library LiquidationFacetImpl {
             gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
             gtUint256 gtLf = MpcCore.setPublic256(lf);
             gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtLf);
-            accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewBalance, liquidatorEncryptionAddress);
+            LibEncryption.storePartyAAllocatedBalance(accountLayout, msg.sender, gtNewBalance);
             
             // Emit encrypted event
             ctUint256 memory ctLf = MpcCore.offBoardToUser(gtLf, liquidatorEncryptionAddress);

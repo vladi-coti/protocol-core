@@ -54,6 +54,11 @@ contract AccountFacet is Accessibility, Pausable, IAccountFacet {
 		
 		emit AllocatePartyA(msg.sender, amount, ctBalance);
 		emit SharedEvents.BalanceChangePartyA(msg.sender, ctBalance, SharedEvents.BalanceChangeType.ALLOCATE);
+		emit SharedEvents.ObserverBalanceChangePartyA(
+			msg.sender,
+			AccountStorage.layout().observerAllocatedBalances[msg.sender],
+			SharedEvents.BalanceChangeType.ALLOCATE
+		);
 	}
 
 	/// @notice Allows Party A to deposit a specified amount of collateral and immediately allocate it.
@@ -69,6 +74,11 @@ contract AccountFacet is Accessibility, Pausable, IAccountFacet {
 		
 		emit AllocatePartyA(msg.sender, amountWith18Decimals, ctBalance);
 		emit SharedEvents.BalanceChangePartyA(msg.sender, ctBalance, SharedEvents.BalanceChangeType.ALLOCATE);
+		emit SharedEvents.ObserverBalanceChangePartyA(
+			msg.sender,
+			AccountStorage.layout().observerAllocatedBalances[msg.sender],
+			SharedEvents.BalanceChangeType.ALLOCATE
+		);
 	}
 
 	/// @notice Allows Party A to deallocate a specified amount of collateral.
@@ -82,6 +92,11 @@ contract AccountFacet is Accessibility, Pausable, IAccountFacet {
 		
 		emit DeallocatePartyA(msg.sender, amount, ctBalance);
 		emit SharedEvents.BalanceChangePartyA(msg.sender, ctBalance, SharedEvents.BalanceChangeType.DEALLOCATE);
+		emit SharedEvents.ObserverBalanceChangePartyA(
+			msg.sender,
+			AccountStorage.layout().observerAllocatedBalances[msg.sender],
+			SharedEvents.BalanceChangeType.DEALLOCATE
+		);
 	}
 
 	/// @notice Transfers the sender's deposited balance to the user allocated balance.
@@ -102,6 +117,11 @@ contract AccountFacet is Accessibility, Pausable, IAccountFacet {
 		emit Withdraw(msg.sender, user, ((amount * (10 ** IERC20Metadata(GlobalAppStorage.layout().collateral).decimals())) / (10 ** 18)));
 		emit AllocatePartyA(user, amount, ctBalance);
 		emit SharedEvents.BalanceChangePartyA(user, ctBalance, SharedEvents.BalanceChangeType.ALLOCATE);
+		emit SharedEvents.ObserverBalanceChangePartyA(
+			user,
+			AccountStorage.layout().observerAllocatedBalances[user],
+			SharedEvents.BalanceChangeType.ALLOCATE
+		);
 	}
 
 	/// @notice Allows Party B to allocate a specified amount of collateral for an specified partyA.
@@ -116,6 +136,12 @@ contract AccountFacet is Accessibility, Pausable, IAccountFacet {
 		
 		emit AllocateForPartyB(msg.sender, partyA, amount, ctBalance);
 		emit SharedEvents.BalanceChangePartyB(msg.sender, partyA, ctBalance, SharedEvents.BalanceChangeType.ALLOCATE);
+		emit SharedEvents.ObserverBalanceChangePartyB(
+			msg.sender,
+			partyA,
+			AccountStorage.layout().observerPartyBAllocatedBalances[msg.sender][partyA],
+			SharedEvents.BalanceChangeType.ALLOCATE
+		);
 	}
 
 	/// @notice Allows Party B to deallocate a specified amount of collateral
@@ -135,6 +161,12 @@ contract AccountFacet is Accessibility, Pausable, IAccountFacet {
 		
 		emit DeallocateForPartyB(msg.sender, partyA, amount, ctBalance);
 		emit SharedEvents.BalanceChangePartyB(msg.sender, partyA, ctBalance, SharedEvents.BalanceChangeType.DEALLOCATE);
+		emit SharedEvents.ObserverBalanceChangePartyB(
+			msg.sender,
+			partyA,
+			AccountStorage.layout().observerPartyBAllocatedBalances[msg.sender][partyA],
+			SharedEvents.BalanceChangeType.DEALLOCATE
+		);
 	}
 
 	/// @notice Allows transferring the allocation of partyB from one party A to another.
@@ -158,6 +190,18 @@ contract AccountFacet is Accessibility, Pausable, IAccountFacet {
 		);
 		emit SharedEvents.BalanceChangePartyB(msg.sender, origin, ctOriginBalance, SharedEvents.BalanceChangeType.DEALLOCATE);
 		emit SharedEvents.BalanceChangePartyB(msg.sender, recipient, ctRecipientBalance, SharedEvents.BalanceChangeType.ALLOCATE);
+		emit SharedEvents.ObserverBalanceChangePartyB(
+			msg.sender,
+			origin,
+			AccountStorage.layout().observerPartyBAllocatedBalances[msg.sender][origin],
+			SharedEvents.BalanceChangeType.DEALLOCATE
+		);
+		emit SharedEvents.ObserverBalanceChangePartyB(
+			msg.sender,
+			recipient,
+			AccountStorage.layout().observerPartyBAllocatedBalances[msg.sender][recipient],
+			SharedEvents.BalanceChangeType.ALLOCATE
+		);
 	}
 
 	/// @notice Allows transferring the balance of partyB to emergency reserve vault.

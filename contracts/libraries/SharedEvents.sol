@@ -25,4 +25,8 @@ library SharedEvents {
     event BalanceChangePartyA(address indexed partyA, ctUint256 amount, BalanceChangeType _type);
 
     event BalanceChangePartyB(address indexed partyB, address indexed partyA, ctUint256 amount, BalanceChangeType _type);
+
+    event ObserverBalanceChangePartyA(address indexed partyA, ctUint256 amount, BalanceChangeType _type);
+
+    event ObserverBalanceChangePartyB(address indexed partyB, address indexed partyA, ctUint256 amount, BalanceChangeType _type);
 }

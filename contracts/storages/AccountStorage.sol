@@ -20,6 +20,12 @@ struct SettlementState {
 	bool pending;
 }
 
+struct ObserverSettlementState {
+	ctInt256 actualAmount;
+	ctInt256 expectedAmount;
+	ctUint256 cva;
+}
+
 struct LiquidationDetail {
 	bytes liquidationId;
 	LiquidationType liquidationType;
@@ -46,12 +52,18 @@ library AccountStorage {
 		// Users deposited amounts
 		mapping(address => uint256) balances;
 		mapping(address => utUint256) allocatedBalances;
+		mapping(address => ctUint256) observerAllocatedBalances;
 		// position value will become pending locked before openPosition and will be locked after that
 		mapping(address => LockedValues) pendingLockedBalances;
+		mapping(address => UserLockedValues) observerPendingLockedBalances;
 		mapping(address => LockedValues) lockedBalances;
+		mapping(address => UserLockedValues) observerLockedBalances;
 		mapping(address => mapping(address => utUint256)) partyBAllocatedBalances;
+		mapping(address => mapping(address => ctUint256)) observerPartyBAllocatedBalances;
 		mapping(address => mapping(address => LockedValues)) partyBPendingLockedBalances;
+		mapping(address => mapping(address => UserLockedValues)) observerPartyBPendingLockedBalances;
 		mapping(address => mapping(address => LockedValues)) partyBLockedBalances;
+		mapping(address => mapping(address => UserLockedValues)) observerPartyBLockedBalances;
 		mapping(address => uint256) withdrawCooldown; // is better to call lastDeallocateTime
 		mapping(address => uint256) partyANonces;
 		mapping(address => mapping(address => uint256)) partyBNonces;
@@ -61,14 +73,18 @@ library AccountStorage {
 		mapping(address => address[]) liquidators;
 		mapping(address => uint256) partyAReimbursement;
 		mapping(address => utUint256) encryptedPartyAReimbursement;
+		mapping(address => ctUint256) observerEncryptedPartyAReimbursement;
 		mapping(address => utUint256) encryptedFeeCollectorBalances;
+		mapping(address => ctUint256) observerEncryptedFeeCollectorBalances;
 		// partyA => partyB => SettlementState
 		mapping(address => mapping(address => SettlementState)) settlementStates;
+		mapping(address => mapping(address => ObserverSettlementState)) observerSettlementStates;
 		mapping(address => uint256) reserveVault;
 		mapping(address => utUint256) encryptedReserveVault;
+		mapping(address => ctUint256) observerEncryptedReserveVault;
 		// User encryption address management
 		mapping(address => address) userEncryptionAddress;
-		address trustedEncryptionAddress;
+		address trustedObserverAddress;
 	}
 
 	function layout() internal pure returns (Layout storage l) {

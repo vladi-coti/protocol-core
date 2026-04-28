@@ -11,22 +11,12 @@ import {QuoteStructOutput, SymbolStructOutput} from "../../src/types/contracts/i
 
 const defaultSerializer = new JsonSerializer()
 
-// If true, uses context.signers.liquidator to decrypt, otherwise uses the passed wallet
-const useTrusted = true
-
-/**
- * Common decrypt function that checks useTrusted flag
- * If useTrusted is true, uses context.signers.liquidator to decrypt
- * Otherwise uses the passed wallet
- */
 export async function decryptUint256(
 	context: RunContext,
 	ciphertext: ctUint256,
 	wallet: Wallet
 ): Promise<bigint> {
-	if (useTrusted) {
-		return await context.signers.liquidator.decryptUint256(ciphertext)
-	}
+	void context
 	return await wallet.decryptUint256(ciphertext)
 }
 

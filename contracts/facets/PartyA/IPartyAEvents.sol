@@ -8,6 +8,17 @@ import "../../storages/QuoteStorage.sol";
 import "../../interfaces/IPartiesEvents.sol";
 
 interface IPartyAEvents is IPartiesEvents {
+	event ObserverSendQuote(
+		address partyA,
+		uint256 quoteId,
+		address partyB,
+		uint256 symbolId,
+		PositionType positionType,
+		OrderType orderType,
+		EncryptedQuoteValues values,
+		uint256 deadline
+	);
+
 	event RequestToCancelQuote(address partyA, address partyB, QuoteStatus quoteStatus, uint256 quoteId);
 	event RequestToClosePositionForPartyA(
 		address partyA,
@@ -21,6 +32,17 @@ interface IPartyAEvents is IPartiesEvents {
 		uint256 closeId
 	);
 	event RequestToClosePositionForPartyB(
+		address partyA,
+		address partyB,
+		uint256 quoteId,
+		ctUint256 closePrice,
+		ctUint256 quantityToClose,
+		OrderType orderType,
+		uint256 deadline,
+		QuoteStatus quoteStatus,
+		uint256 closeId
+	);
+	event ObserverRequestToClosePosition(
 		address partyA,
 		address partyB,
 		uint256 quoteId,

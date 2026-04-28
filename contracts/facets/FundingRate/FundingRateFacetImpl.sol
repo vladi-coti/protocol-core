@@ -7,6 +7,7 @@ pragma solidity >=0.8.18;
 import "../../libraries/muon/LibMuonFundingRate.sol";
 import "../../libraries/LibAccount.sol";
 import "../../libraries/LibQuote.sol";
+import "../../libraries/LibEncryption.sol";
 import "../../storages/QuoteStorage.sol";
 import "../../storages/AccountStorage.sol";
 import "../../storages/SymbolStorage.sol";
@@ -70,6 +71,7 @@ library FundingRateFacetImpl {
 					gtOpenedPrice = gtOpenedPrice.checkedSub(gtPriceDiff);
 				}
 				quote.openedPrice = gtOpenedPrice.offBoardCombined(LibAccount.getUserEncryptionAddress(quote.partyA));
+				QuoteStorage.layout().observerQuoteValues[quote.id].openedPrice = LibEncryption.offBoardToObserver(gtOpenedPrice);
 				
 				// Calculate impact on balances
 				gtInt256 gtImpact = gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(gtScaleFactor).toSigned();
@@ -89,6 +91,7 @@ library FundingRateFacetImpl {
 					gtOpenedPrice = gtOpenedPrice.checkedAdd(gtPriceDiff);
 				}
 				quote.openedPrice = gtOpenedPrice.offBoardCombined(LibAccount.getUserEncryptionAddress(quote.partyA));
+				QuoteStorage.layout().observerQuoteValues[quote.id].openedPrice = LibEncryption.offBoardToObserver(gtOpenedPrice);
 				
 				// Calculate impact on balances
 				gtInt256 gtImpact = gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(gtScaleFactor).toSigned();

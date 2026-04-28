@@ -7,6 +7,8 @@ pragma solidity >=0.8.18;
 import "../../interfaces/IPartiesEvents.sol";
 
 interface ILiquidationEvents is IPartiesEvents {
+	event ObserverLiquidatePartyB(address liquidator, address partyB, address partyA, ctUint256 partyBAllocatedBalance, ctInt256 upnl);
+
 	event LiquidatePartyA(
 		address liquidator,
 		address partyA,

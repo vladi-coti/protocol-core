@@ -13,6 +13,7 @@ import "../../libraries/LibLiquidation.sol";
 import "../../libraries/LibAccessibility.sol";
 import "../../libraries/SharedEvents.sol";
 import "../../libraries/LibSettlement.sol";
+import "../../libraries/LibEncryption.sol";
 import "../../storages/MAStorage.sol";
 import "../../storages/QuoteStorage.sol";
 import "../../storages/MuonStorage.sol";
@@ -116,6 +117,9 @@ library PartyAFacetImpl {
 			.onBoard()
 			.add(garbledLockedValues)
 			.offBoard(partyAEncryptionAddress);
+		accountLayout.observerPendingLockedBalances[msg.sender] = LibEncryption.offBoardLockedToObserver(
+			accountLayout.pendingLockedBalances[msg.sender].onBoard()
+		);
 
 		currentId = ++quoteLayout.lastId;
 
@@ -150,6 +154,20 @@ library PartyAFacetImpl {
 			tradingFee: MpcCore.setPublic256(symbolLayout.symbols[symbolId].tradingFee).offBoardCombined(partyAEncryptionAddress),
 			affiliate: affiliate
 		});
+		quoteLayout.observerQuoteValues[currentId] = ObserverQuoteValues({
+			openedPrice: LibEncryption.offBoardToObserver(gtZero),
+			initialOpenedPrice: LibEncryption.offBoardToObserver(gtZero),
+			requestedOpenPrice: LibEncryption.offBoardToObserver(gtPrice),
+			marketPrice: LibEncryption.offBoardToObserver(MpcCore.setPublic256(upnlSig.price)),
+			quantity: LibEncryption.offBoardToObserver(gtQuantity),
+			closedAmount: LibEncryption.offBoardToObserver(gtZero),
+			avgClosedPrice: LibEncryption.offBoardToObserver(gtZero),
+			requestedClosePrice: LibEncryption.offBoardToObserver(gtZero),
+			quantityToClose: LibEncryption.offBoardToObserver(gtZero),
+			tradingFee: LibEncryption.offBoardToObserver(MpcCore.setPublic256(symbolLayout.symbols[symbolId].tradingFee)),
+			initialLockedValues: LibEncryption.offBoardLockedToObserver(garbledLockedValues),
+			lockedValues: LibEncryption.offBoardLockedToObserver(garbledLockedValues)
+		});
 
 		// Store quote and update indexes in private storage
 		quoteLayout.quoteIdsOf[msg.sender].push(currentId);
@@ -159,7 +177,7 @@ library PartyAFacetImpl {
 		// Update allocated balance with encrypted operations
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
 		gtUint256 gtNewBalance = gtCurrentBalance.checkedSub(gtTradingFee);
-		accountLayout.allocatedBalances[msg.sender] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(msg.sender));
+		LibEncryption.storePartyAAllocatedBalance(accountLayout, msg.sender, gtNewBalance);
 		
 		// Emit encrypted event
 		ctUint256 memory ctFeeAmount = MpcCore.offBoardToUser(gtTradingFee, LibAccount.getUserEncryptionAddress(msg.sender));
@@ -183,13 +201,16 @@ library PartyAFacetImpl {
 			// Update allocated balance with encrypted operations
 			gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
 			gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtFee);
-			accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyA));
+			LibEncryption.storePartyAAllocatedBalance(accountLayout, quote.partyA, gtNewBalance);
 			
 			// Emit encrypted event
 			ctUint256 memory ctFeeAmount = MpcCore.offBoardToUser(gtFee, LibAccount.getUserEncryptionAddress(quote.partyA));
 			emit SharedEvents.BalanceChangePartyA(quote.partyA, ctFeeAmount, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 			
 			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
+			accountLayout.observerPendingLockedBalances[quote.partyA] = LibEncryption.offBoardLockedToObserver(
+				accountLayout.pendingLockedBalances[quote.partyA].onBoard()
+			);
 			LibQuote.removeFromPartyAPendingQuotes(quote);
 			result = QuoteStatus.CANCELED;
 		} else {
@@ -237,6 +258,8 @@ library PartyAFacetImpl {
 		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
 		quote.requestedClosePrice = gtClosePrice.offBoardCombined(partyAEncryptionAddress);
 		quote.quantityToClose = gtQuantityToClose.offBoardCombined(partyAEncryptionAddress);
+		QuoteStorage.layout().observerQuoteValues[quoteId].requestedClosePrice = LibEncryption.offBoardToObserver(gtClosePrice);
+		QuoteStorage.layout().observerQuoteValues[quoteId].quantityToClose = LibEncryption.offBoardToObserver(gtQuantityToClose);
 		quote.orderType = orderType;
 		quote.deadline = deadline;
 	}

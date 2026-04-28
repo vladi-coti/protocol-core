@@ -2919,25 +2919,6 @@
     },
     {
         "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "oldTrustedEncryptionAddress",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "newTrustedEncryptionAddress",
-                "type": "address"
-            }
-        ],
-        "name": "SetTrustedEncryptionAddress",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
         "inputs": [],
         "name": "UnpauseAccounting",
         "type": "event"
@@ -3646,19 +3627,6 @@
             }
         ],
         "name": "setSymbolValidationState",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "trustedEncryptionAddress",
-                "type": "address"
-            }
-        ],
-        "name": "setTrustedEncryptionAddress",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"

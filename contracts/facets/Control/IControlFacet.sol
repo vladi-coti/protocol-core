@@ -124,5 +124,5 @@ interface IControlFacet is IControlEvents {
 
 	function removeBridge(address bridge) external;
 
-	function setTrustedEncryptionAddress(address trustedEncryptionAddress) external;
+	function setTrustedObserverAddress(address trustedObserverAddress) external;
 }

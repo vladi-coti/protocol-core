@@ -8,6 +8,7 @@ import "../../utils/Pausable.sol";
 import "../../utils/Accessibility.sol";
 import "./ILiquidationFacet.sol";
 import "./LiquidationFacetImpl.sol";
+import "../../libraries/LibEncryption.sol";
 import "./DeferredLiquidationFacetImpl.sol";
 import "../../storages/AccountStorage.sol";
 
@@ -128,6 +129,13 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		ctInt256 memory ctUpnl = MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.upnl), partyBEncryptionAddress);
 
 		emit LiquidatePartyB(msg.sender, partyB, partyA, ctPartyBAllocatedBalance, ctUpnl);
+		emit ObserverLiquidatePartyB(
+			msg.sender,
+			partyB,
+			partyA,
+			accountLayout.observerPartyBAllocatedBalances[partyB][partyA],
+			LibEncryption.offBoardToObserver(MpcCore.setPublic256(upnlSig.upnl))
+		);
 		LiquidationFacetImpl.liquidatePartyB(partyB, partyA, upnlSig);
 	}
 }

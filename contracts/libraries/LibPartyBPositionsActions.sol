@@ -17,20 +17,20 @@ library LibPartyBPositionsActions {
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
 		require(
 			quote.quoteStatus == QuoteStatus.CLOSE_PENDING || quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING,
-			"PartyBFacet: Invalid state"
+			"PBF:state"
 		);
-		require(block.timestamp <= quote.deadline, "PartyBFacet: Quote is expired");
+		require(block.timestamp <= quote.deadline, "PBF:exp");
 		
 		gtUint256 gtRequestedClosePrice = LockedValuesOps.safeOnboard(quote.requestedClosePrice.ciphertext);
 		gtBool gtPriceValid = quote.positionType == PositionType.LONG 
 			? gtClosedPrice.ge(gtRequestedClosePrice)
 			: gtClosedPrice.le(gtRequestedClosePrice);
-		require(MpcCore.decrypt(gtPriceValid), "PartyBFacet: Closed price isn't valid");
+		require(MpcCore.decrypt(gtPriceValid), "PBF:price");
 		gtUint256 gtQuantityToClose = LockedValuesOps.safeOnboard(quote.quantityToClose.ciphertext);
 		gtBool gtFilledAmountValid = quote.orderType == OrderType.LIMIT
 			? gtQuantityToClose.ge(gtFilledAmount)
 			: gtQuantityToClose.eq(gtFilledAmount);
-		require(MpcCore.decrypt(gtFilledAmountValid), "PartyBFacet: Invalid filledAmount");
+		require(MpcCore.decrypt(gtFilledAmountValid), "PBF:fill");
 		
 		// Call closeQuote with encrypted values
 		LibQuote.closeQuote(quote, gtFilledAmount, gtClosedPrice);
@@ -42,9 +42,9 @@ library LibPartyBPositionsActions {
 		GlobalAppStorage.Layout storage appLayout = GlobalAppStorage.layout();
 
 		Quote storage quote = quoteLayout.quotes[quoteId];
-		require(SymbolStorage.layout().symbols[quote.symbolId].isValid, "PartyBFacet: Symbol is not valid");
-		require(quote.quoteStatus == QuoteStatus.LOCKED || quote.quoteStatus == QuoteStatus.CANCEL_PENDING, "PartyBFacet: Invalid state");
-		require(block.timestamp <= quote.deadline, "PartyBFacet: Quote is expired");
+		require(SymbolStorage.layout().symbols[quote.symbolId].isValid, "PBF:symbol");
+		require(quote.quoteStatus == QuoteStatus.LOCKED || quote.quoteStatus == QuoteStatus.CANCEL_PENDING, "PBF:state");
+		require(block.timestamp <= quote.deadline, "PBF:exp");
 
 		address feeCollector = appLayout.affiliateFeeCollector[quote.affiliate] != address(0)
 			? appLayout.affiliateFeeCollector[quote.affiliate]
@@ -60,10 +60,10 @@ library LibPartyBPositionsActions {
 		
 		gtUint256 gtFee;
 		if (quote.orderType == OrderType.LIMIT) {
-			require(MpcCore.decrypt(gtQuantity.ge(gtFilledAmount).and(gtFilledAmount.gt(MpcCore.setPublic256(uint256(0))))), "PartyBFacet: Invalid filledAmount");
+			require(MpcCore.decrypt(gtQuantity.ge(gtFilledAmount).and(gtFilledAmount.gt(MpcCore.setPublic256(uint256(0))))), "PBF:fill");
 			gtFee = gtFilledAmount.checkedMul(gtRequestedOpenPrice).checkedMul(gtTradingFeeRate).div(gtScaleFactor);
 		} else {
-			require(MpcCore.decrypt(gtQuantity.eq(gtFilledAmount)), "PartyBFacet: Invalid filledAmount");
+			require(MpcCore.decrypt(gtQuantity.eq(gtFilledAmount)), "PBF:fill");
 			gtFee = gtFilledAmount.checkedMul(LockedValuesOps.safeOnboard(quote.marketPrice.ciphertext)).checkedMul(gtTradingFeeRate).div(gtScaleFactor);
 		}
 		gtUint256 gtFeeCollectorBalance = LibAccount.initializeFeeCollectorBalance(feeCollector);
@@ -75,7 +75,7 @@ library LibPartyBPositionsActions {
 		gtBool gtOpenedPriceValid = quote.positionType == PositionType.LONG
 			? gtOpenedPrice.le(gtRequestedOpenPrice)
 			: gtOpenedPrice.ge(gtRequestedOpenPrice);
-		require(MpcCore.decrypt(gtOpenedPriceValid), "PartyBFacet: Opened price isn't valid");
+		require(MpcCore.decrypt(gtOpenedPriceValid), "PBF:open px");
 
 		address partyAAddr = LibAccount.getUserEncryptionAddress(quote.partyA);
 		address partyBAddr = LibAccount.getUserEncryptionAddress(quote.partyB);
@@ -93,7 +93,7 @@ library LibPartyBPositionsActions {
 			// check locked values
 			gtUint256 gtTotalForPartyA = gtLockedValues.totalForPartyA();
 			gtUint256 gtMinValue = MpcCore.setPublic256(SymbolStorage.layout().symbols[quote.symbolId].minAcceptableQuoteValue);
-			require(MpcCore.decrypt(gtTotalForPartyA.ge(gtMinValue)), "PartyBFacet: Quote value is low");
+			require(MpcCore.decrypt(gtTotalForPartyA.ge(gtMinValue)), "PBF:value");
 		}
 		// partially fill
 		else {
@@ -116,12 +116,12 @@ library LibPartyBPositionsActions {
 			// check that opened position is not minor position
 			gtUint256 gtAppliedTotal = gtAppliedFilledLockedValues.totalForPartyA();
 			gtUint256 gtMinValue = MpcCore.setPublic256(SymbolStorage.layout().symbols[quote.symbolId].minAcceptableQuoteValue);
-			require(MpcCore.decrypt(gtAppliedTotal.ge(gtMinValue)), "PartyBFacet: Quote value is low");
+			require(MpcCore.decrypt(gtAppliedTotal.ge(gtMinValue)), "PBF:value");
 			
 			// check that new pending position is not minor position
 			if (newStatus != QuoteStatus.CANCELED) {
 				gtUint256 gtRemainingTotal = gtQuoteLockedValues.totalForPartyA().checkedSub(gtFilledLockedValues.totalForPartyA());
-				require(MpcCore.decrypt(gtRemainingTotal.ge(gtMinValue)), "PartyBFacet: Quote value is low");
+				require(MpcCore.decrypt(gtRemainingTotal.ge(gtMinValue)), "PBF:value");
 			}
 			
 			gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
@@ -190,7 +190,7 @@ library LibPartyBPositionsActions {
 		gtUint256 gtFinalTotal = gtFinalLockedValues.totalForPartyA();
 		gtUint256 gtLeverage = gtFinalQuantity.checkedMul(gtFinalOpenedPrice).div(gtFinalTotal);
 		gtUint256 gtMaxLeverage = MpcCore.setPublic256(SymbolStorage.layout().symbols[quote.symbolId].maxLeverage);
-		require(MpcCore.decrypt(gtLeverage.le(gtMaxLeverage)), "PartyBFacet: Leverage is high");
+		require(MpcCore.decrypt(gtLeverage.le(gtMaxLeverage)), "PBF:lev");
 
 		quote.quoteStatus = QuoteStatus.OPENED;
 		LibQuote.addToOpenPositions(quoteId);

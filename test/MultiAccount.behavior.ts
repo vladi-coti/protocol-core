@@ -270,14 +270,40 @@ export function shouldBehaveLikeMultiAccount() {
 			})
 
 			it("Should deposit and allocate for account partyA", async () => {
-				await context.controlFacet.connect(context.signers.admin).setTrustedEncryptionAddress(ethers.ZeroAddress)
-				await multiAccount.connect(context.signers.user).addAccount("No trusted encryption")
+				await multiAccount.connect(context.signers.user).addAccount("User controlled encryption")
 				partyAAccount = (await multiAccount.getAccounts(await context.signers.user.getAddress(), 1, 10))[0].accountAddress
 
 				await multiAccount.connect(context.signers.user).depositAndAllocateForAccount(partyAAccount, decimal(100n))
 				const balanceInfo = await context.viewFacet.balanceInfoOfPartyA(partyAAccount)
 				const allocatedBalance = await context.signers.user.decryptUint256(balanceInfo[0])
 				expect(allocatedBalance).to.be.equal(decimal(100n))
+			})
+
+			it("Should keep user ciphertext while writing observer ciphertext", async () => {
+				await context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(context.signers.liquidator.address)
+				await multiAccount.connect(context.signers.user).addAccount("Observer")
+				partyAAccount = (await multiAccount.getAccounts(await context.signers.user.getAddress(), 1, 10))[0].accountAddress
+
+				await multiAccount.connect(context.signers.user).depositAndAllocateForAccount(partyAAccount, decimal(50n))
+
+				const userCiphertext = await context.viewFacet.allocatedBalanceOfPartyA(partyAAccount)
+				const observerCiphertext = await context.viewFacet.observerAllocatedBalanceOfPartyA(partyAAccount)
+
+				expect(await context.signers.user.decryptUint256(userCiphertext)).to.equal(decimal(50n))
+				expect(await context.signers.liquidator.decryptUint256(observerCiphertext)).to.equal(decimal(50n))
+
+				await context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(context.signers.user2.address)
+				await multiAccount.connect(context.signers.user).depositAndAllocateForAccount(partyAAccount, decimal(50n))
+				const rotatedObserverCiphertext = await context.viewFacet.observerAllocatedBalanceOfPartyA(partyAAccount)
+				expect(await context.signers.user.decryptUint256(await context.viewFacet.allocatedBalanceOfPartyA(partyAAccount))).to.equal(decimal(100n))
+				expect(await context.signers.user2.decryptUint256(rotatedObserverCiphertext)).to.equal(decimal(100n))
+
+				await context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(ethers.ZeroAddress)
+				await multiAccount.connect(context.signers.user).depositAndAllocateForAccount(partyAAccount, decimal(20n))
+				const disabledObserverCiphertext = await context.viewFacet.observerAllocatedBalanceOfPartyA(partyAAccount)
+				expect(disabledObserverCiphertext.ciphertextHigh).to.equal(0n)
+				expect(disabledObserverCiphertext.ciphertextLow).to.equal(0n)
+				expect(await context.signers.user.decryptUint256(await context.viewFacet.allocatedBalanceOfPartyA(partyAAccount))).to.equal(decimal(120n))
 			})
 
 			it("Should withdraw from account", async () => {

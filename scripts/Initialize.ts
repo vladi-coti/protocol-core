@@ -85,11 +85,11 @@ export async function initialize(): Promise<RunContext> {
 	await runTx(context.controlFacet.connect(context.signers.admin).registerAffiliate(context.multiAccount))
 	await runTx(context.controlFacet.connect(context.signers.admin).setFeeCollector(context.multiAccount, context.signers.feeCollector.address))
 
-	const trustedEncryptionAddress = context.signers.liquidator.address
-	console.log("Setting trusted encryption address to", trustedEncryptionAddress)
-	// Set trusted encryption address (will be used for all users)
+	const trustedObserverAddress = context.signers.liquidator.address
+	console.log("Setting trusted observer address to", trustedObserverAddress)
+	// Set observer encryption address for graph/solver ciphertexts.
 	await runTx(
-		context.controlFacet.connect(context.signers.admin).setTrustedEncryptionAddress(trustedEncryptionAddress)
+		context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(trustedObserverAddress)
 	)
 
 	let output: Addresses = loadAddresses()

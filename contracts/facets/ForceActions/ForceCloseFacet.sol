@@ -10,6 +10,7 @@ import "../../interfaces/IPartiesEvents.sol";
 import "./ForceActionsFacetEvents.sol";
 import "./ForceActionsFacetImpl.sol";
 import "../Settlement/SettlementFacetEvents.sol";
+import "../../libraries/LibEncryption.sol";
 
 contract ForceCloseFacet is Accessibility, Pausable, IPartiesEvents, ForceActionsFacetEvents, SettlementFacetEvents {
 	using MpcCore for gtUint256;
@@ -39,6 +40,13 @@ contract ForceCloseFacet is Accessibility, Pausable, IPartiesEvents, ForceAction
 			ctUint256 memory ctPartyBAllocatedBalance = MpcCore.offBoardToUser(gtPartyBAllocatedBalance, partyBEncryptionAddress);
 			ctInt256 memory ctUpnlPartyB = MpcCore.offBoardToUser(gtUpnlPartyB, partyBEncryptionAddress);
 			emit LiquidatePartyB(msg.sender, quote.partyB, quote.partyA, ctPartyBAllocatedBalance, ctUpnlPartyB);
+			emit ObserverForceLiquidatePartyB(
+				msg.sender,
+				quote.partyB,
+				quote.partyA,
+				LibEncryption.offBoardToObserver(gtPartyBAllocatedBalance),
+				LibEncryption.offBoardToObserver(gtUpnlPartyB)
+			);
 		} else {
 			{
 				address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
@@ -51,6 +59,15 @@ contract ForceCloseFacet is Accessibility, Pausable, IPartiesEvents, ForceAction
 				ctUint256 memory ctClosePrice = MpcCore.offBoardToUser(gtClosePrice, partyBEncryptionAddress);
 				emit ForceClosePositionForPartyB(quoteId, quote.partyA, quote.partyB, ctFilledAmount, ctClosePrice, quote.quoteStatus, quoteLayout.closeIds[quoteId]);
 			}
+			emit ObserverForceClosePosition(
+				quoteId,
+				quote.partyA,
+				quote.partyB,
+				LibEncryption.offBoardToObserver(gtQuantityToClose),
+				LibEncryption.offBoardToObserver(gtClosePrice),
+				quote.quoteStatus,
+				quoteLayout.closeIds[quoteId]
+			);
 		}
 	}
 
@@ -84,6 +101,13 @@ contract ForceCloseFacet is Accessibility, Pausable, IPartiesEvents, ForceAction
 			ctUint256 memory ctPartyBAllocatedBalance = MpcCore.offBoardToUser(gtPartyBAllocatedBalance, partyBEncryptionAddress);
 			ctInt256 memory ctUpnlPartyB = MpcCore.offBoardToUser(gtUpnlPartyB, partyBEncryptionAddress);
 			emit LiquidatePartyB(msg.sender, quote.partyB, quote.partyA, ctPartyBAllocatedBalance, ctUpnlPartyB);
+			emit ObserverForceLiquidatePartyB(
+				msg.sender,
+				quote.partyB,
+				quote.partyA,
+				LibEncryption.offBoardToObserver(gtPartyBAllocatedBalance),
+				LibEncryption.offBoardToObserver(gtUpnlPartyB)
+			);
 		} else {
 			ctUint256[] memory newPartyBsAllocatedBalances = new ctUint256[](1);
 			newPartyBsAllocatedBalances[0] = AccountStorage.layout().partyBAllocatedBalances[quote.partyB][quote.partyA].userCiphertext;
@@ -108,6 +132,15 @@ contract ForceCloseFacet is Accessibility, Pausable, IPartiesEvents, ForceAction
 				ctUint256 memory ctClosePrice = MpcCore.offBoardToUser(gtClosePrice, partyBEncryptionAddress);
 				emit ForceClosePositionForPartyB(quoteId, quote.partyA, quote.partyB, ctFilledAmount, ctClosePrice, quote.quoteStatus, quoteLayout.closeIds[quoteId]);
 			}
+			emit ObserverForceClosePosition(
+				quoteId,
+				quote.partyA,
+				quote.partyB,
+				LibEncryption.offBoardToObserver(gtQuantityToClose),
+				LibEncryption.offBoardToObserver(gtClosePrice),
+				quote.quoteStatus,
+				quoteLayout.closeIds[quoteId]
+			);
 		}
 	}
 }

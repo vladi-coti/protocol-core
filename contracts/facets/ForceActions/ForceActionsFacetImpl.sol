@@ -9,6 +9,7 @@ import "../../libraries/muon/LibMuonSettlement.sol";
 import "../../libraries/LibSettlement.sol";
 import "../../libraries/LibLiquidation.sol";
 import "../../libraries/LibSolvency.sol";
+import "../../libraries/LibEncryption.sol";
 import "../../storages/QuoteStorage.sol";
 
 library ForceActionsFacetImpl {
@@ -29,6 +30,12 @@ library ForceActionsFacetImpl {
 		quote.quoteStatus = QuoteStatus.CANCELED;
 		accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
 		accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
+		accountLayout.observerPendingLockedBalances[quote.partyA] = LibEncryption.offBoardLockedToObserver(
+			accountLayout.pendingLockedBalances[quote.partyA].onBoard()
+		);
+		accountLayout.observerPartyBPendingLockedBalances[quote.partyB][quote.partyA] = LibEncryption.offBoardLockedToObserver(
+			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].onBoard()
+		);
 
 		// send trading Fee back to partyA
 		gtUint256 gtFeeAmount = LibQuote.getTradingFee(quote.id);
@@ -36,7 +43,7 @@ library ForceActionsFacetImpl {
 		// Update allocated balance with encrypted operations
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
 		gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtFeeAmount);
-		accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyA));
+		LibEncryption.storePartyAAllocatedBalance(accountLayout, quote.partyA, gtNewBalance);
 		
 		// Emit encrypted event
 		ctUint256 memory ctFeeAmount = MpcCore.offBoardToUser(gtFeeAmount, LibAccount.getUserEncryptionAddress(quote.partyA));
@@ -60,6 +67,8 @@ library ForceActionsFacetImpl {
 		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
 		quote.requestedClosePrice = gtZero.offBoardCombined(partyAEncryptionAddress);
 		quote.quantityToClose = gtZero.offBoardCombined(partyAEncryptionAddress);
+		QuoteStorage.layout().observerQuoteValues[quote.id].requestedClosePrice = LibEncryption.offBoardToObserver(gtZero);
+		QuoteStorage.layout().observerQuoteValues[quote.id].quantityToClose = LibEncryption.offBoardToObserver(gtZero);
 	}
 
 	function forceClosePosition(
@@ -182,12 +191,12 @@ library ForceActionsFacetImpl {
 				gtInt256 gtNegBalance = gtZero.sub(gtPartyBAvailableBalance);
 				gtUint256 gtAvailableAmount = gtNegBalance.fromSigned();
 				gtUint256 gtNewReserveBalance = gtReserveAmount.checkedSub(gtAvailableAmount);
-				accountLayout.encryptedReserveVault[quote.partyB] = MpcCore.offBoardCombined(gtNewReserveBalance, LibAccount.getUserEncryptionAddress(quote.partyB));
+				LibEncryption.storeReserveVault(accountLayout, quote.partyB, gtNewReserveBalance);
 				
 				// Update PartyB allocated balance with encrypted operations
 				gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
 				gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtAvailableAmount);
-				accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyB));
+				LibEncryption.storePartyBAllocatedBalance(accountLayout, quote.partyB, quote.partyA, gtNewBalance);
 				
 				// Emit encrypted event
 				ctUint256 memory ctAvailableAmount = MpcCore.offBoardToUser(gtAvailableAmount, LibAccount.getUserEncryptionAddress(quote.partyB));
@@ -197,12 +206,12 @@ library ForceActionsFacetImpl {
 				}
 				LibQuote.closeQuote(quote, gtQuantityToClose, gtClosePrice);
 			} else {
-				accountLayout.encryptedReserveVault[quote.partyB] = MpcCore.offBoardCombined(MpcCore.setPublic256(uint256(0)), LibAccount.getUserEncryptionAddress(quote.partyB));
+				LibEncryption.storeReserveVault(accountLayout, quote.partyB, MpcCore.setPublic256(uint256(0)));
 				
 				// Update PartyB allocated balance with encrypted operations
 				gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
 				gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtReserveAmount);
-				accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyB));
+				LibEncryption.storePartyBAllocatedBalance(accountLayout, quote.partyB, quote.partyA, gtNewBalance);
 				
 				// Emit encrypted event
 				ctUint256 memory ctReserveAmount = MpcCore.offBoardToUser(gtReserveAmount, LibAccount.getUserEncryptionAddress(quote.partyB));

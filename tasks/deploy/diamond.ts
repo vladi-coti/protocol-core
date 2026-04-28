@@ -66,7 +66,7 @@ task("deploy:diamond", "Deploys the Diamond contract")
 		for (const facetName of FacetNames) {
 			const FacetFactory = await ethers.getContractFactory(facetName)
 			const facet = await FacetFactory.deploy({
-				gasLimit: 12000000,
+				gasLimit: 30000000,
 				gasPrice: 1000000000, // 1 gwei
 			})
 			await facet.waitForDeployment()

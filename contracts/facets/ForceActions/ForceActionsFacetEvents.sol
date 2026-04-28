@@ -7,6 +7,8 @@ pragma solidity >=0.8.18;
 import "../../storages/QuoteStorage.sol";
 
 interface ForceActionsFacetEvents {
+	event ObserverForceLiquidatePartyB(address liquidator, address partyB, address partyA, ctUint256 partyBAllocatedBalance, ctInt256 upnl);
+
 	event ForceCancelQuote(uint256 quoteId, QuoteStatus quoteStatus);
 	event ForceCancelCloseRequest(uint256 quoteId, QuoteStatus quoteStatus, uint256 closeId);
 	event ForceClosePositionForPartyA(
@@ -19,6 +21,15 @@ interface ForceActionsFacetEvents {
 		uint256 closeId
 	);
 	event ForceClosePositionForPartyB(
+		uint256 quoteId,
+		address partyA,
+		address partyB,
+		ctUint256 filledAmount,
+		ctUint256 closePrice,
+		QuoteStatus quoteStatus,
+		uint256 closeId
+	);
+	event ObserverForceClosePosition(
 		uint256 quoteId,
 		address partyA,
 		address partyB,

@@ -136,6 +136,10 @@ contract ViewFacet is IViewFacet {
 		return AccountStorage.layout().allocatedBalances[partyA].userCiphertext;
 	}
 
+	function observerAllocatedBalanceOfPartyA(address partyA) external view returns (ctUint256 memory) {
+		return AccountStorage.layout().observerAllocatedBalances[partyA];
+	}
+
 	/**
 	 * @notice Returns the allocated balance of Party B for a specific Party A.
 	 * @param partyB The address of Party B.
@@ -144,6 +148,10 @@ contract ViewFacet is IViewFacet {
 	 */
 	function allocatedBalanceOfPartyB(address partyB, address partyA) external view returns (ctUint256 memory) {
 		return AccountStorage.layout().partyBAllocatedBalances[partyB][partyA].userCiphertext;
+	}
+
+	function observerAllocatedBalanceOfPartyB(address partyB, address partyA) external view returns (ctUint256 memory) {
+		return AccountStorage.layout().observerPartyBAllocatedBalances[partyB][partyA];
 	}
 
 	/**
@@ -155,6 +163,10 @@ contract ViewFacet is IViewFacet {
 		return AccountStorage.layout().encryptedReserveVault[partyB].userCiphertext;
 	}
 
+	function observerBalanceOfReserveVault(address partyB) external view returns (ctUint256 memory) {
+		return AccountStorage.layout().observerEncryptedReserveVault[partyB];
+	}
+
 	/**
 	 * @notice Returns the encrypted fee collector accrual balance.
 	 * @param feeCollector The address of the fee collector.
@@ -162,6 +174,10 @@ contract ViewFacet is IViewFacet {
 	 */
 	function feeCollectorBalance(address feeCollector) external view returns (ctUint256 memory) {
 		return AccountStorage.layout().encryptedFeeCollectorBalances[feeCollector].userCiphertext;
+	}
+
+	function observerFeeCollectorBalance(address feeCollector) external view returns (ctUint256 memory) {
+		return AccountStorage.layout().observerEncryptedFeeCollectorBalances[feeCollector];
 	}
 
 	/**
@@ -174,6 +190,14 @@ contract ViewFacet is IViewFacet {
 		ctUint256[] memory allocatedBalances = new ctUint256[](partyBs.length);
 		for (uint256 i = 0; i < partyBs.length; i++) {
 			allocatedBalances[i] = AccountStorage.layout().partyBAllocatedBalances[partyBs[i]][partyA].userCiphertext;
+		}
+		return allocatedBalances;
+	}
+
+	function observerAllocatedBalanceOfPartyBs(address partyA, address[] memory partyBs) external view returns (ctUint256[] memory) {
+		ctUint256[] memory allocatedBalances = new ctUint256[](partyBs.length);
+		for (uint256 i = 0; i < partyBs.length; i++) {
+			allocatedBalances[i] = AccountStorage.layout().observerPartyBAllocatedBalances[partyBs[i]][partyA];
 		}
 		return allocatedBalances;
 	}
@@ -262,6 +286,22 @@ contract ViewFacet is IViewFacet {
 		return states;
 	}
 
+	function getObserverSettlementStates(address partyA, address[] memory partyBs) external view returns (PlainSettlementState[] memory) {
+		PlainSettlementState[] memory states = new PlainSettlementState[](partyBs.length);
+		for (uint256 i = 0; i < partyBs.length; i++) {
+			AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+			ObserverSettlementState storage settlementState = accountLayout.observerSettlementStates[partyA][partyBs[i]];
+
+			states[i] = PlainSettlementState({
+				actualAmount: settlementState.actualAmount,
+				expectedAmount: settlementState.expectedAmount,
+				cva: settlementState.cva,
+				pending: accountLayout.settlementStates[partyA][partyBs[i]].pending
+			});
+		}
+		return states;
+	}
+
 	/**
 	 * @notice Returns the details of a symbol by its ID.
 	 * @param symbolId The ID of the symbol.
@@ -335,6 +375,10 @@ contract ViewFacet is IViewFacet {
 	 */
 	function getQuote(uint256 quoteId) external view returns (Quote memory) {
 		return QuoteStorage.layout().quotes[quoteId];
+	}
+
+	function getObserverQuoteValues(uint256 quoteId) external view returns (ObserverQuoteValues memory) {
+		return QuoteStorage.layout().observerQuoteValues[quoteId];
 	}
 
 	/**

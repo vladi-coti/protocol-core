@@ -524,12 +524,12 @@ contract ControlFacet is Accessibility, Ownable, IControlFacet {
 		BridgeStorage.layout().bridges[bridge] = false;
 	}
 
-	/// @notice Sets the trusted encryption address that will be used for all users. Set to address(0) to disable.
-	/// @param trustedEncryptionAddress The address to be used as the trusted encryption address.
-	function setTrustedEncryptionAddress(address trustedEncryptionAddress) external onlyRole(LibAccessibility.DEFAULT_ADMIN_ROLE) {
+	/// @notice Sets the observer encryption address used for separate indexer/solver ciphertexts. Set to address(0) to disable future observer ciphertexts.
+	/// @param trustedObserverAddress The address to be used as the observer encryption address.
+	function setTrustedObserverAddress(address trustedObserverAddress) external onlyRole(LibAccessibility.DEFAULT_ADMIN_ROLE) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		address oldTrustedEncryptionAddress = accountLayout.trustedEncryptionAddress;
-		accountLayout.trustedEncryptionAddress = trustedEncryptionAddress;
-		emit SetTrustedEncryptionAddress(oldTrustedEncryptionAddress, trustedEncryptionAddress);
+		address oldTrustedEncryptionAddress = accountLayout.trustedObserverAddress;
+		accountLayout.trustedObserverAddress = trustedObserverAddress;
+		emit SetTrustedObserverAddress(oldTrustedEncryptionAddress, trustedObserverAddress);
 	}
 }

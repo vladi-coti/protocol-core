@@ -10,6 +10,7 @@ import "../../libraries/LibAccount.sol";
 import "../../libraries/LibQuote.sol";
 import "../../libraries/LibLiquidation.sol";
 import "../../libraries/SharedEvents.sol";
+import "../../libraries/LibEncryption.sol";
 import "../../storages/MAStorage.sol";
 import "../../storages/QuoteStorage.sol";
 import "../../storages/MuonStorage.sol";
@@ -47,7 +48,7 @@ library DeferredLiquidationFacetImpl {
 			gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
 			gtUint256 gtAvailableBalanceAmount = MpcCore.setPublic256(uint256(availableBalance));
 			gtUint256 gtNewBalance = gtCurrentBalance.checkedSub(gtAvailableBalanceAmount);
-			accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyA));
+			LibEncryption.storePartyAAllocatedBalance(accountLayout, partyA, gtNewBalance);
 			
 			accountLayout.partyAReimbursement[partyA] += uint256(availableBalance);
 		}

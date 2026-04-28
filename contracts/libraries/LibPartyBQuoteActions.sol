@@ -8,6 +8,7 @@ import "../storages/QuoteStorage.sol";
 import "../storages/MAStorage.sol";
 import "./LibAccount.sol";
 import "./LibLockedValues.sol";
+import "./LibEncryption.sol";
 
 library LibPartyBQuoteActions {
 	using LockedValuesOps for LockedValues;
@@ -38,6 +39,9 @@ library LibPartyBQuoteActions {
 		quote.partyB = msg.sender;
 		// lock funds for partyB
 		accountLayout.partyBPendingLockedBalances[msg.sender][quote.partyA].addQuote(quote, LibAccount.getUserEncryptionAddress(msg.sender));
+		accountLayout.observerPartyBPendingLockedBalances[msg.sender][quote.partyA] = LibEncryption.offBoardLockedToObserver(
+			accountLayout.partyBPendingLockedBalances[msg.sender][quote.partyA].onBoard()
+		);
 		quoteLayout.partyBPendingQuotes[msg.sender][quote.partyA].push(quote.id);
 	}
 }

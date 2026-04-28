@@ -7,6 +7,7 @@ pragma solidity >=0.8.18;
 import "../../libraries/muon/LibMuonPartyB.sol";
 import "../../libraries/LibQuote.sol";
 import "../../libraries/LibPartyBQuoteActions.sol";
+import "../../libraries/LibEncryption.sol";
 
 library PartyBQuoteActionsFacetImpl {
 	using MpcCore for gtUint256;
@@ -50,6 +51,9 @@ library PartyBQuoteActionsFacetImpl {
 			quote.statusModifyTimestamp = block.timestamp;
 			quote.quoteStatus = QuoteStatus.PENDING;
 			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
+			accountLayout.observerPartyBPendingLockedBalances[quote.partyB][quote.partyA] = LibEncryption.offBoardLockedToObserver(
+				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].onBoard()
+			);
 			LibQuote.removeFromPartyBPendingQuotes(quote);
 			quote.partyB = address(0);
 			return QuoteStatus.PENDING;
@@ -65,6 +69,12 @@ library PartyBQuoteActionsFacetImpl {
 		quote.quoteStatus = QuoteStatus.CANCELED;
 		accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
 		accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
+		accountLayout.observerPendingLockedBalances[quote.partyA] = LibEncryption.offBoardLockedToObserver(
+			accountLayout.pendingLockedBalances[quote.partyA].onBoard()
+		);
+		accountLayout.observerPartyBPendingLockedBalances[quote.partyB][quote.partyA] = LibEncryption.offBoardLockedToObserver(
+			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].onBoard()
+		);
 
 		// send trading Fee back to partyA
 		gtUint256 gtFeeAmount = LibQuote.getTradingFee(quoteId);
@@ -72,7 +82,7 @@ library PartyBQuoteActionsFacetImpl {
 		// Update allocated balance with encrypted operations
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext);
 		gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtFeeAmount);
-		accountLayout.allocatedBalances[quote.partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(quote.partyA));
+		LibEncryption.storePartyAAllocatedBalance(accountLayout, quote.partyA, gtNewBalance);
 		
 		// Emit encrypted event
 		ctUint256 memory ctFeeAmount = MpcCore.offBoardToUser(gtFeeAmount, LibAccount.getUserEncryptionAddress(quote.partyA));
@@ -96,9 +106,11 @@ library PartyBQuoteActionsFacetImpl {
 		// Initialize locked balances if they contain garbage values
 		if (lockedBalances.isUninitialized()) {
 			lockedBalances.initializeToZeros(LibAccount.getUserEncryptionAddress(partyB));
+			accountLayout.observerPartyBLockedBalances[partyB][partyA] = LibEncryption.offBoardLockedToObserver(lockedBalances.onBoard());
 		}
 		if (pendingLockedBalances.isUninitialized()) {
 			pendingLockedBalances.initializeToZeros(LibAccount.getUserEncryptionAddress(partyB));
+			accountLayout.observerPartyBPendingLockedBalances[partyB][partyA] = LibEncryption.offBoardLockedToObserver(pendingLockedBalances.onBoard());
 		}
 	}
 }

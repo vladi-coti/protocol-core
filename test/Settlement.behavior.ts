@@ -308,7 +308,7 @@ export function shouldBehaveLikeSettlement(): void {
 				partyBUpnlIndex: 0n,
 			} as QuoteSettlementDataStructOutput,
 		])
-		await context.controlFacet.connect(context.signers.admin).setTrustedEncryptionAddress(ethers.ZeroAddress)
+		await context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(ethers.ZeroAddress)
 		const tx = await context.settlementFacet.connect(context.signers.hedger).settleUpnl(
 			await settlementSig,
 			[decimal(5n, 17)],
@@ -340,7 +340,7 @@ export function shouldBehaveLikeSettlement(): void {
 		const beforeAllocatedPartyB = (await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances
 
 		// Disable trusted mode so the event keying is observable.
-		await (await context.controlFacet.connect(context.signers.admin).setTrustedEncryptionAddress(ethers.ZeroAddress)).wait()
+		await (await context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(ethers.ZeroAddress)).wait()
 
 		const settlementSig = getDummySettlementSig(0n, [0n], [
 			{

@@ -54,6 +54,16 @@ library LockedValuesOps {
 			});
 	}
 
+	function offBoardToUser(GarbledLockedValues memory self, address encryptionAddress) internal returns (UserLockedValues memory) {
+		return
+			UserLockedValues({
+				cva: MpcCore.offBoardToUser(self.cva, encryptionAddress),
+				partyAmm: MpcCore.offBoardToUser(self.partyAmm, encryptionAddress),
+				partyBmm: MpcCore.offBoardToUser(self.partyBmm, encryptionAddress),
+				lf: MpcCore.offBoardToUser(self.lf, encryptionAddress)
+			});
+	}
+
 	/**
 	 * @notice Offboards LockedValues memory to user-specific encryption.
 	 * @param self The LockedValues memory struct to offboard.

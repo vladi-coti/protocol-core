@@ -75,5 +75,5 @@ interface IControlEvents {
 	event DeregisterAffiliate(address affilate);
 	event AddBridge(address bridge);
 	event RemoveBridge(address bridge);
-	event SetTrustedEncryptionAddress(address oldTrustedEncryptionAddress, address newTrustedEncryptionAddress);
+	event SetTrustedObserverAddress(address oldTrustedObserverAddress, address newTrustedObserverAddress);
 }

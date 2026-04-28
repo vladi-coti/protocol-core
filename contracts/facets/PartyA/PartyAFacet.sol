@@ -10,6 +10,7 @@ import "../../utils/Pausable.sol";
 import "./IPartyAFacet.sol";
 import "../../storages/SymbolStorage.sol";
 import "../../storages/QuoteStorage.sol";
+import "../../libraries/LibEncryption.sol";
 
 contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 	/**
@@ -48,6 +49,7 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 		);
 		
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
+		ObserverQuoteValues storage observerValues = QuoteStorage.layout().observerQuoteValues[quoteId];
 		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
 		EncryptedQuoteValues memory partyAValues = EncryptedQuoteValues({
 			price: MpcCore.offBoardToUser(gtPrice, partyAEncryptionAddress),
@@ -67,6 +69,25 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 			basicParams.positionType,
 			basicParams.orderType,
 			partyAValues,
+			basicParams.deadline
+		);
+		emit ObserverSendQuote(
+			msg.sender,
+			quoteId,
+			address(0),
+			basicParams.symbolId,
+			basicParams.positionType,
+			basicParams.orderType,
+			EncryptedQuoteValues({
+				price: observerValues.requestedOpenPrice,
+				marketPrice: observerValues.marketPrice,
+				quantity: observerValues.quantity,
+				cva: observerValues.lockedValues.cva,
+				lf: observerValues.lockedValues.lf,
+				partyAmm: observerValues.lockedValues.partyAmm,
+				partyBmm: observerValues.lockedValues.partyBmm,
+				tradingFee: observerValues.tradingFee
+			}),
 			basicParams.deadline
 		);
 		for (uint256 i = 0; i < basicParams.partyBsWhiteList.length; i++) {
@@ -89,6 +110,25 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 				basicParams.positionType,
 				basicParams.orderType,
 				partyBValues,
+				basicParams.deadline
+			);
+			emit ObserverSendQuote(
+				msg.sender,
+				quoteId,
+				basicParams.partyBsWhiteList[i],
+				basicParams.symbolId,
+				basicParams.positionType,
+				basicParams.orderType,
+				EncryptedQuoteValues({
+					price: observerValues.requestedOpenPrice,
+					marketPrice: observerValues.marketPrice,
+					quantity: observerValues.quantity,
+					cva: observerValues.lockedValues.cva,
+					lf: observerValues.lockedValues.lf,
+					partyAmm: observerValues.lockedValues.partyAmm,
+					partyBmm: observerValues.lockedValues.partyBmm,
+					tradingFee: observerValues.tradingFee
+				}),
 				basicParams.deadline
 			);
 		}
@@ -182,6 +222,17 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 				quoteLayout.closeIds[quoteId]
 			);
 		}
+		emit ObserverRequestToClosePosition(
+			quote.partyA,
+			quote.partyB,
+			quoteId,
+			LibEncryption.offBoardToObserver(gtClosePrice),
+			LibEncryption.offBoardToObserver(gtQuantityToClose),
+			orderType,
+			deadline,
+			QuoteStatus.CLOSE_PENDING,
+			quoteLayout.closeIds[quoteId]
+		);
 	}
 
 	/**

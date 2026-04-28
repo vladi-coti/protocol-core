@@ -9,6 +9,7 @@ import "../storages/MuonStorage.sol";
 import "../storages/AccountStorage.sol";
 import "./LibQuote.sol";
 import "./LibAccount.sol";
+import "./LibEncryption.sol";
 
 library LibSettlement {
 	using MpcCore for gtUint256;
@@ -88,6 +89,7 @@ library LibSettlement {
 			gtSettleAmounts[data.partyBUpnlIndex] = gtSettleAmounts[data.partyBUpnlIndex].add(gtSignedImpact);
 
 			quote.openedPrice = MpcCore.offBoardCombined(gtUpdatedPrice, LibAccount.getUserEncryptionAddress(quote.partyA));
+			quoteLayout.observerQuoteValues[quote.id].openedPrice = LibEncryption.offBoardToObserver(gtUpdatedPrice);
 		}
 
 		gtInt256 gtTotalSettlementAmount = gtZeroInt;
@@ -117,7 +119,7 @@ library LibSettlement {
 				gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
 				gtUint256 gtAmount = gtSettlementAmount.fromSigned();
 				gtUint256 gtNewBalance = gtPartyBBalance.checkedSub(gtAmount);
-				accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyB));
+				LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtNewBalance);
 				
 				// Emit encrypted event
 				address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
@@ -128,7 +130,7 @@ library LibSettlement {
 				gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
 				gtUint256 gtAmount = gtZeroInt.sub(gtSettlementAmount).fromSigned();
 				gtUint256 gtNewBalance = gtPartyBBalance.checkedAdd(gtAmount);
-				accountLayout.partyBAllocatedBalances[partyB][partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyB));
+				LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtNewBalance);
 				
 				// Emit encrypted event
 				address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
@@ -143,7 +145,7 @@ library LibSettlement {
 			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
 			gtUint256 gtAmount = gtTotalSettlementAmount.fromSigned();
 			gtUint256 gtNewBalance = gtPartyABalance.checkedAdd(gtAmount);
-			accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyA));
+			LibEncryption.storePartyAAllocatedBalance(accountLayout, partyA, gtNewBalance);
 			
 			// Emit encrypted event
 			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
@@ -154,7 +156,7 @@ library LibSettlement {
 			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
 			gtUint256 gtAmount = gtZeroInt.sub(gtTotalSettlementAmount).fromSigned();
 			gtUint256 gtNewBalance = gtPartyABalance.checkedSub(gtAmount);
-			accountLayout.allocatedBalances[partyA] = MpcCore.offBoardCombined(gtNewBalance, LibAccount.getUserEncryptionAddress(partyA));
+			LibEncryption.storePartyAAllocatedBalance(accountLayout, partyA, gtNewBalance);
 			
 			// Emit encrypted event
 			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);

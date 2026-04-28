@@ -48,13 +48,23 @@ interface IViewFacet {
 
 	function allocatedBalanceOfPartyA(address partyA) external view returns (ctUint256 memory);
 
+	function observerAllocatedBalanceOfPartyA(address partyA) external view returns (ctUint256 memory);
+
 	function allocatedBalanceOfPartyB(address partyB, address partyA) external view returns (ctUint256 memory);
+
+	function observerAllocatedBalanceOfPartyB(address partyB, address partyA) external view returns (ctUint256 memory);
 
 	function balanceOfReserveVault(address partyB) external view returns (ctUint256 memory);
 
+	function observerBalanceOfReserveVault(address partyB) external view returns (ctUint256 memory);
+
 	function feeCollectorBalance(address feeCollector) external view returns (ctUint256 memory);
 
+	function observerFeeCollectorBalance(address feeCollector) external view returns (ctUint256 memory);
+
 	function allocatedBalanceOfPartyBs(address partyA, address[] memory partyBs) external view returns (ctUint256[] memory);
+
+	function observerAllocatedBalanceOfPartyBs(address partyA, address[] memory partyBs) external view returns (ctUint256[] memory);
 
 	function withdrawCooldownOf(address user) external view returns (uint256);
 
@@ -71,6 +81,8 @@ interface IViewFacet {
 	function getInvalidBridgedAmountsPool() external view returns (address);
 
 	function getSettlementStates(address partyA, address[] memory partyBs) external view returns (PlainSettlementState[] memory);
+
+	function getObserverSettlementStates(address partyA, address[] memory partyBs) external view returns (PlainSettlementState[] memory);
 
 	///////////////////////////////////////////
 
@@ -89,6 +101,8 @@ interface IViewFacet {
 
 	// Quotes
 	function getQuote(uint256 quoteId) external view returns (Quote memory);
+
+	function getObserverQuoteValues(uint256 quoteId) external view returns (ObserverQuoteValues memory);
 
 	function getQuotesByParent(uint256 quoteId, uint256 size) external view returns (Quote[] memory);
 

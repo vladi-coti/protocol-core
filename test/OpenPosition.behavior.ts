@@ -251,7 +251,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 		const feeCollector = await context.viewFacet.getFeeCollector(context.multiAccount)
 		const beforePlainBalance = await context.viewFacet.balanceOf(feeCollector)
 
-		await context.controlFacet.connect(context.signers.admin).setTrustedEncryptionAddress(ethers.ZeroAddress)
+		await context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(ethers.ZeroAddress)
 		await hedger.openPosition(quoteDataArray[4], marketOpenRequestBuilder().filledAmount(filledAmount).openPrice(openedPrice).price(decimal(1n)).build())
 
 		expect(await context.viewFacet.balanceOf(feeCollector)).to.equal(beforePlainBalance)
@@ -293,7 +293,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 			await (await context.accountFacet.connect(context.signers.hedger2).allocateForPartyB(unDecimal(notional * decimal(12n, 17)), parentQuote.partyA)).wait()
 
 			// Disable trusted mode for the final tx so the event keying bug is observable in the test.
-			await (await context.controlFacet.connect(context.signers.admin).setTrustedEncryptionAddress(ethers.ZeroAddress)).wait()
+			await (await context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(ethers.ZeroAddress)).wait()
 
 			const openRequest = limitOpenRequestBuilder()
 				.filledAmount(filledAmount)
