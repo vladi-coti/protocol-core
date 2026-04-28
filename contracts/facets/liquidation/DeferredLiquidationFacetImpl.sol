@@ -67,6 +67,10 @@ library DeferredLiquidationFacetImpl {
 			disputed: false,
 			liquidationTimestamp: liquidationSig.liquidationTimestamp
 		});
+		accountLayout.settlementStates[partyA][address(0)].actualAmount = MpcCore.offBoardCombined(
+			MpcCore.setPublic256(int256(0)),
+			LibAccount.getUserEncryptionAddress(partyA)
+		);
 		accountLayout.liquidators[partyA].push(msg.sender);
 	}
 

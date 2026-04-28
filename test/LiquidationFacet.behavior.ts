@@ -27,6 +27,7 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 
 		liquidator = new User(context, context.signers.liquidator)
 		await liquidator.setup()
+		await context.accountFacet.connect(context.signers.liquidator).allocate(0)
 
 		hedger = new Hedger(context, context.signers.hedger)
 		await hedger.setup()
@@ -187,7 +188,7 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 					const partyBAfter = hedgerBalance.allocatedBalances + pnl + userBalance.lockedCva
 
 					await user.settleLiquidation()
-					expect(await context.viewFacet.allocatedBalanceOfPartyB(hedgerAddress, userAddress)).to.be.equal(partyBAfter)
+					expect(await hedger.decryptUint256(await context.viewFacet.allocatedBalanceOfPartyB(hedgerAddress, userAddress))).to.be.equal(partyBAfter)
 					let balanceInfoOfLiquidator = await liquidator.getBalanceInfo()
 					expect(balanceInfoOfLiquidator.allocatedBalances).to.be.equal(diff)
 				})
@@ -224,7 +225,7 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 				await user.liquidatePositions([1])
 				await user.settleLiquidation()
 
-				expect(await context.viewFacet.allocatedBalanceOfPartyB(hedger.getAddress(), user.getAddress())).to.be.equal(decimal(856n))
+				expect(await hedger.decryptUint256(await context.viewFacet.allocatedBalanceOfPartyB(hedger.getAddress(), user.getAddress()))).to.be.equal(decimal(856n))
 				let balanceInfoOfLiquidator = await liquidator.getBalanceInfo()
 				expect(balanceInfoOfLiquidator.allocatedBalances).to.be.equal(decimal(0n))
 			})

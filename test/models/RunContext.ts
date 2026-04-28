@@ -7,8 +7,8 @@ import {
 	DiamondCutFacet,
 	DiamondLoupeFacet,
 	ForceActionsFacet,
-	ForceCloseFacet,
 	FundingRateFacet,
+	IForceActionsFacet,
 	ISymmio,
 	LiquidationFacet,
 	LiquidationPositionsFacet,
@@ -43,7 +43,7 @@ export class RunContext {
 	fundingRateFacet!: FundingRateFacet
 	settlementFacet!: SettlementFacet
 	forceActionsFacet!: ForceActionsFacet
-	forceCloseFacet!: ForceCloseFacet
+	forceCloseFacet!: IForceActionsFacet
 	recoveryActionsFacet!: RecoveryActionsFacet
 	signers!: {
 		admin: Wallet
@@ -110,7 +110,7 @@ export async function createRunContext(
 	context.fundingRateFacet = await ethers.getContractAt("FundingRateFacet", diamond)
 	context.settlementFacet = await ethers.getContractAt("SettlementFacet", diamond)
 	context.forceActionsFacet = await ethers.getContractAt("ForceActionsFacet", diamond)
-	context.forceCloseFacet = await ethers.getContractAt("ForceCloseFacet", diamond)
+	context.forceCloseFacet = await ethers.getContractAt("IForceActionsFacet", diamond)
 	context.recoveryActionsFacet = await ethers.getContractAt("RecoveryActionsFacet", diamond)
 
 	context.manager = new TestManager(context, onlyInitialize)

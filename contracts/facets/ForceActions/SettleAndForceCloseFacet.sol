@@ -9,29 +9,36 @@ import "../../utils/Pausable.sol";
 import "../../interfaces/IPartiesEvents.sol";
 import "./ForceActionsFacetEvents.sol";
 import "./ForceActionsFacetImpl.sol";
+import "../Settlement/SettlementFacetEvents.sol";
 import "../../libraries/LibEncryption.sol";
 
-contract ForceCloseFacet is Accessibility, Pausable, IPartiesEvents, ForceActionsFacetEvents {
+contract SettleAndForceCloseFacet is Accessibility, Pausable, IPartiesEvents, ForceActionsFacetEvents, SettlementFacetEvents {
 	using MpcCore for gtUint256;
 	using LockedValuesOps for LockedValues;
 
 	/**
-	 * @notice Forces the closure of the position associated with the specified quote.
+	 * @notice Settles positions then forces closure of the specified quote.
 	 * @param quoteId The ID of the quote for which the position should be forced to close.
-	 * @param sig The Muon signature.
+	 * @param highLowPriceSig The Muon signature.
+	 * @param settleSig The settlement data for related positions.
+	 * @param updatedPrices New prices to be set as openedPrice for the specified quotes.
 	 */
-	function forceClosePosition(uint256 quoteId, HighLowPriceSig memory sig) external notLiquidated(quoteId) whenNotPartyAActionsPaused {
+	function settleAndForceClosePosition(
+		uint256 quoteId,
+		HighLowPriceSig memory highLowPriceSig,
+		SettlementSig memory settleSig,
+		uint256[] memory updatedPrices
+	) external notLiquidated(quoteId) whenNotPartyAActionsPaused {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
 
 		gtUint256 gtQuantityToClose = LockedValuesOps.safeOnboard(quote.quantityToClose.ciphertext);
 
-		SettlementSig memory settleSig;
 		(gtUint256 gtClosePrice, bool isPartyBLiquidated, gtInt256 gtUpnlPartyB, gtUint256 gtPartyBAllocatedBalance) = ForceActionsFacetImpl.forceClosePosition(
 			quoteId,
-			sig,
+			highLowPriceSig,
 			settleSig,
-			new uint256[](0)
+			updatedPrices
 		);
 		address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
 
@@ -47,6 +54,18 @@ contract ForceCloseFacet is Accessibility, Pausable, IPartiesEvents, ForceAction
 				LibEncryption.offBoardToObserver(gtUpnlPartyB)
 			);
 		} else {
+			ctUint256[] memory newPartyBsAllocatedBalances = new ctUint256[](1);
+			newPartyBsAllocatedBalances[0] = AccountStorage.layout().partyBAllocatedBalances[quote.partyB][quote.partyA].userCiphertext;
+			ctUint256 memory ctAllocatedBalance = AccountStorage.layout().allocatedBalances[msg.sender].userCiphertext;
+
+			emit SettleUpnl(
+				settleSig.quotesSettlementsData,
+				updatedPrices,
+				msg.sender,
+				ctAllocatedBalance,
+				newPartyBsAllocatedBalances
+			);
+
 			{
 				address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
 				ctUint256 memory ctFilledAmount = MpcCore.offBoardToUser(gtQuantityToClose, partyAEncryptionAddress);
@@ -69,5 +88,4 @@ contract ForceCloseFacet is Accessibility, Pausable, IPartiesEvents, ForceAction
 			);
 		}
 	}
-
 }

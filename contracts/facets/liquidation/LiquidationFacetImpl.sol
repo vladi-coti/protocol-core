@@ -29,6 +29,38 @@ library LiquidationFacetImpl {
         return MpcCore.mux(gtHasMadeProfit, gtZero.sub(gtLossAmount), gtProfitAmount);
     }
 
+    function _initializeLiquidationAccumulator(AccountStorage.Layout storage accountLayout, address partyA) private {
+        accountLayout.settlementStates[partyA][address(0)].actualAmount = MpcCore.offBoardCombined(
+            MpcCore.setPublic256(int256(0)),
+            LibAccount.getUserEncryptionAddress(partyA)
+        );
+    }
+
+    function _updateLiquidationAccumulator(AccountStorage.Layout storage accountLayout, address partyA, address partyB) private {
+        gtInt256 gtZero = MpcCore.setPublic256(int256(0));
+        gtInt256 gtSettleAmount = MpcCore.onBoard(accountLayout.settlementStates[partyA][partyB].expectedAmount.ciphertext);
+        gtInt256 gtContribution;
+        if (MpcCore.decrypt(gtSettleAmount.lt(gtZero))) {
+            gtContribution = gtSettleAmount;
+        } else {
+            gtInt256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext).toSigned();
+            gtContribution = MpcCore.decrypt(gtPartyBBalance.ge(gtSettleAmount)) ? gtSettleAmount : gtPartyBBalance;
+        }
+        gtInt256 gtCurrentAccumulated = MpcCore.onBoard(accountLayout.settlementStates[partyA][address(0)].actualAmount.ciphertext);
+        gtInt256 gtNewAccumulated = gtCurrentAccumulated.add(gtContribution);
+        accountLayout.settlementStates[partyA][address(0)].actualAmount = MpcCore.offBoardCombined(
+            gtNewAccumulated,
+            LibAccount.getUserEncryptionAddress(partyA)
+        );
+    }
+
+    function _isLiquidationAccumulatorDisputed(AccountStorage.Layout storage accountLayout, address partyA) private returns (bool) {
+        gtInt256 gtAccumulated = MpcCore.onBoard(accountLayout.settlementStates[partyA][address(0)].actualAmount.ciphertext);
+        gtInt256 gtExpectedUpnl = MpcCore.setPublic256(accountLayout.liquidationDetails[partyA].upnl);
+        gtBool gtMatches = gtAccumulated.ge(gtExpectedUpnl).and(gtExpectedUpnl.ge(gtAccumulated));
+        return !MpcCore.decrypt(gtMatches);
+    }
+
     function liquidatePartyA(address partyA, LiquidationSig memory liquidationSig) internal {
         MAStorage.Layout storage maLayout = MAStorage.layout();
         AccountStorage.Layout storage accountLayout = AccountStorage.layout();
@@ -55,6 +87,7 @@ library LiquidationFacetImpl {
             disputed: false,
             liquidationTimestamp: liquidationSig.timestamp
         });
+        _initializeLiquidationAccumulator(accountLayout, partyA);
         accountLayout.liquidators[partyA].push(msg.sender);
     }
 
@@ -286,27 +319,12 @@ library LiquidationFacetImpl {
             quoteLayout.partyBPositionsCount[quote.partyB][partyA] -= 1;
 
             if (quoteLayout.partyBPositionsCount[quote.partyB][partyA] == 0) {
-                // Convert ctInt256 to gtInt256 using MpcCore.onBoard
-                gtInt256 gtSettleAmount = MpcCore.onBoard(accountLayout.settlementStates[partyA][quote.partyB].expectedAmount.ciphertext);
-                int256 settleAmount = MpcCore.decrypt(gtSettleAmount);
-                
-                if (settleAmount < 0) {
-                    accountLayout.liquidationDetails[partyA].partyAAccumulatedUpnl += settleAmount;
-                } else {
-                    gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][partyA].ciphertext);
-                    uint256 partyBBalance = MpcCore.decrypt(gtPartyBBalance);
-                    
-                    if (partyBBalance >= uint256(settleAmount)) {
-                        accountLayout.liquidationDetails[partyA].partyAAccumulatedUpnl += settleAmount;
-                    } else {
-                        accountLayout.liquidationDetails[partyA].partyAAccumulatedUpnl += int256(partyBBalance);
-                    }
-                }
+                _updateLiquidationAccumulator(accountLayout, partyA, quote.partyB);
             }
         }
         if (
             quoteLayout.partyAPositionsCount[partyA] == 0 &&
-            accountLayout.liquidationDetails[partyA].partyAAccumulatedUpnl != accountLayout.liquidationDetails[partyA].upnl
+            _isLiquidationAccumulatorDisputed(accountLayout, partyA)
         ) {
             accountLayout.liquidationDetails[partyA].disputed = true;
             return (true, liquidatedAmounts, closeIds, liquidationId);
@@ -450,6 +468,7 @@ library LiquidationFacetImpl {
                 emit SharedEvents.BalanceChangePartyA(accountLayout.liquidators[partyA][1], ctLf2, SharedEvents.BalanceChangeType.LF_IN);
             }
             delete accountLayout.liquidators[partyA];
+            delete accountLayout.settlementStates[partyA][address(0)];
             delete accountLayout.liquidationDetails[partyA].liquidationType;
             MAStorage.layout().liquidationStatus[partyA] = false;
             accountLayout.partyANonces[partyA] += 1;

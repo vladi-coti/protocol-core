@@ -11,6 +11,7 @@ export const FacetNames = [
 	"FundingRateFacet",
 	"ForceActionsFacet",
 	"ForceCloseFacet",
+	"SettleAndForceCloseFacet",
 	"RecoveryActionsFacet",
 	"SettlementFacet",
 	"PartyBPositionActionsFacet",
