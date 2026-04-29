@@ -133,6 +133,7 @@ library AccountFacetImpl {
 
 	function internalTransfer(address user, uint256 amount) internal {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		LibAccount.initializePartyA(user);
 
 		// Check limit using encrypted comparison
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[user].ciphertext);

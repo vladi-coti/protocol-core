@@ -293,11 +293,6 @@ export function shouldBehaveLikeAccountFacet(): void {
 		beforeEach(async () => {
 			user2 = new User(context, context.signers.user2)
 			await user2.setup()
-			await user2.setBalances("500")
-
-			hedger = new Hedger(context, context.signers.hedger)
-			await hedger.setup()
-			await hedger.setBalances("500")
 
 			await context.accountFacet.connect(context.signers.user).deposit("300")
 		})
@@ -310,6 +305,17 @@ export function shouldBehaveLikeAccountFacet(): void {
 			expect(allocatedBalance).to.be.equal("250")
 
 			expect(await context.viewFacet.balanceOf(await user.getAddress())).to.be.equal("50")
+		})
+
+		it("should initialize fresh recipient encrypted state for later deallocate", async () => {
+			await context.accountFacet.connect(context.signers.user).internalTransfer(await user2.getAddress(), "250")
+
+			await context.accountFacet.connect(context.signers.user2).deallocate("50", await getDummySingleUpnlSig())
+
+			expect(await context.viewFacet.balanceOf(await user2.getAddress())).to.be.equal("50")
+			const ctAllocatedBalance = await context.viewFacet.allocatedBalanceOfPartyA(await user2.getAddress())
+			const allocatedBalance = await decryptUint256(context, ctAllocatedBalance, context.signers.user2)
+			expect(allocatedBalance).to.be.equal("200")
 		})
 	})
 }

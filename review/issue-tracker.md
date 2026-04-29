@@ -35,7 +35,7 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 25 | [`report4#2`](report4.md#L12-L50) | deferred | Solver-side threshold oracle accepted under RFQ privacy model |
 | 26 | [`report4#3`](report4.md#L51-L64) | partial | Avoidable full/partial close branch leaks removed; final lifecycle state remains public |
 | 27 | [`report4#4`](report4.md#L65-L67) | fixed | `setEncryptionAddress` re-encrypts tracked partyB-side balances |
-| 28 | [`report4#5`](report4.md#L68-L70) | open | `internalTransfer` does not initialize recipient encrypted state |
+| 28 | [`report4#5`](report4.md#L68-L70) | fixed | `internalTransfer` initializes recipient encrypted state |
 | 29 | [`report4#6`](report4.md#L71-L79) | open | Trusted-mode early return strands key rotation |
 | 30 | [`report4#7`](report4.md#L80-L95) | open | Misleading `mux` wrapper semantics |
 | 31 | [`report4#8`](report4.md#L96-L106) | open | `initializePartyB` couples independent slots under one gate |
@@ -64,6 +64,10 @@ Issue 26 has two parts. The fix removes avoidable decrypted equality branches an
 ### Issue 27 Note
 
 PartyB key rotation now tracks PartyB-to-PartyA relationships and re-encrypts PartyB allocated, locked, and pending locked balances for every tracked PartyA. Settlement state remains encrypted to PartyA plus the trusted observer copy; it is not PartyB self-decryption state.
+
+### Issue 28 Note
+
+`internalTransfer` now initializes the recipient as PartyA before crediting encrypted allocation. This writes encrypted zero `allocatedBalances`, `lockedBalances`, and `pendingLockedBalances` for fresh recipients, so later PartyA solvency and deallocation paths can safely onboard those slots.
 
 - Total original findings across the five reports: `42`
 - Total tracked findings in this file: `42`
