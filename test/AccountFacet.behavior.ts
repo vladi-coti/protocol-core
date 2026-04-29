@@ -124,6 +124,22 @@ export function shouldBehaveLikeAccountFacet(): void {
 			expect(await context.collateral.balanceOf(userAddress)).to.equal("0")
 		})
 
+		it("Should keep user key rotation independent from observer mode", async function () {
+			const userAddress = await user.getAddress()
+			await context.accountFacet.connect(context.signers.user).allocate("100")
+
+			await context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(context.signers.liquidator.address)
+			await context.accountFacet.connect(context.signers.user).setEncryptionAddress(context.signers.user2.address)
+
+			const observerAllocatedBalance = await context.viewFacet.observerAllocatedBalanceOfPartyA(userAddress)
+			expect(await decryptUint256(context, observerAllocatedBalance, context.signers.liquidator)).to.equal(100n)
+
+			await context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(ethers.ZeroAddress)
+
+			const rotatedAllocatedBalance = await context.viewFacet.allocatedBalanceOfPartyA(userAddress)
+			expect(await decryptUint256(context, rotatedAllocatedBalance, context.signers.user2)).to.equal(100n)
+		})
+
 		describe("Deallocate", async function () {
 			beforeEach(async function () {
 				await context.accountFacet.connect(context.signers.user).allocate("300")
