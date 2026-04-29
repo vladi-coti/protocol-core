@@ -26,14 +26,21 @@ library LibLiquidation {
 	 * @param timestamp The timestamp of the liquidation.
 	 */
 	function liquidatePartyB(address partyB, address partyA, int256 upnlPartyB, uint256 timestamp) internal {
+		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
+		_liquidatePartyBFromAvailable(partyB, partyA, gtAvailableBalance, timestamp);
+	}
+
+	function liquidatePartyBFromAvailable(address partyB, address partyA, gtInt256 gtAvailableBalance, uint256 timestamp) internal {
+		_liquidatePartyBFromAvailable(partyB, partyA, gtAvailableBalance, timestamp);
+	}
+
+	function _liquidatePartyBFromAvailable(address partyB, address partyA, gtInt256 gtAvailableBalance, uint256 timestamp) private {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		MAStorage.Layout storage maLayout = MAStorage.layout();
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 
 		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
 		address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
-		// Calculate available balance for liquidation (returns encrypted)
-		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
 		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
 
 		// Ensure Party B is insolvent (decrypt for comparison)

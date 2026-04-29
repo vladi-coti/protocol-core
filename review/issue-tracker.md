@@ -42,8 +42,8 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 32 | [`report4#9`](report4.md#L107-L117) | fixed | Removed stale `LibMuon.getChainId()` development FIXME |
 | 33 | [`report4#10`](report4.md#L118-L120) | fixed | Ciphertext read API migration documented |
 | 34 | [`report4#11`](report4.md#L121-L124) | fixed | `setEncryptionAddress` guards account state and writes mapping last |
-| 35 | [`report5#1`](report5.md#L1-L10) | partial | `forceClosePosition` decrypts negative available balance |
-| 36 | [`report5#2`](report5.md#L11-L19) | open | `forceClosePosition` decrypts `quantityToClose` and `closePrice` |
+| 35 | [`report5#1`](report5.md#L1-L10) | fixed | Reserve-covered force close keeps deficit amount encrypted |
+| 36 | [`report5#2`](report5.md#L11-L19) | fixed | Force-close liquidation computes close PnL delta in MPC |
 | 37 | [`report5#3`](report5.md#L20-L35) | partial | Liquidation flows decrypt full financial state |
 | 38 | [`report5#4`](report5.md#L36-L40) | open | `settlementStates` offboarded to partyA key only |
 | 39 | [`report5#5`](report5.md#L41-L48) | open | Generic validation error regresses UX/debuggability |
@@ -92,6 +92,14 @@ The read API change is intentional for the privacy fork: sensitive `ViewFacet` r
 ### Issue 34 Note
 
 `setEncryptionAddress` now uses the same pause, suspension, and PartyA liquidation guards as account mutations. PartyB key rotation also checks each tracked PartyA pair against `partyBLiquidationStatus` before re-encrypting PartyB-side balances. The `userEncryptionAddress` mapping write was moved after all re-encryption work succeeds; revert rollback already protected atomicity, but the new order removes the audit footgun.
+
+### Issue 35 Note
+
+The reserve-covered `forceClosePosition` branch no longer decrypts PartyB's deficit magnitude. It computes `-partyBAvailableBalance`, subtracts reserve vault coverage, credits PartyB allocated balance, and emits the PartyB balance change using encrypted `gtUint256` math.
+
+### Issue 36 Note
+
+The PartyB liquidation branch in `forceClosePosition` no longer decrypts `quantityToClose` or `closePrice`. PartyB's close PnL delta is computed with MPC signed arithmetic, and force close passes the already-computed encrypted post-close available balance into `LibLiquidation`. The remaining liquidation-internal decrypts of available balance and liquidation fee are the broader liquidation privacy problem tracked under Issue 37.
 
 - Total original findings across the five reports: `42`
 - Total tracked findings in this file: `42`

@@ -158,7 +158,9 @@ library ForceActionsFacetImpl {
 		gtClosedPrices[0] = gtClosePrice;
 		gtUpnlPartyB = MpcCore.setPublic256(int256(0)); // Initialize to zero
 		marketPrices[0] = sig.currentPrice;
-		(gtInt256 gtPartyBAvailableBalance, gtInt256 gtPartyAAvailableBalance) = LibSolvency.getAvailableBalanceAfterClosePosition(
+		gtInt256 gtPartyBAvailableBalance;
+		gtInt256 gtPartyAAvailableBalance;
+		(gtPartyBAvailableBalance, gtPartyAAvailableBalance, gtUpnlPartyB) = LibSolvency.getAvailableBalanceAndPartyBUpnlAfterClosePosition(
 			quoteIds,
 			gtFilledAmounts,
 			gtClosedPrices,
@@ -216,17 +218,8 @@ library ForceActionsFacetImpl {
 				// Emit encrypted event
 				ctUint256 memory ctReserveAmount = MpcCore.offBoardToUser(gtReserveAmount, LibAccount.getUserEncryptionAddress(quote.partyB));
 				emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, ctReserveAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
-				// Decrypt for diff calculation (needed for liquidation)
-				uint256 quantityToClose = MpcCore.decrypt(gtQuantityToClose);
-				uint256 closePrice = MpcCore.decrypt(gtClosePrice);
-				int256 diff = (int256(quantityToClose) * (int256(closePrice) - int256(sig.currentPrice))) / 1e18;
-				if (quote.positionType == PositionType.LONG) {
-					diff = diff * -1;
-				}
 				isPartyBLiquidated = true;
-				int256 upnlPartyBPlain = sig.upnlPartyB + diff;
-				LibLiquidation.liquidatePartyB(quote.partyB, quote.partyA, upnlPartyBPlain, block.timestamp);
-				gtUpnlPartyB = MpcCore.setPublic256(uint256(upnlPartyBPlain)).toSigned();
+				LibLiquidation.liquidatePartyBFromAvailable(quote.partyB, quote.partyA, gtPartyBAvailableBalance, block.timestamp);
 			}
 		}
 		// Get encrypted PartyB allocated balance for return (get fresh value)

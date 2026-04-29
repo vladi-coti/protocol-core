@@ -158,6 +158,63 @@ library LibSolvency {
 		return (gtPartyBAvailableBalance, gtPartyAAvailableBalance);
 	}
 
+	function getAvailableBalanceAndPartyBUpnlAfterClosePosition(
+		uint256[] memory quoteIds,
+		gtUint256[] memory gtFilledAmounts,
+		gtUint256[] memory gtClosedPrices,
+		uint256[] memory marketPrices,
+		int256 upnlPartyB,
+		int256 upnlPartyA,
+		address partyB,
+		address partyA
+	) internal returns (gtInt256, gtInt256, gtInt256) {
+		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
+		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(upnlPartyA, partyA);
+		gtInt256 gtPartyBUpnlAfterClose = MpcCore.setPublic256(upnlPartyB);
+		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
+
+		for (uint8 i = 0; i < quoteIds.length; i++) {
+			uint256 quoteId = quoteIds[i];
+			gtUint256 gtFilledAmount = gtFilledAmounts[i];
+			gtUint256 gtClosedPrice = gtClosedPrices[i];
+			uint256 marketPrice = marketPrices[i];
+			Quote storage quote = QuoteStorage.layout().quotes[quoteId];
+
+			GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
+			gtUint256 gtCvaLf = gtLockedValues.cva.checkedAdd(gtLockedValues.lf);
+			gtUint256 gtQuoteOpenAmount = LibQuote.quoteOpenAmount(quote);
+			gtUint256 gtUnlockedAmount = gtFilledAmount.checkedMul(gtCvaLf).div(gtQuoteOpenAmount);
+
+			gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtUnlockedAmount.toSigned());
+			gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(gtUnlockedAmount.toSigned());
+
+			gtUint256 gtMarketPrice = MpcCore.setPublic256(marketPrice);
+			gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e18));
+
+			if (quote.positionType == PositionType.LONG) {
+				gtBool gtClosedPriceGteMarket = gtClosedPrice.ge(gtMarketPrice);
+				gtUint256 gtPriceDiff = MpcCore.max(gtClosedPrice, gtMarketPrice).checkedSub(MpcCore.min(gtClosedPrice, gtMarketPrice));
+				gtInt256 gtDiff = gtFilledAmount.checkedMul(gtPriceDiff).div(gtScaleFactor).toSigned();
+				gtInt256 gtPartyBDelta = MpcCore.mux(gtClosedPriceGteMarket, gtDiff, gtZero.sub(gtDiff));
+
+				gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtPartyBDelta);
+				gtPartyAAvailableBalance = MpcCore.mux(gtClosedPriceGteMarket, gtPartyAAvailableBalance.sub(gtDiff), gtPartyAAvailableBalance.add(gtDiff));
+				gtPartyBUpnlAfterClose = gtPartyBUpnlAfterClose.add(gtPartyBDelta);
+			} else if (quote.positionType == PositionType.SHORT) {
+				gtBool gtClosedPriceLteMarket = gtClosedPrice.le(gtMarketPrice);
+				gtUint256 gtPriceDiff = MpcCore.max(gtClosedPrice, gtMarketPrice).checkedSub(MpcCore.min(gtClosedPrice, gtMarketPrice));
+				gtInt256 gtDiff = gtFilledAmount.checkedMul(gtPriceDiff).div(gtScaleFactor).toSigned();
+				gtInt256 gtPartyBDelta = MpcCore.mux(gtClosedPriceLteMarket, gtDiff, gtZero.sub(gtDiff));
+
+				gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtPartyBDelta);
+				gtPartyAAvailableBalance = MpcCore.mux(gtClosedPriceLteMarket, gtPartyAAvailableBalance.sub(gtDiff), gtPartyAAvailableBalance.add(gtDiff));
+				gtPartyBUpnlAfterClose = gtPartyBUpnlAfterClose.add(gtPartyBDelta);
+			}
+		}
+
+		return (gtPartyBAvailableBalance, gtPartyAAvailableBalance, gtPartyBUpnlAfterClose);
+	}
+
 	/**
 	 * @dev Checks whether both parties (Party A and Party B) will remain solvent after closing positions for given quotes.
 	 * @param quoteIds The ID of the quotes for which the position is being closed.
