@@ -31,6 +31,18 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 		gtUint256 gtFilledAmount = MpcCore.validateCiphertext(encryptedParams.encryptedFilledAmount);
 		gtUint256 gtOpenedPrice = MpcCore.validateCiphertext(encryptedParams.encryptedOpenedPrice);
 		uint256 newId = PartyBPositionActionsFacetImpl.openPosition(quoteId, gtFilledAmount, gtOpenedPrice, pairUpnlSig);
+		{
+			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
+			ctUint256 memory filledAmount = MpcCore.offBoardToUser(gtFilledAmount, partyAEncryptionAddress);
+			ctUint256 memory openedPrice = MpcCore.offBoardToUser(gtOpenedPrice, partyAEncryptionAddress);
+			emit OpenPositionForPartyA(quoteId, quote.partyA, quote.partyB, EncryptedPositionValues(filledAmount, openedPrice));
+		}
+		{
+			address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
+			ctUint256 memory filledAmount = MpcCore.offBoardToUser(gtFilledAmount, partyBEncryptionAddress);
+			ctUint256 memory openedPrice = MpcCore.offBoardToUser(gtOpenedPrice, partyBEncryptionAddress);
+			emit OpenPositionForPartyB(quoteId, quote.partyA, quote.partyB, EncryptedPositionValues(filledAmount, openedPrice));
+		}
 		if (newId != 0) {
 			Quote storage newQuote = QuoteStorage.layout().quotes[newId];
 			if (newQuote.quoteStatus == QuoteStatus.PENDING) {

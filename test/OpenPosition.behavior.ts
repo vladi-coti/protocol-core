@@ -302,7 +302,47 @@ export function shouldBehaveLikeOpenPosition(): void {
 
 	describe("Group Actions", async function () {
 		it("Should lock and open quote", async function () {
-			await hedger2.lockAndOpenQuote(quoteDataArray[3])
+			const quoteData = quoteDataArray[3]
+			const filledAmount = await getQuoteQuantity(context, quoteData.quoteId)
+			const openedPrice = decimal(1n)
+			const openRequest = limitOpenRequestBuilder()
+				.filledAmount(filledAmount)
+				.openPrice(openedPrice)
+				.build()
+			const parentQuote = await context.viewFacet.getQuote(quoteData.quoteId)
+			const requestedOpenPrice = await decryptUint256(context, parentQuote.requestedOpenPrice.userCiphertext, context.signers.user)
+			const notional = unDecimal(filledAmount * requestedOpenPrice)
+			await (await context.accountFacet.connect(context.signers.hedger2).allocateForPartyB(unDecimal(notional * decimal(12n, 17)), parentQuote.partyA)).wait()
+			const {encryptedParams, upnlSig} = await hedger2.buildOpenPositionCalldataArgs(
+				openRequest,
+				context.partyBGroupActionsFacet.interface.getFunction("lockAndOpenQuote").selector,
+			)
+			const tx = await context.partyBGroupActionsFacet.connect(context.signers.hedger2).lockAndOpenQuote(
+				quoteData.quoteId,
+				encryptedParams,
+				await getDummySingleUpnlSig(BigInt(openRequest.upnlPartyA)),
+				upnlSig,
+			)
+			const receipt = await tx.wait()
+			const partyAEvent = receipt!.logs.find((log: any): log is EventLog => (log as EventLog).eventName === "OpenPositionForPartyA")
+			const partyBEvent = receipt!.logs.find((log: any): log is EventLog => (log as EventLog).eventName === "OpenPositionForPartyB")
+
+			expect(partyAEvent).to.not.be.undefined
+			expect(partyBEvent).to.not.be.undefined
+
+			const partyAArgs = partyAEvent!.args as any[]
+			const partyBArgs = partyBEvent!.args as any[]
+
+			expect(partyAArgs[0]).to.equal(quoteData.quoteId)
+			expect(partyAArgs[1]).to.equal(context.signers.user.address)
+			expect(partyAArgs[2]).to.equal(context.signers.hedger2.address)
+			expect(partyBArgs[0]).to.equal(quoteData.quoteId)
+			expect(partyBArgs[1]).to.equal(context.signers.user.address)
+			expect(partyBArgs[2]).to.equal(context.signers.hedger2.address)
+			expect(await context.signers.user.decryptUint256(partyAArgs[3].filledAmount)).to.equal(filledAmount)
+			expect(await context.signers.user.decryptUint256(partyAArgs[3].openedPrice)).to.equal(openedPrice)
+			expect(await context.signers.hedger2.decryptUint256(partyBArgs[3].filledAmount)).to.equal(filledAmount)
+			expect(await context.signers.hedger2.decryptUint256(partyBArgs[3].openedPrice)).to.equal(openedPrice)
 			expect((await context.viewFacet.getQuote(3)).quoteStatus).to.be.eq(QuoteStatus.OPENED)
 		})
 
@@ -358,7 +398,9 @@ export function shouldBehaveLikeOpenPosition(): void {
 			const remainingQuantity = quantity - filledAmount
 
 			expect(args[0]).to.equal(context.signers.user.address)
+			expect(args[1]).to.equal(5n)
 			expect(partyBArgs[0]).to.equal(context.signers.user.address)
+			expect(partyBArgs[1]).to.equal(5n)
 			expect(partyBArgs[2]).to.equal(context.signers.hedger2.address)
 			expect(partyADecryptedQuantity).to.equal(remainingQuantity)
 			expect(partyADecryptedPrice).to.equal(requestedOpenPrice)
