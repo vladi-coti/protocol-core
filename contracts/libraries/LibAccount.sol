@@ -305,17 +305,20 @@ library LibAccount {
 			accountLayout.partyBConnectedPartyAs[partyB].push(partyA);
 		}
 
-		// Initialize Party B locked balances for this Party A if uninitialized
 		LockedValues storage lockedBalances = accountLayout.partyBLockedBalances[partyB][partyA];
 		LockedValues storage pendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA];
 		SettlementState storage settlementState = accountLayout.settlementStates[partyA][partyB];
 
 		if (lockedBalances.isUninitialized()) {
 			lockedBalances.initializeToZeros(encryptionAddress);
-			pendingLockedBalances.initializeToZeros(encryptionAddress);
-			initializeToZeros(settlementState, getUserEncryptionAddress(partyA));
 			accountLayout.observerPartyBLockedBalances[partyB][partyA] = _observerLockedZeros();
+		}
+		if (pendingLockedBalances.isUninitialized()) {
+			pendingLockedBalances.initializeToZeros(encryptionAddress);
 			accountLayout.observerPartyBPendingLockedBalances[partyB][partyA] = _observerLockedZeros();
+		}
+		if (_isSettlementStateUninitialized(settlementState)) {
+			initializeToZeros(settlementState, getUserEncryptionAddress(partyA));
 			initializeObserverToZeros(accountLayout.observerSettlementStates[partyA][partyB]);
 		}
 
@@ -438,6 +441,17 @@ library LibAccount {
 		self.actualAmount = LibEncryption.offBoardToObserver(gtZeroInt);
 		self.expectedAmount = LibEncryption.offBoardToObserver(gtZeroInt);
 		self.cva = LibEncryption.offBoardToObserver(gtZeroUint);
+	}
+
+	function _isSettlementStateUninitialized(SettlementState storage self) private view returns (bool) {
+		return (
+			ctInt128.unwrap(self.actualAmount.ciphertext.ciphertextHigh) == 0 &&
+			ctInt128.unwrap(self.actualAmount.ciphertext.ciphertextLow) == 0 &&
+			ctInt128.unwrap(self.expectedAmount.ciphertext.ciphertextHigh) == 0 &&
+			ctInt128.unwrap(self.expectedAmount.ciphertext.ciphertextLow) == 0 &&
+			ctUint128.unwrap(self.cva.ciphertext.ciphertextHigh) == 0 &&
+			ctUint128.unwrap(self.cva.ciphertext.ciphertextLow) == 0
+		);
 	}
 
 	function _observerLockedZeros() private returns (UserLockedValues memory) {

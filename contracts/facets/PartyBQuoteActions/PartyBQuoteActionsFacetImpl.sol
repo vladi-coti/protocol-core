@@ -21,8 +21,7 @@ library PartyBQuoteActionsFacetImpl {
 		Quote storage quote = quoteLayout.quotes[quoteId];
 		LibMuonPartyB.verifyPartyBUpnl(upnlSig, msg.sender, quote.partyA);
 		
-		// Initialize locked balances to encrypted zeros if uninitialized
-		_ensureInitializedPartyBLockedBalances(msg.sender, quote.partyA);
+		LibAccount.initializePartyB(msg.sender, quote.partyA);
 		
 		// Only decrypt the final predicates, not the underlying balance magnitudes.
 		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, quote.partyA);
@@ -91,29 +90,4 @@ library PartyBQuoteActionsFacetImpl {
 		LibQuote.removeFromPendingQuotes(quote);
 	}
 
-	/**
-	 * @notice Ensures that Party B locked balances are initialized to encrypted zeros.
-	 * @param partyB The address of Party B.
-	 * @param partyA The address of Party A.
-	 */
-	function _ensureInitializedPartyBLockedBalances(address partyB, address partyA) internal {
-		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		
-		// Check if locked balances are uninitialized (all zeros in ciphertext)
-		LockedValues storage lockedBalances = accountLayout.partyBLockedBalances[partyB][partyA];
-		LockedValues storage pendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA];
-		SettlementState storage settlementState = accountLayout.settlementStates[partyA][partyB];
-		
-		// Initialize locked balances if they contain garbage values
-		if (lockedBalances.isUninitialized()) {
-			lockedBalances.initializeToZeros(LibAccount.getUserEncryptionAddress(partyB));
-			accountLayout.observerPartyBLockedBalances[partyB][partyA] = LibEncryption.offBoardLockedToObserver(lockedBalances.onBoard());
-			LibAccount.initializeToZeros(settlementState, LibAccount.getUserEncryptionAddress(partyA));
-			LibAccount.initializeObserverToZeros(accountLayout.observerSettlementStates[partyA][partyB]);
-		}
-		if (pendingLockedBalances.isUninitialized()) {
-			pendingLockedBalances.initializeToZeros(LibAccount.getUserEncryptionAddress(partyB));
-			accountLayout.observerPartyBPendingLockedBalances[partyB][partyA] = LibEncryption.offBoardLockedToObserver(pendingLockedBalances.onBoard());
-		}
-	}
 }
