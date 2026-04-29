@@ -40,7 +40,7 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 30 | [`report4#7`](report4.md#L80-L95) | fixed | Removed unused misleading `LockedValuesOps.mux` wrapper |
 | 31 | [`report4#8`](report4.md#L96-L106) | fixed | `initializePartyB` initializes PartyB-side slots independently |
 | 32 | [`report4#9`](report4.md#L107-L117) | fixed | Removed stale `LibMuon.getChainId()` development FIXME |
-| 33 | [`report4#10`](report4.md#L118-L120) | open | Read API changed to ciphertext return types |
+| 33 | [`report4#10`](report4.md#L118-L120) | fixed | Ciphertext read API migration documented |
 | 34 | [`report4#11`](report4.md#L121-L124) | open | `setEncryptionAddress` missing guards and has fragile write ordering |
 | 35 | [`report5#1`](report5.md#L1-L10) | partial | `forceClosePosition` decrypts negative available balance |
 | 36 | [`report5#2`](report5.md#L11-L19) | open | `forceClosePosition` decrypts `quantityToClose` and `closePrice` |
@@ -84,6 +84,10 @@ The old trusted user-encryption mode no longer exists: `trustedEncryptionAddress
 ### Issue 32 Note
 
 `LibMuon.getChainId()` now only returns `block.chainid`; the stale commented hardcoded fallback was removed.
+
+### Issue 33 Note
+
+The read API change is intentional for the privacy fork: sensitive `ViewFacet` reads return ciphertext and must be decrypted client-side by the owning user or configured observer. `PRIVACY_CHANGES.md` now documents affected read APIs, observer alternatives, and the fact that plaintext compatibility views are intentionally not provided.
 
 - Total original findings across the five reports: `42`
 - Total tracked findings in this file: `42`

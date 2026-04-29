@@ -36,7 +36,25 @@ This document summarizes the privacy-focused changes that distinguish the `priva
 
 ---
 
-## Encryption Process Complete Example: Sending a Quote
+## 4. Read API Migration
+
+The privacy fork intentionally changes sensitive `ViewFacet` read APIs from plaintext values to ciphertext return types. Downstream consumers must decrypt client-side with the key that owns the ciphertext, or use observer-specific reads when operating as the configured observer.
+
+| API area | Representative functions | Return shape |
+| --- | --- | --- |
+| PartyA balances | `partyAStats`, `balanceInfoOfPartyA`, `allocatedBalanceOfPartyA` | `ctUint256` plus `UserLockedValues` encrypted for PartyA |
+| PartyB balances | `balanceInfoOfPartyB`, `allocatedBalanceOfPartyB`, `allocatedBalanceOfPartyBs` | `ctUint256` plus `UserLockedValues` encrypted for PartyB |
+| Reserve and fee balances | `balanceOfReserveVault`, `feeCollectorBalance` | `ctUint256` encrypted for the owning PartyB or fee collector |
+| Settlement state | `getSettlementStates` | `ctInt256` / `ctUint256` encrypted for PartyA |
+| Quote state | `getQuote`, `getQuotes`, position and pending quote reads | Quote economics are ciphertext fields inside `ut*` / `LockedValues` structs |
+
+Observer/indexer integrations should use the observer read APIs where available: `observerAllocatedBalanceOfPartyA`, `observerAllocatedBalanceOfPartyB`, `observerAllocatedBalanceOfPartyBs`, `observerBalanceOfReserveVault`, `observerFeeCollectorBalance`, `getObserverSettlementStates`, and `getObserverQuoteValues`. These return ciphertext encrypted to `trustedObserverAddress`.
+
+Plaintext compatibility views are intentionally not provided. Reintroducing plaintext reads for encrypted balances, quote values, or settlement state would bypass the privacy model. Existing frontends, subgraphs, bots, and monitoring jobs that consumed plaintext SYMM views need to update their ABI handling and decrypt with the correct user or observer key.
+
+---
+
+## 5. Encryption Process Complete Example: Sending a Quote
 
 ```typescript
 import { ethers } from "hardhat";
