@@ -32,7 +32,7 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 22 | [`report3#10`](report3.md#L169-L184) | fixed | Raw onboarding of uninitialized settlement ciphertext |
 | 23 | [`report3#11`](report3.md#L185-L192) | fixed | Wrong `quoteId` / missing open-position event in `lockAndOpenQuote` |
 | 24 | [`report4#1`](report4.md#L1-L11) | fixed | PartyA liquidation cannot terminate because settlement path is dead |
-| 25 | [`report4#2`](report4.md#L12-L50) | open | Revert oracle over encrypted thresholds |
+| 25 | [`report4#2`](report4.md#L12-L50) | deferred | Solver-side threshold oracle accepted under RFQ privacy model |
 | 26 | [`report4#3`](report4.md#L51-L64) | open | Full-close / partial-close signal leaked via decrypt/branching |
 | 27 | [`report4#4`](report4.md#L65-L67) | open | `setEncryptionAddress` skips partyB-side re-encryption |
 | 28 | [`report4#5`](report4.md#L68-L70) | open | `internalTransfer` does not initialize recipient encrypted state |
@@ -52,6 +52,10 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 42 | [`report5#8`](report5.md#L74-L75) | open | `setEncryptionAddress` missing from interface |
 
 ## Coverage Check
+
+### Issue 25 Note
+
+Issue 25 assumes partyB/solver must not learn partyA requested price or quantity before filling. The current RFQ model intentionally discloses those terms to the selected partyB via partyB-encrypted quote and close events, so the solver-side revert oracle does not add a new leak to that selected solver. This is accepted for selected solvers. The remaining security boundary is that non-selected partyBs and public observers must not be able to probe or decrypt those values; `openPosition` and `fillCloseRequest` are guarded by `onlyPartyBOfQuote`, and `lockQuote` only assigns `quote.partyB` after whitelist validation.
 
 - Total original findings across the five reports: `42`
 - Total tracked findings in this file: `42`
