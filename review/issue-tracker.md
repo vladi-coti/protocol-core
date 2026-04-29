@@ -39,7 +39,7 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 29 | [`report4#6`](report4.md#L71-L79) | fixed | Observer mode does not strand user key rotation |
 | 30 | [`report4#7`](report4.md#L80-L95) | fixed | Removed unused misleading `LockedValuesOps.mux` wrapper |
 | 31 | [`report4#8`](report4.md#L96-L106) | fixed | `initializePartyB` initializes PartyB-side slots independently |
-| 32 | [`report4#9`](report4.md#L107-L117) | open | `LibMuon.getChainId()` development FIXME |
+| 32 | [`report4#9`](report4.md#L107-L117) | fixed | Removed stale `LibMuon.getChainId()` development FIXME |
 | 33 | [`report4#10`](report4.md#L118-L120) | open | Read API changed to ciphertext return types |
 | 34 | [`report4#11`](report4.md#L121-L124) | open | `setEncryptionAddress` missing guards and has fragile write ordering |
 | 35 | [`report5#1`](report5.md#L1-L10) | partial | `forceClosePosition` decrypts negative available balance |
@@ -80,6 +80,10 @@ The old trusted user-encryption mode no longer exists: `trustedEncryptionAddress
 ### Issue 31 Note
 
 `initializePartyB` now checks PartyB locked balances, pending locked balances, settlement state, and allocated balance independently. The PartyB quote lock path delegates to the shared initializer, so a drifted zero slot can be repaired without wiping already-initialized sibling slots.
+
+### Issue 32 Note
+
+`LibMuon.getChainId()` now only returns `block.chainid`; the stale commented hardcoded fallback was removed.
 
 - Total original findings across the five reports: `42`
 - Total tracked findings in this file: `42`
