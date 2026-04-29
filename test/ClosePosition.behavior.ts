@@ -13,6 +13,7 @@ import {
 	decimal,
 	decryptUint256,
 	getBlockTimestamp,
+	getQuoteMinLeftQuantityForClose,
 	getQuoteQuantity,
 	getTotalLockedValuesForQuoteIds,
 	getTradingFeeForQuotes,
@@ -229,6 +230,20 @@ export function shouldBehaveLikeClosePosition(): void {
 			quantityToClose: quantityToClose,
 			beforeOutput: beforeOut,
 		})
+	})
+
+	it("ClosePosition - Should reject partial request that leaves quote value below minimum", async function () {
+		const quantity = await getQuoteQuantity(context, 1n)
+		const minLeftQuantity = await getQuoteMinLeftQuantityForClose(context, 1n)
+		await expect(
+			user.requestToClosePosition(
+				1,
+				limitCloseRequestBuilder()
+					.quantityToClose(quantity - minLeftQuantity + 1n)
+					.closePrice(decimal(1n, 17))
+					.build(),
+			),
+		).to.be.revertedWith("PartyAFacet: Remaining quote value is low")
 	})
 
 	it("ClosePosition - Should request market successfully", async function () {

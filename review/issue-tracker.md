@@ -33,7 +33,7 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 23 | [`report3#11`](report3.md#L185-L192) | fixed | Wrong `quoteId` / missing open-position event in `lockAndOpenQuote` |
 | 24 | [`report4#1`](report4.md#L1-L11) | fixed | PartyA liquidation cannot terminate because settlement path is dead |
 | 25 | [`report4#2`](report4.md#L12-L50) | deferred | Solver-side threshold oracle accepted under RFQ privacy model |
-| 26 | [`report4#3`](report4.md#L51-L64) | open | Full-close / partial-close signal leaked via decrypt/branching |
+| 26 | [`report4#3`](report4.md#L51-L64) | partial | Avoidable full/partial close branch leaks removed; final lifecycle state remains public |
 | 27 | [`report4#4`](report4.md#L65-L67) | open | `setEncryptionAddress` skips partyB-side re-encryption |
 | 28 | [`report4#5`](report4.md#L68-L70) | open | `internalTransfer` does not initialize recipient encrypted state |
 | 29 | [`report4#6`](report4.md#L71-L79) | open | Trusted-mode early return strands key rotation |
@@ -56,6 +56,10 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 ### Issue 25 Note
 
 Issue 25 assumes partyB/solver must not learn partyA requested price or quantity before filling. The current RFQ model intentionally discloses those terms to the selected partyB via partyB-encrypted quote and close events, so the solver-side revert oracle does not add a new leak to that selected solver. This is accepted for selected solvers. The remaining security boundary is that non-selected partyBs and public observers must not be able to probe or decrypt those values; `openPosition` and `fillCloseRequest` are guarded by `onlyPartyBOfQuote`, and `lockQuote` only assigns `quote.partyB` after whitelist validation.
+
+### Issue 26 Note
+
+Issue 26 has two parts. The fix removes avoidable decrypted equality branches and branch-dependent gas differences from close request/fill validation. It does not hide final lifecycle state: after execution, whether a quote is `CLOSED` or remains `OPENED` is public protocol state. Fully hiding full-close versus partial-close would require redesigning quote status, position indexes, views, and events.
 
 - Total original findings across the five reports: `42`
 - Total tracked findings in this file: `42`

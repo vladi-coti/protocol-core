@@ -220,17 +220,13 @@ library LibQuote {
 		accountLayout.observerPartyBLockedBalances[quote.partyB][quote.partyA] = LibEncryption.offBoardLockedToObserver(gtResultB);
 		quoteLayout.observerQuoteValues[quote.id].lockedValues = LibEncryption.offBoardLockedToObserver(gtNewLockedValues);
 
-		// Check if this is the final close and remaining value is acceptable
+		// Check remaining value without branching on whether the close request is final.
 		gtUint256 gtQuantityToClose = LockedValuesOps.safeOnboard(quote.quantityToClose.ciphertext);
-		gtBool isFinalClose = gtOpenAmount.eq(gtQuantityToClose);
-		if (MpcCore.decrypt(isFinalClose)) {
-			GarbledLockedValues memory gtRemainingLocked = quote.lockedValues.onBoard();
-			gtUint256 gtTotalForPartyA = gtRemainingLocked.totalForPartyA();
-			gtUint256 gtMinValue = MpcCore.setPublic256(symbolLayout.symbols[quote.symbolId].minAcceptableQuoteValue);
-			gtBool isZero = gtTotalForPartyA.eq(gtZero);
-			gtBool isAboveMin = gtTotalForPartyA.ge(gtMinValue);
-			require(MpcCore.decrypt(isZero.or(isAboveMin)), "LibQuote: Remaining quote value is low");
-		}
+		GarbledLockedValues memory gtRemainingLocked = quote.lockedValues.onBoard();
+		gtUint256 gtTotalForPartyA = gtRemainingLocked.totalForPartyA();
+		gtUint256 gtMinValue = MpcCore.setPublic256(symbolLayout.symbols[quote.symbolId].minAcceptableQuoteValue);
+		gtBool isValidRemainingValue = gtTotalForPartyA.eq(gtZero).or(gtTotalForPartyA.ge(gtMinValue));
+		require(MpcCore.decrypt(isValidRemainingValue), "LibQuote: Remaining quote value is low");
 
 		// Calculate PNL with encrypted direction and update balances without branching on profit/loss.
 		(gtBool gtHasMadeProfit, gtUint256 gtPnl) = getValueOfQuoteForPartyA(gtClosedPrice, gtFilledAmount, quote);

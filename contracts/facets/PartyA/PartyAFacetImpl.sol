@@ -236,19 +236,13 @@ library PartyAFacetImpl {
 		gtBool isValidQuantity = gtQuoteOpenAmount.ge(gtQuantityToClose);
 		require(MpcCore.decrypt(isValidQuantity), "PartyAFacet: Invalid quantityToClose");
 
-		// Check that remaining position is not too small
-		gtBool isFullClose = gtQuoteOpenAmount.eq(gtQuantityToClose);
-		if (!MpcCore.decrypt(isFullClose)) {
-			// Calculate remaining value: (openAmount - quantityToClose) * totalForPartyA / openAmount
-			gtUint256 gtRemainingAmount = gtQuoteOpenAmount.checkedSub(gtQuantityToClose);
-			GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
-			gtUint256 gtTotalForPartyA = gtLockedValues.totalForPartyA();
-			gtUint256 gtRemainingValue = gtRemainingAmount.checkedMul(gtTotalForPartyA).div(gtQuoteOpenAmount);
-			gtUint256 gtMinValue = MpcCore.setPublic256(symbolLayout.symbols[quote.symbolId].minAcceptableQuoteValue);
-			
-			gtBool isAboveMin = gtRemainingValue.ge(gtMinValue);
-			require(MpcCore.decrypt(isAboveMin), "PartyAFacet: Remaining quote value is low");
-		}
+		gtUint256 gtRemainingAmount = gtQuoteOpenAmount.checkedSub(gtQuantityToClose);
+		GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
+		gtUint256 gtTotalForPartyA = gtLockedValues.totalForPartyA();
+		gtUint256 gtRemainingValue = gtRemainingAmount.checkedMul(gtTotalForPartyA).div(gtQuoteOpenAmount);
+		gtUint256 gtMinValue = MpcCore.setPublic256(symbolLayout.symbols[quote.symbolId].minAcceptableQuoteValue);
+		gtBool isValidRemainingValue = gtRemainingAmount.eq(MpcCore.setPublic256(uint256(0))).or(gtRemainingValue.ge(gtMinValue));
+		require(MpcCore.decrypt(isValidRemainingValue), "PartyAFacet: Remaining quote value is low");
 		
 		quoteLayout.closeIds[quoteId] = ++quoteLayout.lastCloseId;
 		quote.statusModifyTimestamp = block.timestamp;
