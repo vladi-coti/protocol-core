@@ -73,6 +73,29 @@ contract ViewFacet is IViewFacet {
 		);
 	}
 
+	function observerPartyAStats(
+		address partyA
+	)
+		external
+		view
+		returns (bool, ctUint256 memory, UserLockedValues memory, UserLockedValues memory, uint256, uint256, uint256, uint256)
+	{
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		MAStorage.Layout storage maLayout = MAStorage.layout();
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+
+		return (
+			maLayout.liquidationStatus[partyA],
+			accountLayout.observerAllocatedBalances[partyA],
+			accountLayout.observerLockedBalances[partyA],
+			accountLayout.observerPendingLockedBalances[partyA],
+			quoteLayout.partyAPositionsCount[partyA],
+			quoteLayout.partyAPendingQuotes[partyA].length,
+			accountLayout.partyANonces[partyA],
+			quoteLayout.quoteIdsOf[partyA].length
+		);
+	}
+
 	/**
 	 * @notice Returns balance information of Party A (encrypted for the user).
 	 * @param partyA The address of Party A.
@@ -96,6 +119,18 @@ contract ViewFacet is IViewFacet {
 			userEncryptedAllocatedBalance,
 			lockedBalances,
 			pendingLockedBalances
+		);
+	}
+
+	function observerBalanceInfoOfPartyA(
+		address partyA
+	) external view returns (ctUint256 memory, UserLockedValues memory, UserLockedValues memory) {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+
+		return (
+			accountLayout.observerAllocatedBalances[partyA],
+			accountLayout.observerLockedBalances[partyA],
+			accountLayout.observerPendingLockedBalances[partyA]
 		);
 	}
 
@@ -124,6 +159,19 @@ contract ViewFacet is IViewFacet {
 			userEncryptedAllocatedBalance,
 			lockedBalances,
 			pendingLockedBalances
+		);
+	}
+
+	function observerBalanceInfoOfPartyB(
+		address partyB,
+		address partyA
+	) external view returns (ctUint256 memory, UserLockedValues memory, UserLockedValues memory) {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+
+		return (
+			accountLayout.observerPartyBAllocatedBalances[partyB][partyA],
+			accountLayout.observerPartyBLockedBalances[partyB][partyA],
+			accountLayout.observerPartyBPendingLockedBalances[partyB][partyA]
 		);
 	}
 
@@ -377,6 +425,11 @@ contract ViewFacet is IViewFacet {
 		return QuoteStorage.layout().quotes[quoteId];
 	}
 
+	function getObserverQuote(uint256 quoteId) external view returns (Quote memory) {
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		return _observerQuote(quoteLayout.quotes[quoteId], quoteLayout.observerQuoteValues[quoteId]);
+	}
+
 	function getObserverQuoteValues(uint256 quoteId) external view returns (ObserverQuoteValues memory) {
 		return QuoteStorage.layout().observerQuoteValues[quoteId];
 	}
@@ -398,6 +451,21 @@ contract ViewFacet is IViewFacet {
 			}
 			quote = quoteLayout.quotes[quote.parentId];
 			quotes[i] = quote;
+		}
+		return quotes;
+	}
+
+	function getObserverQuotesByParent(uint256 quoteId, uint256 size) external view returns (Quote[] memory) {
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		Quote[] memory quotes = new Quote[](size);
+		Quote memory quote = quoteLayout.quotes[quoteId];
+		quotes[0] = _observerQuote(quote, quoteLayout.observerQuoteValues[quoteId]);
+		for (uint256 i = 1; i < size; i++) {
+			if (quote.parentId == 0) {
+				break;
+			}
+			quote = quoteLayout.quotes[quote.parentId];
+			quotes[i] = _observerQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
 		}
 		return quotes;
 	}
@@ -436,6 +504,19 @@ contract ViewFacet is IViewFacet {
 		Quote[] memory quotes = new Quote[](size);
 		for (uint256 i = start; i < start + size; i++) {
 			quotes[i - start] = quoteLayout.quotes[quoteLayout.quoteIdsOf[partyA][i]];
+		}
+		return quotes;
+	}
+
+	function getObserverQuotes(address partyA, uint256 start, uint256 size) external view returns (Quote[] memory) {
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		if (quoteLayout.quoteIdsOf[partyA].length < start + size) {
+			size = quoteLayout.quoteIdsOf[partyA].length - start;
+		}
+		Quote[] memory quotes = new Quote[](size);
+		for (uint256 i = start; i < start + size; i++) {
+			uint256 quoteId = quoteLayout.quoteIdsOf[partyA][i];
+			quotes[i - start] = _observerQuote(quoteLayout.quotes[quoteId], quoteLayout.observerQuoteValues[quoteId]);
 		}
 		return quotes;
 	}
@@ -497,6 +578,19 @@ contract ViewFacet is IViewFacet {
 		return quotes;
 	}
 
+	function getObserverPartyAOpenPositions(address partyA, uint256 start, uint256 size) external view returns (Quote[] memory) {
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		if (quoteLayout.partyAOpenPositions[partyA].length < start + size) {
+			size = quoteLayout.partyAOpenPositions[partyA].length - start;
+		}
+		Quote[] memory quotes = new Quote[](size);
+		for (uint256 i = start; i < start + size; i++) {
+			uint256 quoteId = quoteLayout.partyAOpenPositions[partyA][i];
+			quotes[i - start] = _observerQuote(quoteLayout.quotes[quoteId], quoteLayout.observerQuoteValues[quoteId]);
+		}
+		return quotes;
+	}
+
 	/**
 	 * @notice Returns an array of open positions associated with a party B address and a specific party A address.
 	 * @param partyB The address of party B.
@@ -517,6 +611,19 @@ contract ViewFacet is IViewFacet {
 		return quotes;
 	}
 
+	function getObserverPartyBOpenPositions(address partyB, address partyA, uint256 start, uint256 size) external view returns (Quote[] memory) {
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		if (quoteLayout.partyBOpenPositions[partyB][partyA].length < start + size) {
+			size = quoteLayout.partyBOpenPositions[partyB][partyA].length - start;
+		}
+		Quote[] memory quotes = new Quote[](size);
+		for (uint256 i = start; i < start + size; i++) {
+			uint256 quoteId = quoteLayout.partyBOpenPositions[partyB][partyA][i];
+			quotes[i - start] = _observerQuote(quoteLayout.quotes[quoteId], quoteLayout.observerQuoteValues[quoteId]);
+		}
+		return quotes;
+	}
+
 	/**
 	 * @notice Returns an array of positions associated with a party B address.
 	 * @param partyB The address of party B.
@@ -532,6 +639,20 @@ contract ViewFacet is IViewFacet {
 			Quote memory quote = quoteLayout.quotes[i];
 			if (quote.partyB == partyB) {
 				quotes[j] = quote;
+				j += 1;
+			}
+		}
+		return quotes;
+	}
+
+	function getObserverPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory) {
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		Quote[] memory quotes = new Quote[](size);
+		uint j = 0;
+		for (uint256 i = start; i < start + size; i++) {
+			Quote memory quote = quoteLayout.quotes[i];
+			if (quote.partyB == partyB) {
+				quotes[j] = _observerQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
 				j += 1;
 			}
 		}
@@ -564,6 +685,25 @@ contract ViewFacet is IViewFacet {
 		return quotes;
 	}
 
+	function getObserverOpenPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory) {
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		Quote[] memory quotes = new Quote[](size);
+		uint j = 0;
+		for (uint256 i = start; i < start + size; i++) {
+			Quote memory quote = quoteLayout.quotes[i];
+			if (
+				quote.partyB == partyB &&
+				(quote.quoteStatus == QuoteStatus.OPENED ||
+					quote.quoteStatus == QuoteStatus.CLOSE_PENDING ||
+					quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING)
+			) {
+				quotes[j] = _observerQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
+				j += 1;
+			}
+		}
+		return quotes;
+	}
+
 	/**
 	 * @notice Returns an array of active positions associated with a party B address.
 	 * @param partyB The address of party B.
@@ -585,6 +725,26 @@ contract ViewFacet is IViewFacet {
 				quote.quoteStatus != QuoteStatus.LIQUIDATED
 			) {
 				quotes[j] = quote;
+				j += 1;
+			}
+		}
+		return quotes;
+	}
+
+	function getObserverActivePositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory) {
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		Quote[] memory quotes = new Quote[](size);
+		uint j = 0;
+		for (uint256 i = start; i < start + size; i++) {
+			Quote memory quote = quoteLayout.quotes[i];
+			if (
+				quote.partyB == partyB &&
+				quote.quoteStatus != QuoteStatus.CANCELED &&
+				quote.quoteStatus != QuoteStatus.CLOSED &&
+				quote.quoteStatus != QuoteStatus.EXPIRED &&
+				quote.quoteStatus != QuoteStatus.LIQUIDATED
+			) {
+				quotes[j] = _observerQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
 				j += 1;
 			}
 		}
@@ -638,6 +798,26 @@ contract ViewFacet is IViewFacet {
 			while (bits > 0 && gasleft() > gasNeededForReturn) {
 				if ((bits & 1) > 0) {
 					quotes[quoteIndex] = qL.quotes[offset];
+					++quoteIndex;
+				}
+				++offset;
+				bits >>= 1;
+			}
+		}
+	}
+
+	function getObserverQuotesWithBitmap(Bitmap calldata bitmap, uint256 gasNeededForReturn) external view returns (Quote[] memory quotes) {
+		QuoteStorage.Layout storage qL = QuoteStorage.layout();
+
+		quotes = new Quote[](bitmap.size);
+		uint256 quoteIndex = 0;
+
+		for (uint256 i = 0; i < bitmap.elements.length; ++i) {
+			uint256 bits = bitmap.elements[i].bitmap;
+			uint256 offset = bitmap.elements[i].offset;
+			while (bits > 0 && gasleft() > gasNeededForReturn) {
+				if ((bits & 1) > 0) {
+					quotes[quoteIndex] = _observerQuote(qL.quotes[offset], qL.observerQuoteValues[offset]);
 					++quoteIndex;
 				}
 				++offset;
@@ -954,5 +1134,29 @@ contract ViewFacet is IViewFacet {
 	 */
 	function getQuoteCloseId(uint256 quoteId) external view returns (uint256) {
 		return QuoteStorage.layout().closeIds[quoteId];
+	}
+
+	function _observerQuote(Quote memory quote, ObserverQuoteValues storage observerValues) private view returns (Quote memory) {
+		quote.openedPrice.userCiphertext = observerValues.openedPrice;
+		quote.initialOpenedPrice.userCiphertext = observerValues.initialOpenedPrice;
+		quote.requestedOpenPrice.userCiphertext = observerValues.requestedOpenPrice;
+		quote.marketPrice.userCiphertext = observerValues.marketPrice;
+		quote.quantity.userCiphertext = observerValues.quantity;
+		quote.closedAmount.userCiphertext = observerValues.closedAmount;
+		quote.avgClosedPrice.userCiphertext = observerValues.avgClosedPrice;
+		quote.requestedClosePrice.userCiphertext = observerValues.requestedClosePrice;
+		quote.quantityToClose.userCiphertext = observerValues.quantityToClose;
+		quote.tradingFee.userCiphertext = observerValues.tradingFee;
+		quote.initialLockedValues = _observerLockedValues(quote.initialLockedValues, observerValues.initialLockedValues);
+		quote.lockedValues = _observerLockedValues(quote.lockedValues, observerValues.lockedValues);
+		return quote;
+	}
+
+	function _observerLockedValues(LockedValues memory values, UserLockedValues storage observerValues) private view returns (LockedValues memory) {
+		values.cva.userCiphertext = observerValues.cva;
+		values.lf.userCiphertext = observerValues.lf;
+		values.partyAmm.userCiphertext = observerValues.partyAmm;
+		values.partyBmm.userCiphertext = observerValues.partyBmm;
+		return values;
 	}
 }
