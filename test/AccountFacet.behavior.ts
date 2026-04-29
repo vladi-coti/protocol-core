@@ -5,6 +5,8 @@ import { RunContext } from "./models/RunContext"
 import { User } from "./models/User"
 import { getDummySingleUpnlSig } from "./utils/SignatureUtils"
 import { Hedger } from "./models/Hedger"
+import { PositionType } from "./models/Enums"
+import { limitQuoteRequestBuilder } from "./models/requestModels/QuoteRequest"
 import { decimal, decryptUint256, unDecimal } from "./utils/Common"
 import { ethers } from "hardhat"
 import { loadFixtureCompatible, timeCompatible } from "./utils/testHelpers"
@@ -138,6 +140,39 @@ export function shouldBehaveLikeAccountFacet(): void {
 
 			const rotatedAllocatedBalance = await context.viewFacet.allocatedBalanceOfPartyA(userAddress)
 			expect(await decryptUint256(context, rotatedAllocatedBalance, context.signers.user2)).to.equal(100n)
+		})
+
+		it("Should fail key rotation when accounting is paused", async function () {
+			await context.controlFacet.pauseAccounting()
+			await expect(context.accountFacet.connect(context.signers.user).setEncryptionAddress(context.signers.user2.address)).to.be.revertedWith(
+				"Pausable: Accounting paused",
+			)
+		})
+
+		it("Should fail key rotation when caller is suspended", async function () {
+			await context.controlFacet.connect(context.signers.admin).suspendedAddress(await user.getAddress())
+			await expect(context.accountFacet.connect(context.signers.user).setEncryptionAddress(context.signers.user2.address)).to.be.revertedWith(
+				"Accessibility: Sender is Suspended",
+			)
+		})
+
+		it("Should fail key rotation when PartyA is liquidated", async function () {
+			await user.setBalances(decimal(2000n), decimal(1000n), decimal(500n))
+
+			hedger = new Hedger(context, context.signers.hedger)
+			await hedger.setup()
+			await hedger.setBalances(decimal(2000n), decimal(1000n))
+
+			const quoteData = await user.sendQuote(
+				limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).positionType(PositionType.SHORT).build(),
+			)
+			await hedger.lockQuote(quoteData)
+			await hedger.openPosition(quoteData)
+			await user.liquidateAndSetSymbolPrices([1n], [decimal(8n)])
+
+			await expect(context.accountFacet.connect(context.signers.user).setEncryptionAddress(context.signers.user2.address)).to.be.revertedWith(
+				"Accessibility: PartyA isn't solvent",
+			)
 		})
 
 		describe("Deallocate", async function () {
@@ -293,6 +328,14 @@ export function shouldBehaveLikeAccountFacet(): void {
 				expect(await context.signers.liquidator.decryptUint256(rotated[1].lf)).to.equal(before.lockedLf)
 				expect(await context.signers.liquidator.decryptUint256(rotated[1].partyAmm)).to.equal(before.lockedMmPartyA)
 				expect(await context.signers.liquidator.decryptUint256(rotated[1].partyBmm)).to.equal(before.lockedMmPartyB)
+			})
+
+			it("should fail partyB key rotation when tracked PartyB is liquidated", async () => {
+				await hedger.liquidate(await user.getAddress(), await getDummySingleUpnlSig(decimal(-336n)))
+
+				await expect(context.accountFacet.connect(context.signers.hedger).setEncryptionAddress(context.signers.liquidator.address)).to.be.revertedWith(
+					"Accessibility: PartyB isn't solvent",
+				)
 			})
 
 			it("should fail transferAllocation when partyB would be liquidatable", async () => {

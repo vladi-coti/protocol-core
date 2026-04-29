@@ -41,7 +41,7 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 31 | [`report4#8`](report4.md#L96-L106) | fixed | `initializePartyB` initializes PartyB-side slots independently |
 | 32 | [`report4#9`](report4.md#L107-L117) | fixed | Removed stale `LibMuon.getChainId()` development FIXME |
 | 33 | [`report4#10`](report4.md#L118-L120) | fixed | Ciphertext read API migration documented |
-| 34 | [`report4#11`](report4.md#L121-L124) | open | `setEncryptionAddress` missing guards and has fragile write ordering |
+| 34 | [`report4#11`](report4.md#L121-L124) | fixed | `setEncryptionAddress` guards account state and writes mapping last |
 | 35 | [`report5#1`](report5.md#L1-L10) | partial | `forceClosePosition` decrypts negative available balance |
 | 36 | [`report5#2`](report5.md#L11-L19) | open | `forceClosePosition` decrypts `quantityToClose` and `closePrice` |
 | 37 | [`report5#3`](report5.md#L20-L35) | partial | Liquidation flows decrypt full financial state |
@@ -88,6 +88,10 @@ The old trusted user-encryption mode no longer exists: `trustedEncryptionAddress
 ### Issue 33 Note
 
 The read API change is intentional for the privacy fork: sensitive `ViewFacet` reads return ciphertext and must be decrypted client-side by the owning user or configured observer. `PRIVACY_CHANGES.md` now documents affected read APIs, observer alternatives, and the fact that plaintext compatibility views are intentionally not provided.
+
+### Issue 34 Note
+
+`setEncryptionAddress` now uses the same pause, suspension, and PartyA liquidation guards as account mutations. PartyB key rotation also checks each tracked PartyA pair against `partyBLiquidationStatus` before re-encrypting PartyB-side balances. The `userEncryptionAddress` mapping write was moved after all re-encryption work succeeds; revert rollback already protected atomicity, but the new order removes the audit footgun.
 
 - Total original findings across the five reports: `42`
 - Total tracked findings in this file: `42`

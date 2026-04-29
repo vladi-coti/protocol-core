@@ -237,7 +237,7 @@ contract AccountFacet is Accessibility, Pausable, IAccountFacet {
 	 *        - All QuoteStorage.quotes where quote.partyA == msg.sender (including ut fields and LockedValues)
 	 * @param newEncryptionAddress The address whose keys should be used for encrypting the caller's data.
 	 */
-	function setEncryptionAddress(address newEncryptionAddress) external {
+	function setEncryptionAddress(address newEncryptionAddress) external whenNotAccountingPaused notSuspended(msg.sender) notLiquidatedPartyA(msg.sender) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		address currentMapped = accountLayout.userEncryptionAddress[msg.sender];
 		address fromAddress = currentMapped == address(0) ? msg.sender : currentMapped;

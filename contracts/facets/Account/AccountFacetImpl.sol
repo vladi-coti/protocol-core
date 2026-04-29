@@ -232,8 +232,6 @@ library AccountFacetImpl {
         require(newEncryptionAddress != address(0), "AccountFacet: zero encryption address");
         require(newEncryptionAddress != effectiveCurrent, "AccountFacet: encryption address unchanged");
 
-        accountLayout.userEncryptionAddress[user] = newEncryptionAddress;
-
         // Re-encrypt AccountStorage values owned by user
         accountLayout.allocatedBalances[user] = MpcCore.offBoardCombined(
             LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[user].ciphertext),
@@ -297,6 +295,7 @@ library AccountFacetImpl {
 		address[] storage partyAs = accountLayout.partyBConnectedPartyAs[user];
 		for (uint256 i = 0; i < partyAs.length; i++) {
 			address partyA = partyAs[i];
+			require(!MAStorage.layout().partyBLiquidationStatus[user][partyA], "Accessibility: PartyB isn't solvent");
 
 			gtUint256 gtPartyBAllocatedBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[user][partyA].ciphertext);
 			accountLayout.partyBAllocatedBalances[user][partyA] = MpcCore.offBoardCombined(gtPartyBAllocatedBalance, newEncryptionAddress);
@@ -310,6 +309,8 @@ library AccountFacetImpl {
 			accountLayout.partyBPendingLockedBalances[user][partyA] = gtPartyBPendingLocked.offBoard(newEncryptionAddress);
 			accountLayout.observerPartyBPendingLockedBalances[user][partyA] = LibEncryption.offBoardLockedToObserver(gtPartyBPendingLocked);
 		}
+
+		accountLayout.userEncryptionAddress[user] = newEncryptionAddress;
     }
 
 	function _storePartyAAllocatedBalance(AccountStorage.Layout storage accountLayout, address partyA, gtUint256 value) private {
