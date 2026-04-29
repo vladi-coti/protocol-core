@@ -37,7 +37,7 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 27 | [`report4#4`](report4.md#L65-L67) | fixed | `setEncryptionAddress` re-encrypts tracked partyB-side balances |
 | 28 | [`report4#5`](report4.md#L68-L70) | fixed | `internalTransfer` initializes recipient encrypted state |
 | 29 | [`report4#6`](report4.md#L71-L79) | fixed | Observer mode does not strand user key rotation |
-| 30 | [`report4#7`](report4.md#L80-L95) | open | Misleading `mux` wrapper semantics |
+| 30 | [`report4#7`](report4.md#L80-L95) | fixed | Removed unused misleading `LockedValuesOps.mux` wrapper |
 | 31 | [`report4#8`](report4.md#L96-L106) | open | `initializePartyB` couples independent slots under one gate |
 | 32 | [`report4#9`](report4.md#L107-L117) | open | `LibMuon.getChainId()` development FIXME |
 | 33 | [`report4#10`](report4.md#L118-L120) | open | Read API changed to ciphertext return types |
@@ -72,6 +72,10 @@ PartyB key rotation now tracks PartyB-to-PartyA relationships and re-encrypts Pa
 ### Issue 29 Note
 
 The old trusted user-encryption mode no longer exists: `trustedEncryptionAddress` and the early return in `setEncryptionAddress` were removed by the observer refactor. Current `trustedObserverAddress` only controls separate observer ciphertexts through `offBoardToObserver`; it does not affect `getUserEncryptionAddress` or user-owned ciphertexts. A regression covers key rotation while observer mode is enabled, then disables observer mode and verifies the rotated user ciphertext still decrypts with the new user key.
+
+### Issue 30 Note
+
+`LockedValuesOps.mux` was unused and has been removed instead of documenting a misleading wrapper around COTI's reversed `MpcCore.mux(condition, a, b)` convention. Existing direct `MpcCore.mux` call sites are unchanged; the separate eager-evaluation/underflow concern remains tracked under Issue 40.
 
 - Total original findings across the five reports: `42`
 - Total tracked findings in this file: `42`

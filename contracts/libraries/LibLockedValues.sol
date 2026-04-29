@@ -303,25 +303,4 @@ library LockedValuesOps {
 		return cvaEq.and(partyAmmEq).and(partyBmmEq).and(lfEq);
 	}
 
-	/**
-	 * @notice Performs conditional selection between two GarbledLockedValues structs.
-	 * @param condition The encrypted boolean condition.
-	 * @param trueValue The GarbledLockedValues to select if condition is true.
-	 * @param falseValue The GarbledLockedValues to select if condition is false.
-	 * @return The conditionally selected GarbledLockedValues struct.
-	 */
-	function mux(
-		gtBool condition,
-		GarbledLockedValues memory trueValue,
-		GarbledLockedValues memory falseValue
-	) internal returns (GarbledLockedValues memory) {
-		return
-			GarbledLockedValues({
-				cva: MpcCore.mux(condition, falseValue.cva, trueValue.cva),
-				partyAmm: MpcCore.mux(condition, falseValue.partyAmm, trueValue.partyAmm),
-				partyBmm: MpcCore.mux(condition, falseValue.partyBmm, trueValue.partyBmm),
-				lf: MpcCore.mux(condition, falseValue.lf, trueValue.lf)
-			});
-	}
-
 }
