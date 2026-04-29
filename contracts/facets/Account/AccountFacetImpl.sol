@@ -20,6 +20,7 @@ library AccountFacetImpl {
 	using MpcCore for gtInt256;
 	using MpcCore for gtBool;
 	using LockedValuesOps for LockedValues;
+	using LockedValuesOps for GarbledLockedValues;
 
 	function deposit(address user, uint256 amount) internal {
 		GlobalAppStorage.Layout storage appLayout = GlobalAppStorage.layout();
@@ -291,6 +292,23 @@ library AccountFacetImpl {
             q.lockedValues = LockedValuesOps.offBoard(gtCurr, newEncryptionAddress);
             observerValues.lockedValues = _offBoardLockedValuesToObserver(gtCurr);
         }
+
+		address[] storage partyAs = accountLayout.partyBConnectedPartyAs[user];
+		for (uint256 i = 0; i < partyAs.length; i++) {
+			address partyA = partyAs[i];
+
+			gtUint256 gtPartyBAllocatedBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[user][partyA].ciphertext);
+			accountLayout.partyBAllocatedBalances[user][partyA] = MpcCore.offBoardCombined(gtPartyBAllocatedBalance, newEncryptionAddress);
+			accountLayout.observerPartyBAllocatedBalances[user][partyA] = LibEncryption.offBoardToObserver(gtPartyBAllocatedBalance);
+
+			GarbledLockedValues memory gtPartyBLocked = accountLayout.partyBLockedBalances[user][partyA].onBoard();
+			accountLayout.partyBLockedBalances[user][partyA] = gtPartyBLocked.offBoard(newEncryptionAddress);
+			accountLayout.observerPartyBLockedBalances[user][partyA] = LibEncryption.offBoardLockedToObserver(gtPartyBLocked);
+
+			GarbledLockedValues memory gtPartyBPendingLocked = accountLayout.partyBPendingLockedBalances[user][partyA].onBoard();
+			accountLayout.partyBPendingLockedBalances[user][partyA] = gtPartyBPendingLocked.offBoard(newEncryptionAddress);
+			accountLayout.observerPartyBPendingLockedBalances[user][partyA] = LibEncryption.offBoardLockedToObserver(gtPartyBPendingLocked);
+		}
     }
 
 	function _storePartyAAllocatedBalance(AccountStorage.Layout storage accountLayout, address partyA, gtUint256 value) private {

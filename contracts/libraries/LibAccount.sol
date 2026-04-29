@@ -300,6 +300,11 @@ library LibAccount {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		address encryptionAddress = getUserEncryptionAddress(partyB);
 
+		if (!accountLayout.partyBConnectedPartyA[partyB][partyA]) {
+			accountLayout.partyBConnectedPartyA[partyB][partyA] = true;
+			accountLayout.partyBConnectedPartyAs[partyB].push(partyA);
+		}
+
 		// Initialize Party B locked balances for this Party A if uninitialized
 		LockedValues storage lockedBalances = accountLayout.partyBLockedBalances[partyB][partyA];
 		LockedValues storage pendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA];

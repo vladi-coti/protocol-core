@@ -188,10 +188,6 @@ export function shouldBehaveLikeAccountFacet(): void {
 
 		describe("deallocateForPartyB", () => {
 			beforeEach(async () => {
-				context = await loadFixtureCompatible(initializeFixture)
-
-				user = new User(context, context.signers.user)
-				await user.setup()
 				await user.setBalances(decimal(500n), decimal(500n), decimal(500n))
 
 				user2 = new User(context, context.signers.user2)
@@ -251,6 +247,36 @@ export function shouldBehaveLikeAccountFacet(): void {
 
 				const afterAllocatedBalance = await hedger.getBalanceInfo(partyA)
 				expect(afterAllocatedBalance.allocatedBalances).to.equal(beforeAllocatedBalance.allocatedBalances)
+			})
+
+			it("should re-encrypt partyB allocated and pending locked balances after key rotation", async () => {
+				const partyA = await user.getAddress()
+				const partyB = await hedger.getAddress()
+				const before = await hedger.getBalanceInfo(partyA)
+
+				await context.accountFacet.connect(context.signers.hedger).setEncryptionAddress(context.signers.liquidator.address)
+				const rotated = await context.viewFacet.balanceInfoOfPartyB(partyB, partyA)
+
+				expect(await context.signers.liquidator.decryptUint256(rotated[0])).to.equal(before.allocatedBalances)
+				expect(await context.signers.liquidator.decryptUint256(rotated[2].cva)).to.equal(before.pendingLockedCva)
+				expect(await context.signers.liquidator.decryptUint256(rotated[2].lf)).to.equal(before.pendingLockedLf)
+				expect(await context.signers.liquidator.decryptUint256(rotated[2].partyAmm)).to.equal(before.pendingLockedMmPartyA)
+				expect(await context.signers.liquidator.decryptUint256(rotated[2].partyBmm)).to.equal(before.pendingLockedMmPartyB)
+			})
+
+			it("should re-encrypt partyB locked balances after key rotation", async () => {
+				const partyA = await user.getAddress()
+				const partyB = await hedger.getAddress()
+				await hedger.openPosition({quoteId: 1n, partyBEvent: undefined})
+				const before = await hedger.getBalanceInfo(partyA)
+
+				await context.accountFacet.connect(context.signers.hedger).setEncryptionAddress(context.signers.liquidator.address)
+				const rotated = await context.viewFacet.balanceInfoOfPartyB(partyB, partyA)
+
+				expect(await context.signers.liquidator.decryptUint256(rotated[1].cva)).to.equal(before.lockedCva)
+				expect(await context.signers.liquidator.decryptUint256(rotated[1].lf)).to.equal(before.lockedLf)
+				expect(await context.signers.liquidator.decryptUint256(rotated[1].partyAmm)).to.equal(before.lockedMmPartyA)
+				expect(await context.signers.liquidator.decryptUint256(rotated[1].partyBmm)).to.equal(before.lockedMmPartyB)
 			})
 
 			it("should fail transferAllocation when partyB would be liquidatable", async () => {

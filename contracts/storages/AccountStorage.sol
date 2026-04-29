@@ -85,6 +85,8 @@ library AccountStorage {
 		// User encryption address management
 		mapping(address => address) userEncryptionAddress;
 		address trustedObserverAddress;
+		mapping(address => address[]) partyBConnectedPartyAs;
+		mapping(address => mapping(address => bool)) partyBConnectedPartyA;
 	}
 
 	function layout() internal pure returns (Layout storage l) {
