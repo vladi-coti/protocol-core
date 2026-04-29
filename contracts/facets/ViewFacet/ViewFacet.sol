@@ -296,6 +296,22 @@ contract ViewFacet is IViewFacet {
 		return AccountStorage.layout().liquidationDetails[partyA];
 	}
 
+	function liquidationDeficitOfPartyA(address partyA) external view returns (ctUint256 memory) {
+		return AccountStorage.layout().encryptedLiquidationDeficit[partyA].userCiphertext;
+	}
+
+	function observerLiquidationDeficitOfPartyA(address partyA) external view returns (ctUint256 memory) {
+		return AccountStorage.layout().observerEncryptedLiquidationDeficit[partyA];
+	}
+
+	function liquidationFeeOfPartyA(address partyA) external view returns (ctUint256 memory) {
+		return AccountStorage.layout().encryptedLiquidationFee[partyA].userCiphertext;
+	}
+
+	function observerLiquidationFeeOfPartyA(address partyA) external view returns (ctUint256 memory) {
+		return AccountStorage.layout().observerEncryptedLiquidationFee[partyA];
+	}
+
 	/**
 	 * @notice Returns the deallocate debounce time.
 	 * @return deallocateDebounceTime.

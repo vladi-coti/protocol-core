@@ -46,26 +46,19 @@ library LibLiquidation {
 		// Ensure Party B is insolvent (decrypt for comparison)
 		require(MpcCore.decrypt(gtAvailableBalance.lt(gtZero)), "LiquidationFacet: partyB is solvent");
 		
-		int256 availableBalance = MpcCore.decrypt(gtAvailableBalance);
-
-		uint256 liquidatorShare;
-		uint256 remainingLf;
-
-		// Determine liquidator share and remaining locked funds
-		// Decrypt lf for calculation
 		gtUint256 gtLf = LockedValuesOps.safeOnboard(accountLayout.partyBLockedBalances[partyB][partyA].lf.ciphertext);
-		uint256 lf = MpcCore.decrypt(gtLf);
+		gtUint256 gtDeficitMagnitude = gtZero.sub(gtAvailableBalance).fromSigned();
+		gtUint256 gtRemainingLf = MpcCore.setPublic256(uint256(0));
+		gtUint256 gtLiquidatorShare = MpcCore.setPublic256(uint256(0));
+		gtUint256 gtPerPositionShare = MpcCore.setPublic256(uint256(0));
 		
-		if (uint256(-availableBalance) < lf) {
-			remainingLf = lf - uint256(-availableBalance);
-			liquidatorShare = (remainingLf * maLayout.liquidatorShare) / 1e18;
-
-			maLayout.partyBPositionLiquidatorsShare[partyB][partyA] =
-				(remainingLf - liquidatorShare) /
-				quoteLayout.partyBPositionsCount[partyB][partyA];
-		} else {
-			maLayout.partyBPositionLiquidatorsShare[partyB][partyA] = 0;
+		if (MpcCore.decrypt(gtDeficitMagnitude.lt(gtLf))) {
+			gtRemainingLf = gtLf.checkedSub(gtDeficitMagnitude);
+			gtLiquidatorShare = gtRemainingLf.checkedMul(MpcCore.setPublic256(maLayout.liquidatorShare)).div(MpcCore.setPublic256(uint256(1e18)));
+			gtPerPositionShare = gtRemainingLf.checkedSub(gtLiquidatorShare).div(MpcCore.setPublic256(quoteLayout.partyBPositionsCount[partyB][partyA]));
 		}
+		maLayout.encryptedPartyBPositionLiquidatorsShare[partyB][partyA] = MpcCore.offBoard(gtPerPositionShare);
+		maLayout.partyBPositionLiquidatorsShare[partyB][partyA] = 0;
 
 		// Update liquidation status and timestamp for Party B
 		maLayout.partyBLiquidationStatus[partyB][partyA] = true;
@@ -101,7 +94,6 @@ library LibLiquidation {
 
 		// Update allocated balances for Party A using encrypted operations
 		gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
-		gtUint256 gtRemainingLf = MpcCore.setPublic256(remainingLf);
 		gtUint256 gtValue = gtPartyBBalance.checkedSub(gtRemainingLf);
 		
 		// Update PartyA balance
@@ -138,11 +130,10 @@ library LibLiquidation {
 		accountLayout.partyANonces[partyA] += 1;
 
 		// Transfer liquidator share to the liquidator
-		if (liquidatorShare > 0) {
+		if (MpcCore.decrypt(gtLiquidatorShare.gt(MpcCore.setPublic256(uint256(0))))) {
 			address liquidatorEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
 			// Update liquidator balance with encrypted operations
 			gtUint256 gtLiquidatorBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
-			gtUint256 gtLiquidatorShare = MpcCore.setPublic256(liquidatorShare);
 			gtUint256 gtNewLiquidatorBalance = gtLiquidatorBalance.checkedAdd(gtLiquidatorShare);
 			LibEncryption.storePartyAAllocatedBalance(accountLayout, msg.sender, gtNewLiquidatorBalance);
 			

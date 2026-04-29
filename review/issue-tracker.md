@@ -44,14 +44,14 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 34 | [`report4#11`](report4.md#L121-L124) | fixed | `setEncryptionAddress` guards account state and writes mapping last |
 | 35 | [`report5#1`](report5.md#L1-L10) | fixed | Reserve-covered force close keeps deficit amount encrypted |
 | 36 | [`report5#2`](report5.md#L11-L19) | fixed | Force-close liquidation computes close PnL delta in MPC |
-| 37 | [`report5#3`](report5.md#L20-L35) | partial | Liquidation flows decrypt full financial state |
+| 37 | [`report5#3`](report5.md#L20-L35) | partial | Exact liquidation magnitudes encrypted; lifecycle type/status remains public |
 | 38 | [`report5#4`](report5.md#L36-L40) | open | `settlementStates` offboarded to partyA key only |
 | 39 | [`report5#5`](report5.md#L41-L48) | open | Generic validation error regresses UX/debuggability |
 | 40 | [`report5#6`](report5.md#L49-L59) | open | `mux` computes underflowing unselected arm |
 | 41 | [`report5#7`](report5.md#L60-L73) | open | Event ABI/topic changes break integrations |
 | 42 | [`report5#8`](report5.md#L74-L75) | open | `setEncryptionAddress` missing from interface |
 
-## Coverage Check
+## Notes
 
 ### Issue 25 Note
 
@@ -65,10 +65,6 @@ Issue 26 has two parts. The fix removes avoidable decrypted equality branches an
 
 PartyB key rotation now tracks PartyB-to-PartyA relationships and re-encrypts PartyB allocated, locked, and pending locked balances for every tracked PartyA. Settlement state remains encrypted to PartyA plus the trusted observer copy; it is not PartyB self-decryption state.
 
-### Issue 28 Note
-
-`internalTransfer` now initializes the recipient as PartyA before crediting encrypted allocation. This writes encrypted zero `allocatedBalances`, `lockedBalances`, and `pendingLockedBalances` for fresh recipients, so later PartyA solvency and deallocation paths can safely onboard those slots.
-
 ### Issue 29 Note
 
 The old trusted user-encryption mode no longer exists: `trustedEncryptionAddress` and the early return in `setEncryptionAddress` were removed by the observer refactor. Current `trustedObserverAddress` only controls separate observer ciphertexts through `offBoardToObserver`; it does not affect `getUserEncryptionAddress` or user-owned ciphertexts. A regression covers key rotation while observer mode is enabled, then disables observer mode and verifies the rotated user ciphertext still decrypts with the new user key.
@@ -76,14 +72,6 @@ The old trusted user-encryption mode no longer exists: `trustedEncryptionAddress
 ### Issue 30 Note
 
 `LockedValuesOps.mux` was unused and has been removed instead of documenting a misleading wrapper around COTI's reversed `MpcCore.mux(condition, a, b)` convention. Existing direct `MpcCore.mux` call sites are unchanged; the separate eager-evaluation/underflow concern remains tracked under Issue 40.
-
-### Issue 31 Note
-
-`initializePartyB` now checks PartyB locked balances, pending locked balances, settlement state, and allocated balance independently. The PartyB quote lock path delegates to the shared initializer, so a drifted zero slot can be repaired without wiping already-initialized sibling slots.
-
-### Issue 32 Note
-
-`LibMuon.getChainId()` now only returns `block.chainid`; the stale commented hardcoded fallback was removed.
 
 ### Issue 33 Note
 
@@ -99,7 +87,8 @@ The reserve-covered `forceClosePosition` branch no longer decrypts PartyB's defi
 
 ### Issue 36 Note
 
-The PartyB liquidation branch in `forceClosePosition` no longer decrypts `quantityToClose` or `closePrice`. PartyB's close PnL delta is computed with MPC signed arithmetic, and force close passes the already-computed encrypted post-close available balance into `LibLiquidation`. The remaining liquidation-internal decrypts of available balance and liquidation fee are the broader liquidation privacy problem tracked under Issue 37.
+The PartyB liquidation branch in `forceClosePosition` no longer decrypts `quantityToClose` or `closePrice`. PartyB's close PnL delta is computed with MPC signed arithmetic, and force close passes the already-computed encrypted post-close available balance into `LibLiquidation`.
 
-- Total original findings across the five reports: `42`
-- Total tracked findings in this file: `42`
+### Issue 37 Note
+
+Exact liquidation magnitudes are no longer persisted as public plaintext. PartyA deficit and liquidation fee are stored as user ciphertext plus observer ciphertext, deferred positive-balance reimbursement updates encrypted reimbursement state directly, and PartyB per-position liquidator share is stored as contract ciphertext for later encrypted payout. The remaining public surface is lifecycle/control-flow state: liquidation status, liquidation type, timestamps, quote status transitions, and disputed flags.

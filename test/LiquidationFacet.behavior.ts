@@ -177,14 +177,16 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 				})
 
 				it("Should settle liquidation", async function () {
-					let userAddress = context.signers.user.getAddress()
-					let hedgerAddress = context.signers.hedger.getAddress()
+					let userAddress = await context.signers.user.getAddress()
+					let hedgerAddress = await context.signers.hedger.getAddress()
 
 					const hedgerBalance = await hedger.getBalanceInfo(await user.getAddress())
 					const userBalance = await user.getBalanceInfo()
 					const available = userBalance.allocatedBalances - userBalance.lockedCva
 					const pnl = unDecimal((price - decimal(1n)) * decimal(100n))
 					const diff = available - pnl
+					expect(await user.decryptUint256(await context.viewFacet.liquidationFeeOfPartyA(userAddress))).to.equal(diff)
+					expect((await user.getLiquidatedStateOfPartyA()).liquidationFee).to.equal(0n)
 					const partyBAfter = hedgerBalance.allocatedBalances + pnl + userBalance.lockedCva
 					const [settlementState] = await context.viewFacet.getSettlementStates(userAddress, [hedgerAddress])
 					expect(await context.signers.user.decryptInt256(settlementState.actualAmount)).to.equal(-pnl)
@@ -204,6 +206,8 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 				await user.liquidateAndSetSymbolPrices([1n], [price])
 				const liquidationState = await user.getLiquidatedStateOfPartyA()
 				expect(liquidationState["liquidationType"]).to.be.equal(LiquidationType.LATE)
+				expect(liquidationState["deficit"]).to.be.equal(0n)
+				expect(await user.decryptUint256(await context.viewFacet.liquidationDeficitOfPartyA(await user.getAddress()))).to.be.greaterThan(0n)
 
 				const hedgerBalance = await hedger.getBalanceInfo(await user.getAddress())
 				const userBalance = await user.getBalanceInfo()

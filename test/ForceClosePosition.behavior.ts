@@ -250,6 +250,9 @@ export function shouldBehaveLikeForceClosePosition(): void {
 			let sig = await getDummyPriceSig([4n, 2n, 1n], [0n, 0n, 0n])
 
 			await context.liquidationPositionsFacet.connect(context.signers.liquidator).liquidatePositionsPartyB(hedgerAddress, userAddress, sig)
+			expect(
+				await decryptUint256(context, await context.viewFacet.allocatedBalanceOfPartyA(context.signers.liquidator.address), context.signers.liquidator),
+			).to.be.greaterThan(0n)
 
 			expect((await context.viewFacet.getQuote(3)).quoteStatus).to.be.equal(QuoteStatus.PENDING)
 			expect((await context.viewFacet.getQuote(4)).quoteStatus).to.be.equal(QuoteStatus.LIQUIDATED)

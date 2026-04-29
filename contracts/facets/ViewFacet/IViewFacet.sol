@@ -92,6 +92,14 @@ interface IViewFacet {
 
 	function getLiquidatedStateOfPartyA(address partyA) external view returns (LiquidationDetail memory);
 
+	function liquidationDeficitOfPartyA(address partyA) external view returns (ctUint256 memory);
+
+	function observerLiquidationDeficitOfPartyA(address partyA) external view returns (ctUint256 memory);
+
+	function liquidationFeeOfPartyA(address partyA) external view returns (ctUint256 memory);
+
+	function observerLiquidationFeeOfPartyA(address partyA) external view returns (ctUint256 memory);
+
 	function getDeallocateDebounceTime() external view returns (uint256);
 
 	function getInvalidBridgedAmountsPool() external view returns (address);

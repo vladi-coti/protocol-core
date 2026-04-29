@@ -87,6 +87,10 @@ library AccountStorage {
 		address trustedObserverAddress;
 		mapping(address => address[]) partyBConnectedPartyAs;
 		mapping(address => mapping(address => bool)) partyBConnectedPartyA;
+		mapping(address => utUint256) encryptedLiquidationDeficit;
+		mapping(address => ctUint256) observerEncryptedLiquidationDeficit;
+		mapping(address => utUint256) encryptedLiquidationFee;
+		mapping(address => ctUint256) observerEncryptedLiquidationFee;
 	}
 
 	function layout() internal pure returns (Layout storage l) {
