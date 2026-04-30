@@ -45,7 +45,7 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 35 | [`report5#1`](report5.md#L1-L10) | fixed | Reserve-covered force close keeps deficit amount encrypted |
 | 36 | [`report5#2`](report5.md#L11-L19) | fixed | Force-close liquidation computes close PnL delta in MPC |
 | 37 | [`report5#3`](report5.md#L20-L35) | partial | Exact liquidation magnitudes encrypted; lifecycle type/status remains public |
-| 38 | [`report5#4`](report5.md#L36-L40) | open | `settlementStates` offboarded to partyA key only |
+| 38 | [`report5#4`](report5.md#L36-L40) | fixed | `settlementStates` offboarded to partyA key only |
 | 39 | [`report5#5`](report5.md#L41-L48) | open | Generic validation error regresses UX/debuggability |
 | 40 | [`report5#6`](report5.md#L49-L59) | open | `mux` computes underflowing unselected arm |
 | 41 | [`report5#7`](report5.md#L60-L73) | open | Event ABI/topic changes break integrations |

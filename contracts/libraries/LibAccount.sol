@@ -320,6 +320,9 @@ library LibAccount {
 		if (_isSettlementStateUninitialized(settlementState)) {
 			initializeToZeros(settlementState, getUserEncryptionAddress(partyA));
 			initializeObserverToZeros(accountLayout.observerSettlementStates[partyA][partyB]);
+			initializeUserToZeros(accountLayout.partyBSettlementStates[partyA][partyB], encryptionAddress);
+		} else if (_isObserverSettlementStateUninitialized(accountLayout.partyBSettlementStates[partyA][partyB])) {
+			initializeUserToZeros(accountLayout.partyBSettlementStates[partyA][partyB], encryptionAddress);
 		}
 
 		// Initialize Party B allocated balance for this Party A if uninitialized (contains zeros)
@@ -443,6 +446,14 @@ library LibAccount {
 		self.cva = LibEncryption.offBoardToObserver(gtZeroUint);
 	}
 
+	function initializeUserToZeros(ObserverSettlementState storage self, address encryptionAddress) internal {
+		gtInt256 gtZeroInt = MpcCore.setPublic256(int256(0));
+		gtUint256 gtZeroUint = MpcCore.setPublic256(uint256(0));
+		self.actualAmount = MpcCore.offBoardToUser(gtZeroInt, encryptionAddress);
+		self.expectedAmount = MpcCore.offBoardToUser(gtZeroInt, encryptionAddress);
+		self.cva = MpcCore.offBoardToUser(gtZeroUint, encryptionAddress);
+	}
+
 	function _isSettlementStateUninitialized(SettlementState storage self) private view returns (bool) {
 		return (
 			ctInt128.unwrap(self.actualAmount.ciphertext.ciphertextHigh) == 0 &&
@@ -451,6 +462,17 @@ library LibAccount {
 			ctInt128.unwrap(self.expectedAmount.ciphertext.ciphertextLow) == 0 &&
 			ctUint128.unwrap(self.cva.ciphertext.ciphertextHigh) == 0 &&
 			ctUint128.unwrap(self.cva.ciphertext.ciphertextLow) == 0
+		);
+	}
+
+	function _isObserverSettlementStateUninitialized(ObserverSettlementState storage self) private view returns (bool) {
+		return (
+			ctInt128.unwrap(self.actualAmount.ciphertextHigh) == 0 &&
+			ctInt128.unwrap(self.actualAmount.ciphertextLow) == 0 &&
+			ctInt128.unwrap(self.expectedAmount.ciphertextHigh) == 0 &&
+			ctInt128.unwrap(self.expectedAmount.ciphertextLow) == 0 &&
+			ctUint128.unwrap(self.cva.ciphertextHigh) == 0 &&
+			ctUint128.unwrap(self.cva.ciphertextLow) == 0
 		);
 	}
 

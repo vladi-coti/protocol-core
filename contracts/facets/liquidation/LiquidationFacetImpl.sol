@@ -41,6 +41,51 @@ library LiquidationFacetImpl {
         accountLayout.observerEncryptedLiquidationFee[partyA] = LibEncryption.offBoardToObserver(value);
     }
 
+    function _storeSettlementCva(
+        AccountStorage.Layout storage accountLayout,
+        address partyA,
+        address partyB,
+        gtUint256 value,
+        address partyAEncryptionAddress,
+        address partyBEncryptionAddress
+    ) private {
+        accountLayout.settlementStates[partyA][partyB].cva = MpcCore.offBoardCombined(value, partyAEncryptionAddress);
+        accountLayout.observerSettlementStates[partyA][partyB].cva = LibEncryption.offBoardToObserver(value);
+        accountLayout.partyBSettlementStates[partyA][partyB].cva = MpcCore.offBoardToUser(value, partyBEncryptionAddress);
+    }
+
+    function _storeSettlementActual(
+        AccountStorage.Layout storage accountLayout,
+        address partyA,
+        address partyB,
+        gtInt256 value,
+        address partyAEncryptionAddress,
+        address partyBEncryptionAddress
+    ) private {
+        accountLayout.settlementStates[partyA][partyB].actualAmount = MpcCore.offBoardCombined(value, partyAEncryptionAddress);
+        accountLayout.observerSettlementStates[partyA][partyB].actualAmount = LibEncryption.offBoardToObserver(value);
+        accountLayout.partyBSettlementStates[partyA][partyB].actualAmount = MpcCore.offBoardToUser(value, partyBEncryptionAddress);
+    }
+
+    function _storeSettlementExpected(
+        AccountStorage.Layout storage accountLayout,
+        address partyA,
+        address partyB,
+        gtInt256 value,
+        address partyAEncryptionAddress,
+        address partyBEncryptionAddress
+    ) private {
+        accountLayout.settlementStates[partyA][partyB].expectedAmount = MpcCore.offBoardCombined(value, partyAEncryptionAddress);
+        accountLayout.observerSettlementStates[partyA][partyB].expectedAmount = LibEncryption.offBoardToObserver(value);
+        accountLayout.partyBSettlementStates[partyA][partyB].expectedAmount = MpcCore.offBoardToUser(value, partyBEncryptionAddress);
+    }
+
+    function _copySettlementActualToExpected(AccountStorage.Layout storage accountLayout, address partyA, address partyB) private {
+        accountLayout.settlementStates[partyA][partyB].expectedAmount = accountLayout.settlementStates[partyA][partyB].actualAmount;
+        accountLayout.observerSettlementStates[partyA][partyB].expectedAmount = accountLayout.observerSettlementStates[partyA][partyB].actualAmount;
+        accountLayout.partyBSettlementStates[partyA][partyB].expectedAmount = accountLayout.partyBSettlementStates[partyA][partyB].actualAmount;
+    }
+
     function _initializeLiquidationAccumulator(AccountStorage.Layout storage accountLayout, address partyA) private {
         accountLayout.settlementStates[partyA][address(0)].actualAmount = MpcCore.offBoardCombined(
             MpcCore.setPublic256(int256(0)),
@@ -252,18 +297,13 @@ library LiquidationFacetImpl {
                 // Update cva with encrypted operations
                 gtUint256 gtCurrentCva = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].cva.ciphertext);
                 gtUint256 gtNewCva = gtCurrentCva.checkedAdd(gtQuoteCva);
-                accountLayout.settlementStates[partyA][quote.partyB].cva = MpcCore.offBoardCombined(gtNewCva, partyAEncryptionAddress);
-                accountLayout.observerSettlementStates[partyA][quote.partyB].cva = LibEncryption.offBoardToObserver(gtNewCva);
+                _storeSettlementCva(accountLayout, partyA, quote.partyB, gtNewCva, partyAEncryptionAddress, partyBEncryptionAddress);
 
                 gtInt256 gtAmountDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAmount.toSigned());
                 gtInt256 gtCurrentActual = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
                 gtInt256 gtNewActual = gtCurrentActual.add(gtAmountDelta);
-                accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
-                accountLayout.observerSettlementStates[partyA][quote.partyB].actualAmount = LibEncryption.offBoardToObserver(gtNewActual);
-                accountLayout.settlementStates[partyA][quote.partyB].expectedAmount = accountLayout
-                    .settlementStates[partyA][quote.partyB].actualAmount;
-                accountLayout.observerSettlementStates[partyA][quote.partyB].expectedAmount = accountLayout
-                    .observerSettlementStates[partyA][quote.partyB].actualAmount;
+                _storeSettlementActual(accountLayout, partyA, quote.partyB, gtNewActual, partyAEncryptionAddress, partyBEncryptionAddress);
+                _copySettlementActualToExpected(accountLayout, partyA, quote.partyB);
             } else if (accountLayout.liquidationDetails[partyA].liquidationType == LiquidationType.LATE) {
                 gtUint256 gtTotalCva = LockedValuesOps.safeOnboard(accountLayout.lockedBalances[partyA].cva.ciphertext);
                 gtUint256 gtAdjustedCva = gtQuoteCva.checkedSub(gtQuoteCva.checkedMul(gtDeficit).div(gtTotalCva));
@@ -271,18 +311,13 @@ library LiquidationFacetImpl {
                 // Update cva with encrypted operations
                 gtUint256 gtCurrentCva = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].cva.ciphertext);
                 gtUint256 gtNewCva = gtCurrentCva.checkedAdd(gtAdjustedCva);
-                accountLayout.settlementStates[partyA][quote.partyB].cva = MpcCore.offBoardCombined(gtNewCva, partyAEncryptionAddress);
-                accountLayout.observerSettlementStates[partyA][quote.partyB].cva = LibEncryption.offBoardToObserver(gtNewCva);
+                _storeSettlementCva(accountLayout, partyA, quote.partyB, gtNewCva, partyAEncryptionAddress, partyBEncryptionAddress);
                 
                 gtInt256 gtAmountDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAmount.toSigned());
                 gtInt256 gtCurrentActual = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
                 gtInt256 gtNewActual = gtCurrentActual.add(gtAmountDelta);
-                accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
-                accountLayout.observerSettlementStates[partyA][quote.partyB].actualAmount = LibEncryption.offBoardToObserver(gtNewActual);
-                accountLayout.settlementStates[partyA][quote.partyB].expectedAmount = accountLayout
-                    .settlementStates[partyA][quote.partyB].actualAmount;
-                accountLayout.observerSettlementStates[partyA][quote.partyB].expectedAmount = accountLayout
-                    .observerSettlementStates[partyA][quote.partyB].actualAmount;
+                _storeSettlementActual(accountLayout, partyA, quote.partyB, gtNewActual, partyAEncryptionAddress, partyBEncryptionAddress);
+                _copySettlementActualToExpected(accountLayout, partyA, quote.partyB);
             } else if (accountLayout.liquidationDetails[partyA].liquidationType == LiquidationType.OVERDUE) {
                 require(accountLayout.liquidationDetails[partyA].totalUnrealizedLoss < 0, "LiquidationFacet: Invalid unrealized loss");
                 gtUint256 gtTotalUnrealizedLoss = MpcCore.setPublic256(uint256(-accountLayout.liquidationDetails[partyA].totalUnrealizedLoss));
@@ -292,13 +327,11 @@ library LiquidationFacetImpl {
 
                 gtInt256 gtCurrentActual = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
                 gtInt256 gtNewActual = gtCurrentActual.add(gtActualDelta);
-                accountLayout.settlementStates[partyA][quote.partyB].actualAmount = MpcCore.offBoardCombined(gtNewActual, partyAEncryptionAddress);
-                accountLayout.observerSettlementStates[partyA][quote.partyB].actualAmount = LibEncryption.offBoardToObserver(gtNewActual);
+                _storeSettlementActual(accountLayout, partyA, quote.partyB, gtNewActual, partyAEncryptionAddress, partyBEncryptionAddress);
 
                 gtInt256 gtCurrentExpected = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].expectedAmount.ciphertext);
                 gtInt256 gtNewExpected = gtCurrentExpected.add(gtExpectedDelta);
-                accountLayout.settlementStates[partyA][quote.partyB].expectedAmount = MpcCore.offBoardCombined(gtNewExpected, partyAEncryptionAddress);
-                accountLayout.observerSettlementStates[partyA][quote.partyB].expectedAmount = LibEncryption.offBoardToObserver(gtNewExpected);
+                _storeSettlementExpected(accountLayout, partyA, quote.partyB, gtNewExpected, partyAEncryptionAddress, partyBEncryptionAddress);
             }
             accountLayout.partyBLockedBalances[quote.partyB][partyA].subQuote(quote, partyBEncryptionAddress);
             accountLayout.observerPartyBLockedBalances[quote.partyB][partyA] = LibEncryption.offBoardLockedToObserver(
@@ -351,9 +384,10 @@ library LiquidationFacetImpl {
         accountLayout.liquidationDetails[partyA].disputed = disputed;
         require(partyBs.length == amounts.length, "LiquidationFacet: Invalid length");
         for (uint256 i = 0; i < partyBs.length; i++) {
+            address partyB = partyBs[i];
+            address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
             gtInt256 gtAmount = MpcCore.setPublic256(uint256(amounts[i])).toSigned();
-            accountLayout.settlementStates[partyA][partyBs[i]].actualAmount = MpcCore.offBoardCombined(gtAmount, partyAEncryptionAddress);
-            accountLayout.observerSettlementStates[partyA][partyBs[i]].actualAmount = LibEncryption.offBoardToObserver(gtAmount);
+            _storeSettlementActual(accountLayout, partyA, partyB, gtAmount, partyAEncryptionAddress, partyBEncryptionAddress);
         }
         return accountLayout.liquidationDetails[partyA].liquidationId;
     }
@@ -433,6 +467,7 @@ library LiquidationFacetImpl {
             }
             delete accountLayout.settlementStates[partyA][partyB];
             delete accountLayout.observerSettlementStates[partyA][partyB];
+            delete accountLayout.partyBSettlementStates[partyA][partyB];
         }
         if (accountLayout.liquidationDetails[partyA].involvedPartyBCounts == 0) {
             // Prepare allocated balance for event emission

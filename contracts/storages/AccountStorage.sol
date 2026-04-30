@@ -79,6 +79,7 @@ library AccountStorage {
 		// partyA => partyB => SettlementState
 		mapping(address => mapping(address => SettlementState)) settlementStates;
 		mapping(address => mapping(address => ObserverSettlementState)) observerSettlementStates;
+		mapping(address => mapping(address => ObserverSettlementState)) partyBSettlementStates;
 		mapping(address => uint256) reserveVault;
 		mapping(address => utUint256) encryptedReserveVault;
 		mapping(address => ctUint256) observerEncryptedReserveVault;

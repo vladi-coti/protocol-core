@@ -108,6 +108,8 @@ interface IViewFacet {
 
 	function getObserverSettlementStates(address partyA, address[] memory partyBs) external view returns (PlainSettlementState[] memory);
 
+	function getPartyBSettlementStates(address partyA, address[] memory partyBs) external view returns (PlainSettlementState[] memory);
+
 	///////////////////////////////////////////
 
 	// Symbols

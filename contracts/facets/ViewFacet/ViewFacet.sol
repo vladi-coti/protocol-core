@@ -366,6 +366,22 @@ contract ViewFacet is IViewFacet {
 		return states;
 	}
 
+	function getPartyBSettlementStates(address partyA, address[] memory partyBs) external view returns (PlainSettlementState[] memory) {
+		PlainSettlementState[] memory states = new PlainSettlementState[](partyBs.length);
+		for (uint256 i = 0; i < partyBs.length; i++) {
+			AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+			ObserverSettlementState storage settlementState = accountLayout.partyBSettlementStates[partyA][partyBs[i]];
+
+			states[i] = PlainSettlementState({
+				actualAmount: settlementState.actualAmount,
+				expectedAmount: settlementState.expectedAmount,
+				cva: settlementState.cva,
+				pending: accountLayout.settlementStates[partyA][partyBs[i]].pending
+			});
+		}
+		return states;
+	}
+
 	/**
 	 * @notice Returns the details of a symbol by its ID.
 	 * @param symbolId The ID of the symbol.
