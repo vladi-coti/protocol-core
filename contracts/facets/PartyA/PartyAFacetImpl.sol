@@ -95,12 +95,9 @@ library PartyAFacetImpl {
 		gtInt256 gtAvailableBalance = LibAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
 		gtBool balanceSufficient = totalRequired.toSigned().le(gtAvailableBalance);
 
-		// Combine all validation results
-		gtBool allValidationsPassed = lfSufficient.and(quoteSufficient).and(balanceSufficient);
-
-		// Only decrypt the final validation result for require check
-		bool allValidationsPassedDecrypted = MpcCore.decrypt(allValidationsPassed);
-		require(allValidationsPassedDecrypted, "PartyAFacet: Validation failed");
+		require(MpcCore.decrypt(lfSufficient), "PartyAFacet: LF is not enough");
+		require(MpcCore.decrypt(quoteSufficient), "PartyAFacet: Quote value is low");
+		require(MpcCore.decrypt(balanceSufficient), "PartyAFacet: insufficient available balance");
 
 		// Additional non-encrypted validations
 		for (uint8 i = 0; i < partyBsWhiteList.length; i++) {
