@@ -455,7 +455,7 @@ export function shouldBehaveLikeClosePosition(): void {
 						.closedPrice(decimal(1n, 17))
 						.build(),
 				),
-			).to.be.revertedWith("PartyBFacet: Closed price isn't valid")
+			).to.be.revertedWith("PBF:price")
 
 			await expect(
 				hedger.fillCloseRequest(
@@ -465,7 +465,7 @@ export function shouldBehaveLikeClosePosition(): void {
 						.closedPrice(decimal(2n))
 						.build(),
 				),
-			).to.be.revertedWith("PartyBFacet: Closed price isn't valid")
+			).to.be.revertedWith("PBF:price")
 		})
 
 		it("Fill Close Request - Should fail on negative balance of partyA/partyB", async function () {
@@ -478,7 +478,7 @@ export function shouldBehaveLikeClosePosition(): void {
 						.upnlPartyA(decimal(-575n))
 						.build(),
 				),
-			).to.be.revertedWith("LibSolvency: Available balance is lower than zero")
+			).to.be.revertedWith("LibSolvency: Available partyA balance is lower than zero")
 			await expect(
 				hedger.fillCloseRequest(
 					1,
@@ -488,7 +488,7 @@ export function shouldBehaveLikeClosePosition(): void {
 						.upnlPartyB(decimal(-410n))
 						.build(),
 				),
-			).to.be.revertedWith("LibSolvency: Available balance is lower than zero")
+			).to.be.revertedWith("LibSolvency: Available partyB balance is lower than zero")
 		})
 
 		it("Fill Close Request - Should fail on partyB becoming liquidatable", async function () {
@@ -502,7 +502,7 @@ export function shouldBehaveLikeClosePosition(): void {
 						.price(decimal(1n, 17))
 						.build(),
 				),
-			).to.be.revertedWith("LibSolvency: Available balance is lower than zero")
+			).to.be.revertedWith("LibSolvency: Available partyB balance is lower than zero")
 			await expect(
 				hedger.fillCloseRequest(
 					2,
@@ -512,7 +512,7 @@ export function shouldBehaveLikeClosePosition(): void {
 						.upnlPartyB(decimal(-300n))
 						.build(),
 				),
-			).to.be.revertedWith("LibSolvency: Available balance is lower than zero")
+			).to.be.revertedWith("LibSolvency: Available partyB balance is lower than zero")
 		})
 
 		it("Fill Close Request - Should fail on partyA becoming liquidatable", async function () {
@@ -534,7 +534,7 @@ export function shouldBehaveLikeClosePosition(): void {
 						.price(price)
 						.build(),
 				),
-			).to.be.revertedWith("LibSolvency: Available balance is lower than zero")
+			).to.be.revertedWith("LibSolvency: Available partyA balance is lower than zero")
 
 			quantity = await getQuoteQuantity(context, 1n)
 			price = decimal(1n, 17)
@@ -554,7 +554,7 @@ export function shouldBehaveLikeClosePosition(): void {
 						.price(price)
 						.build(),
 				),
-			).to.be.revertedWith("LibSolvency: Available balance is lower than zero")
+			).to.be.revertedWith("LibSolvency: Available partyA balance is lower than zero")
 		})
 
 		it("Fill Close Request - Should fail due to expired request", async function () {
