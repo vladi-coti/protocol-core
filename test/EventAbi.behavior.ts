@@ -49,9 +49,20 @@ function expectEncryptedBalanceEvents(abi: AbiEntry[]) {
 	}
 }
 
+function expectSetEncryptionAddress(abi: AbiEntry[]) {
+	const functionEntry = abi.find((entry) => entry.type === "function" && entry.name === "setEncryptionAddress")
+	expect(functionEntry, "setEncryptionAddress missing").to.not.be.undefined
+	expect(functionEntry!.inputs?.map((input) => input.type), "setEncryptionAddress inputs").to.deep.equal(["address"])
+}
+
 export function shouldBehaveLikeEventAbi(): void {
 	it("Should expose encrypted balance events in canonical ABIs", function () {
 		expectEncryptedBalanceEvents(readAbi("artifacts/contracts/interfaces/ISymmio.sol/ISymmio.json"))
 		expectEncryptedBalanceEvents(readAbi("abis/symmio.json"))
+	})
+
+	it("Should expose setEncryptionAddress in canonical ABIs", function () {
+		expectSetEncryptionAddress(readAbi("artifacts/contracts/interfaces/ISymmio.sol/ISymmio.json"))
+		expectSetEncryptionAddress(readAbi("abis/symmio.json"))
 	})
 }

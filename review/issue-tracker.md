@@ -49,7 +49,7 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | 39 | [`report5#5`](report5.md#L41-L48) | fixed | Generic validation error regresses UX/debuggability |
 | 40 | [`report5#6`](report5.md#L49-L59) | fixed | `mux` computes underflowing unselected arm |
 | 41 | [`report5#7`](report5.md#L60-L73) | fixed | Event ABI/topic changes break integrations |
-| 42 | [`report5#8`](report5.md#L74-L75) | open | `setEncryptionAddress` missing from interface |
+| 42 | [`report5#8`](report5.md#L74-L75) | fixed | `setEncryptionAddress` missing from interface |
 
 ## Notes
 

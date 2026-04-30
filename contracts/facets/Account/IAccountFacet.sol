@@ -25,6 +25,8 @@ interface IAccountFacet is IAccountEvents {
 
 	function internalTransfer(address user, uint256 amount) external;
 
+	function setEncryptionAddress(address newEncryptionAddress) external;
+
 	// PartyB
 	function allocateForPartyB(uint256 amount, address partyA) external;
 
