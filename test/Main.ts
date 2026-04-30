@@ -19,6 +19,7 @@ import { shouldBehaveLikeMultiAccount } from "./MultiAccount.behavior"
 import { shouldBehaveLikeControlFacet } from "./ControlFacet.behavior"
 import { shouldBehaveLikeSettlement } from "./Settlement.behavior"
 import { shouldBehaveLikePreUpgradeTest } from "./PreUpgrade.behavior"
+import { shouldBehaveLikeEventAbi } from "./EventAbi.behavior"
 
 describe("UnitTests", function () {
 	if (process.env.TEST_MODE == "static") {
@@ -92,6 +93,10 @@ describe("UnitTests", function () {
 
 		describe("FeeDistributor", async function () {
 			shouldBehaveLikeFeeDistributor()
+		})
+
+		describe("Event ABI", async function () {
+			shouldBehaveLikeEventAbi()
 		})
 	} else if (process.env.TEST_MODE == "fuzz") {
 		describe("FuzzTest", async function () {

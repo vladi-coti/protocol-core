@@ -4,6 +4,7 @@
 // For more information, see https://docs.symm.io/legal-disclaimer/license
 pragma solidity >=0.8.18;
 
+import "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 import "../facets/Account/IAccountFacet.sol";
 import "../facets/Control/IControlFacet.sol";
 import "../facets/FundingRate/IFundingRateFacet.sol";
@@ -58,8 +59,14 @@ interface ISymmio is
 	}
 
 	// Copied from SharedEvents library
-	event BalanceChangePartyA(address indexed partyA, uint256 amount, BalanceChangeType _type);
+	event BalanceChangePartyA(address indexed partyA, ctUint256 amount, BalanceChangeType _type);
 
 	// Copied from SharedEvents library
-	event BalanceChangePartyB(address indexed partyB, address indexed partyA, uint256 amount, BalanceChangeType _type);
+	event BalanceChangePartyB(address indexed partyB, address indexed partyA, ctUint256 amount, BalanceChangeType _type);
+
+	// Copied from SharedEvents library
+	event ObserverBalanceChangePartyA(address indexed partyA, ctUint256 amount, BalanceChangeType _type);
+
+	// Copied from SharedEvents library
+	event ObserverBalanceChangePartyB(address indexed partyB, address indexed partyA, ctUint256 amount, BalanceChangeType _type);
 }
