@@ -9,7 +9,7 @@ Statuses are inherited from the prior deduped tracker, so duplicate findings acr
 | # | Finding | Status | Summary |
 | --- | --- | --- | --- |
 | 1 | [`report1#1`](report1.md#L1-L10) | fixed | Solvency branch math swapped |
-| 2 | [`report1#2`](report1.md#L11-L14) | deferred | Muon verification and expiry checks disabled |
+| 2 | [`report1#2`](report1.md#L11-L14) | fixed | Muon verification and expiry checks restored |
 | 3 | [`report1#3`](report1.md#L15-L18) | fixed | No-op live selectors |
 | 4 | [`report1#4`](report1.md#L19-L26) | fixed | Deferred liquidation snapshot bug |
 | 5 | [`report2#1`](report2.md#L1-L3) | fixed | `lockAndOpenQuote` emits wrong-key event for partyA |

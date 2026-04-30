@@ -1,5 +1,6 @@
 export const FacetNames = [
 	"AccountFacet",
+	"AccountManagementFacet",
 	"ControlFacet",
 	"DiamondLoupeFacet",
 	"LiquidationFacet",
@@ -14,9 +15,15 @@ export const FacetNames = [
 	"SettleAndForceCloseFacet",
 	"RecoveryActionsFacet",
 	"SettlementFacet",
+	"PartyBCloseActionsFacet",
 	"PartyBPositionActionsFacet",
 	"PartyBQuoteActionsFacet",
 	"PartyBGroupActionsFacet",
+]
+
+export const LibraryNames = [
+	"ForceActionsFacetImpl",
+	"PartyBGroupActionsFacetImpl",
 ]
 
 export const DEPLOYMENT_LOG_FILE = "deployed.json"

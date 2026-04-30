@@ -76,7 +76,7 @@ library ForceActionsFacetImpl {
 		HighLowPriceSig memory sig,
 		SettlementSig memory settlementSig,
 		uint256[] memory updatedPrices
-	) internal returns (gtUint256 gtClosePrice, bool isPartyBLiquidated, gtInt256 gtUpnlPartyB, gtUint256 gtPartyBAllocatedBalance) {
+	) public returns (gtUint256 gtClosePrice, bool isPartyBLiquidated, gtInt256 gtUpnlPartyB, gtUint256 gtPartyBAllocatedBalance) {
 		MAStorage.Layout storage maLayout = MAStorage.layout();
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		SymbolStorage.Layout storage symbolLayout = SymbolStorage.layout();

@@ -5,8 +5,7 @@
 pragma solidity >=0.8.18;
 
 import "./IPartyBGroupActionsFacet.sol";
-import "../PartyBPositionActions/PartyBPositionActionsFacetImpl.sol";
-import "../PartyBQuoteActions/PartyBQuoteActionsFacetImpl.sol";
+import "./PartyBGroupActionsFacetImpl.sol";
 import "../../utils/Accessibility.sol";
 import "../../utils/Pausable.sol";
 
@@ -25,80 +24,6 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 		SingleUpnlSig memory upnlSig,
 		PairUpnlAndPriceSig memory pairUpnlSig
 	) external override whenNotPartyBActionsPaused onlyPartyB notLiquidated(quoteId) {
-		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
-		PartyBQuoteActionsFacetImpl.lockQuote(quoteId, upnlSig);
-		emit LockQuote(quote.partyB, quoteId);
-		gtUint256 gtFilledAmount = MpcCore.validateCiphertext(encryptedParams.encryptedFilledAmount);
-		gtUint256 gtOpenedPrice = MpcCore.validateCiphertext(encryptedParams.encryptedOpenedPrice);
-		uint256 newId = PartyBPositionActionsFacetImpl.openPosition(quoteId, gtFilledAmount, gtOpenedPrice, pairUpnlSig);
-		{
-			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
-			ctUint256 memory filledAmount = MpcCore.offBoardToUser(gtFilledAmount, partyAEncryptionAddress);
-			ctUint256 memory openedPrice = MpcCore.offBoardToUser(gtOpenedPrice, partyAEncryptionAddress);
-			emit OpenPositionForPartyA(quoteId, quote.partyA, quote.partyB, EncryptedPositionValues(filledAmount, openedPrice));
-		}
-		{
-			address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
-			ctUint256 memory filledAmount = MpcCore.offBoardToUser(gtFilledAmount, partyBEncryptionAddress);
-			ctUint256 memory openedPrice = MpcCore.offBoardToUser(gtOpenedPrice, partyBEncryptionAddress);
-			emit OpenPositionForPartyB(quoteId, quote.partyA, quote.partyB, EncryptedPositionValues(filledAmount, openedPrice));
-		}
-		if (newId != 0) {
-			Quote storage newQuote = QuoteStorage.layout().quotes[newId];
-			if (newQuote.quoteStatus == QuoteStatus.PENDING) {
-				gtUint256 gtPrice = MpcCore.onBoard(newQuote.requestedOpenPrice.ciphertext);
-				gtUint256 gtQuantity = MpcCore.onBoard(newQuote.quantity.ciphertext);
-				{
-					address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(newQuote.partyA);
-					EncryptedQuoteValues memory partyAValues = EncryptedQuoteValues({
-						price: MpcCore.offBoardToUser(gtPrice, partyAEncryptionAddress),
-						marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(pairUpnlSig.price), partyAEncryptionAddress),
-						quantity: MpcCore.offBoardToUser(gtQuantity, partyAEncryptionAddress),
-						cva: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.cva.ciphertext), partyAEncryptionAddress),
-						lf: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.lf.ciphertext), partyAEncryptionAddress),
-						partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.partyAmm.ciphertext), partyAEncryptionAddress),
-						partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.partyBmm.ciphertext), partyAEncryptionAddress),
-						tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[newQuote.symbolId].tradingFee), partyAEncryptionAddress)
-					});
-					emit SendQuoteForPartyA(
-						newQuote.partyA,
-						newQuote.id,
-						newQuote.partyBsWhiteList,
-						newQuote.symbolId,
-						newQuote.positionType,
-						newQuote.orderType,
-						partyAValues,
-						newQuote.deadline
-					);
-				}
-				{
-					for (uint256 i = 0; i < newQuote.partyBsWhiteList.length; i++) {
-						address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(newQuote.partyBsWhiteList[i]);
-						EncryptedQuoteValues memory partyBValues = EncryptedQuoteValues({
-							price: MpcCore.offBoardToUser(gtPrice, partyBEncryptionAddress),
-							marketPrice: MpcCore.offBoardToUser(MpcCore.setPublic256(pairUpnlSig.price), partyBEncryptionAddress),
-							quantity: MpcCore.offBoardToUser(gtQuantity, partyBEncryptionAddress),
-							cva: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.cva.ciphertext), partyBEncryptionAddress),
-							lf: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.lf.ciphertext), partyBEncryptionAddress),
-							partyAmm: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.partyAmm.ciphertext), partyBEncryptionAddress),
-							partyBmm: MpcCore.offBoardToUser(MpcCore.onBoard(newQuote.lockedValues.partyBmm.ciphertext), partyBEncryptionAddress),
-							tradingFee: MpcCore.offBoardToUser(MpcCore.setPublic256(SymbolStorage.layout().symbols[newQuote.symbolId].tradingFee), partyBEncryptionAddress)
-						});
-						emit SendQuoteForPartyB(
-							newQuote.partyA,
-							newQuote.id,
-							newQuote.partyBsWhiteList[i],
-							newQuote.symbolId,
-							newQuote.positionType,
-							newQuote.orderType,
-							partyBValues,
-							newQuote.deadline
-						);
-					}
-				}
-			} else if (newQuote.quoteStatus == QuoteStatus.CANCELED) {
-				emit AcceptCancelRequest(newQuote.id, QuoteStatus.CANCELED);
-			}
-		}
+		PartyBGroupActionsFacetImpl.lockAndOpenQuote(quoteId, encryptedParams, upnlSig, pairUpnlSig);
 	}
 }

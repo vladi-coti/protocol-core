@@ -1,25 +1,32 @@
 import {ethers, run} from "hardhat"
 import {sleep} from "@nomicfoundation/hardhat-verify/internal/utilities"
+import {FacetNames, LibraryNames} from "../tasks/deploy/constants"
 
 async function main() {
-	const facetNames = [
-		"AccountFacet",
-		"ControlFacet",
-		"DiamondLoupeFacet",
-		"LiquidationFacet",
-		"LiquidationPositionsFacet",
-		"PartyAFacet",
-		"BridgeFacet",
-		"ViewFacet",
-		"FundingRateFacet",
-		"ForceActionsFacet",
-		"SettlementFacet",
-		"PartyBPositionActionsFacet",
-		"PartyBQuoteActionsFacet",
-		"PartyBGroupActionsFacet",
-	]
-	for (const facetName of facetNames) {
-		const Facet = await ethers.getContractFactory(facetName)
+	const libraries: Record<string, string> = {}
+	for (const libraryName of LibraryNames) {
+		const Library = await ethers.getContractFactory(libraryName)
+		const library = await Library.deploy()
+
+		await library.waitForDeployment()
+
+		const addr = await library.getAddress()
+		libraries[libraryName] = addr
+		console.log(`${libraryName} deployed: ${addr}`)
+
+		await sleep(10000)
+	}
+
+	for (const facetName of FacetNames) {
+		const facetLibraries =
+			facetName == "ForceCloseFacet" || facetName == "SettleAndForceCloseFacet"
+				? { ForceActionsFacetImpl: libraries.ForceActionsFacetImpl }
+				: facetName == "PartyBGroupActionsFacet"
+					? { PartyBGroupActionsFacetImpl: libraries.PartyBGroupActionsFacetImpl }
+					: undefined
+		const Facet = facetLibraries
+			? await (ethers as any).getContractFactory(facetName, { libraries: facetLibraries })
+			: await ethers.getContractFactory(facetName)
 		const facet = await Facet.deploy()
 
 		await facet.waitForDeployment()

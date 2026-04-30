@@ -6,13 +6,13 @@ pragma solidity >=0.8.18;
 
 import "../../utils/Accessibility.sol";
 import "../../utils/Pausable.sol";
-import "./IAccountFacet.sol";
+import "./IAccountEvents.sol";
 import "./AccountFacetImpl.sol";
 import "../../storages/GlobalAppStorage.sol";
 import "../../storages/AccountStorage.sol";
 import "../../libraries/SharedEvents.sol";
 
-contract AccountFacet is Accessibility, Pausable, IAccountFacet {
+contract AccountFacet is Accessibility, Pausable, IAccountEvents {
 
 	/// @notice Allows either PartyA or PartyB to deposit collateral.
 	/// @param amount The amount of collateral to be deposited, specified in collateral decimals.
@@ -202,27 +202,6 @@ contract AccountFacet is Accessibility, Pausable, IAccountFacet {
 			AccountStorage.layout().observerPartyBAllocatedBalances[msg.sender][recipient],
 			SharedEvents.BalanceChangeType.ALLOCATE
 		);
-	}
-
-	/// @notice Allows transferring the balance of partyB to emergency reserve vault.
-	/// @param amount The precise amount of collateral to be transferred to emergency reserve vault, specified in 18 decimals.
-	function depositToReserveVault(uint256 amount, address partyB) external whenNotPartyBActionsPaused notSuspended(msg.sender) notSuspended(partyB) {
-		AccountFacetImpl.depositToReserveVault(amount, partyB);
-		emit DepositToReserveVault(msg.sender, partyB, amount);
-	}
-
-	/// @notice Allows transferring the balance of partyB in emergency reserve vault to balance.
-	/// @param amount The precise amount of collateral to be transferred from emergency reserve vault, specified in 18 decimals.
-	function withdrawFromReserveVault(uint256 amount) external whenNotPartyBActionsPaused notSuspended(msg.sender) {
-		AccountFacetImpl.withdrawFromReserveVault(amount);
-		emit WithdrawFromReserveVault(msg.sender, amount);
-	}
-
-	/// @notice Moves claimed protocol fee accruals into the caller's withdrawable balance.
-	/// @param amount The amount to claim, specified in 18 decimals.
-	function claimFeeCollectorBalance(uint256 amount) external whenNotAccountingPaused notSuspended(msg.sender) {
-		AccountFacetImpl.claimFeeCollectorBalance(amount);
-		emit ClaimFeeCollectorBalance(msg.sender, amount, AccountStorage.layout().encryptedFeeCollectorBalances[msg.sender].userCiphertext);
 	}
 
 	/**

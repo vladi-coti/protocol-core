@@ -205,6 +205,16 @@ export function shouldBehaveLikeAccountFacet(): void {
 				)
 			})
 
+			it("Should reject dummy Muon signature after local state checks pass", async function () {
+				let rejected = false
+				try {
+					await context.accountFacet.connect(context.signers.user).deallocate("50", await getDummySingleUpnlSig())
+				} catch {
+					rejected = true
+				}
+				expect(rejected).to.equal(true)
+			})
+
 			it("Should deallocate", async function () {
 				const userAddress = context.signers.user.getAddress()
 				await context.accountFacet.connect(context.signers.user).deallocate("50", await getDummySingleUpnlSig())

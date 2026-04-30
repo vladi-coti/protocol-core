@@ -4,7 +4,7 @@ import { FacetCutAction } from "../utils/diamondCut"
 import { getFacetSelectors } from "../utils/facetSelectors"
 import { writeData } from "../utils/fs"
 import { generateGasReport } from "../utils/gas"
-import { DEPLOYMENT_LOG_FILE, FacetNames } from "./constants"
+import { DEPLOYMENT_LOG_FILE, FacetNames, LibraryNames } from "./constants"
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers"
 import { ContractTransactionReceipt } from "ethers"
 
@@ -57,6 +57,30 @@ task("deploy:diamond", "Deploys the Diamond contract")
 			functionSelectors: string[]
 		}> = []
 
+		const deployedLibraries: Record<string, string> = {}
+		const deployedLibraryData: Array<{
+			name: string
+			address: string
+		}> = []
+		console.log("Deploying libraries: ", LibraryNames)
+		for (const libraryName of LibraryNames) {
+			const LibraryFactory = await ethers.getContractFactory(libraryName)
+			const library = await LibraryFactory.deploy({
+				gasLimit: 30000000,
+				gasPrice: 1000000000, // 1 gwei
+			})
+			await library.waitForDeployment()
+			receipt = (await library.deploymentTransaction()!.wait())!
+			totalGasUsed = totalGasUsed + BigInt(receipt.gasUsed.toString())
+			const libraryAddress = await library.getAddress()
+			deployedLibraries[libraryName] = libraryAddress
+			deployedLibraryData.push({
+				name: libraryName,
+				address: libraryAddress,
+			})
+			console.log(`${libraryName} deployed: ${libraryAddress}`)
+		}
+
 		const deployedFacets: Array<{
 			name: string
 			address: string
@@ -64,7 +88,15 @@ task("deploy:diamond", "Deploys the Diamond contract")
 
 		console.log("Deploying facets: ", FacetNames)
 		for (const facetName of FacetNames) {
-			const FacetFactory = await ethers.getContractFactory(facetName)
+			const facetLibraries =
+				facetName == "ForceCloseFacet" || facetName == "SettleAndForceCloseFacet"
+					? { ForceActionsFacetImpl: deployedLibraries.ForceActionsFacetImpl }
+					: facetName == "PartyBGroupActionsFacet"
+						? { PartyBGroupActionsFacetImpl: deployedLibraries.PartyBGroupActionsFacetImpl }
+						: undefined
+			const FacetFactory = facetLibraries
+				? await (ethers as any).getContractFactory(facetName, { libraries: facetLibraries })
+				: await ethers.getContractFactory(facetName)
 			const facet = await FacetFactory.deploy({
 				gasLimit: 30000000,
 				gasPrice: 1000000000, // 1 gwei
@@ -128,6 +160,11 @@ task("deploy:diamond", "Deploys the Diamond contract")
 					address: await diamondInit.getAddress(),
 					constructorArguments: [],
 				},
+				...deployedLibraryData.map(library => ({
+					name: library.name,
+					address: library.address,
+					constructorArguments: [],
+				})),
 				...deployedFacets.map(facet => ({
 					name: facet.name,
 					address: facet.address,

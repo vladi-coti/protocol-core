@@ -17,6 +17,16 @@ interface DiamondCutConfig {
 	}
 }
 
+function getSelectorOnlyLibraries(facetName: string) {
+	if (facetName == "ForceCloseFacet" || facetName == "SettleAndForceCloseFacet") {
+		return { ForceActionsFacetImpl: ethers.ZeroAddress }
+	}
+	if (facetName == "PartyBGroupActionsFacet") {
+		return { PartyBGroupActionsFacetImpl: ethers.ZeroAddress }
+	}
+	return undefined
+}
+
 export async function generateDiamondCut(config: DiamondCutConfig) {
 	const [deployer] = await ethers.getSigners()
 
@@ -26,7 +36,10 @@ export async function generateDiamondCut(config: DiamondCutConfig) {
 	} = {}
 
 	for (const facet of config.facets) {
-		const facetFactory = await ethers.getContractFactory(facet.name)
+		const facetLibraries = getSelectorOnlyLibraries(facet.name)
+		const facetFactory = facetLibraries
+			? await (ethers as any).getContractFactory(facet.name, { libraries: facetLibraries })
+			: await ethers.getContractFactory(facet.name)
 		const selectors = getFacetSelectors(ethers, facet.name, facetFactory)
 		newFacets[facet.name] = {
 			address: facet.address,
@@ -35,7 +48,7 @@ export async function generateDiamondCut(config: DiamondCutConfig) {
 	}
 
 	// Get current facets and their selectors from the diamond
-	const diamondLoupeFacet = await ethers.getContractAt("DiamondLoupeFacet", config.diamondAddress, deployer)
+	const diamondLoupeFacet = await ethers.getContractAt("DiamondLoupeFacet", config.diamondAddress, deployer as any)
 
 	const facets = await diamondLoupeFacet.facets()
 
