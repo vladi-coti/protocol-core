@@ -2,8 +2,6 @@
 
 Tracker for the original findings from `review/report1.md` through `review/report5.md`.
 
-Statuses are inherited from the prior deduped tracker, so duplicate findings across reports share the same status.
-
 ## Report Issues
 
 | # | Finding | Status | Summary |
