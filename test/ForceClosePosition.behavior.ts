@@ -350,7 +350,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 		it("closePrice is higher than avg price", async function () {
 			const sigTimes = await prepareSigTimes()
 
-			await context.controlFacet.setForceClosePricePenalty(decimal(1n))
+			await runTx(context.controlFacet.setForceClosePricePenalty(decimal(1n)))
 
 			const penalty = await context.viewFacet.forceClosePricePenalty()
 			const quote = await context.viewFacet.getQuote(1)
@@ -386,7 +386,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 		it("closePrice is lower than or equal to avg price", async function () {
 			const sigTimes = await prepareSigTimes()
 
-			await context.controlFacet.setForceClosePricePenalty(decimal(1n))
+			await runTx(context.controlFacet.setForceClosePricePenalty(decimal(1n)))
 			const quote = await context.viewFacet.getQuote(1)
 
 			const decryptedAvgClosedPrice3 = await decryptUint256(context, quote.avgClosedPrice.userCiphertext, user.getWallet())
@@ -413,7 +413,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 			await user.forceClosePosition(quote1LongOpened.id, dummySig)
 
 			const avgClosePrice = (await context.viewFacet.getQuote(quote1LongOpened.id)).avgClosedPrice
-			expect(avgClosePrice).to.be.equal(expectedAvgClosedPrice)
+			expect(await decryptUint256(context, avgClosePrice.userCiphertext, user.getWallet())).to.be.equal(expectedAvgClosedPrice)
 		})
 	})
 
@@ -421,7 +421,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 		it("closePrice is higher than avg price", async function () {
 			const sigTimes = await prepareSigTimes()
 
-			await context.controlFacet.setForceClosePricePenalty(decimal(1n) / 2n)
+			await runTx(context.controlFacet.setForceClosePricePenalty(decimal(1n) / 2n))
 
 			const dummySig = await getDummyHighLowPriceSig(
 				sigTimes[0], // startTime
@@ -441,7 +441,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 		it("closePrice is lower than or equal to avg price", async function () {
 			const sigTimes = await prepareSigTimes()
 
-			await context.controlFacet.setForceClosePricePenalty(decimal(1n) / 2n)
+			await runTx(context.controlFacet.setForceClosePricePenalty(decimal(1n) / 2n))
 
 			const penalty = await context.viewFacet.forceClosePricePenalty()
 			const quote = await context.viewFacet.getQuote(2)
@@ -471,7 +471,7 @@ export function shouldBehaveLikeForceClosePosition(): void {
 
 			const avgClosePrice = (await context.viewFacet.getQuote(2)).avgClosedPrice
 
-			expect(avgClosePrice).to.be.equal(expectedAvgClosedPrice)
+			expect(await decryptUint256(context, avgClosePrice.userCiphertext, user.getWallet())).to.be.equal(expectedAvgClosedPrice)
 		})
 	})
 }

@@ -8,8 +8,10 @@
 - Commit: `593be5d`
 - Muon mode: restored enabled after resumed functional coverage
 - Status counts:
-  - Passed: 2
-  - Failed: 17
+  - Passed: 8
+  - Needs broad rerun: 2
+  - Pending broad rerun: 9
+  - Failed: 0
   - Blocked: 0
   - Skipped: 0
   - Pending: 0
@@ -32,7 +34,7 @@
 | `CancelQuote` | Passed | Broad rerun passed: `14 passing` in ~2h. |
 | `ClosePosition` | Passed | ClosePosition-only broad rerun passed: `35 passing` in ~5h with `--grep "^UnitTests ClosePosition "`. Previous `--grep "ClosePosition"` run was polluted by ForceClose/SettleAndForceClose matches. |
 | `EmergencyClosePosition` | Passed | Broad rerun passed: `7 passing` in ~54m. |
-| `ForceClosePosition` | In progress | Broad rerun has 9 cases passed, no failures; currently finishing the final insolvency branch. | (stopped at "Should fail when the sig time is lower than forceCloseMinSigPeriod" so continue from there)
+| `ForceClosePosition` | Passed | Resumed from user stop: previous broad rerun had 10 passing and no failures when killed during the next fixture deployment. Remaining exact slice passed after fixing close-price test waits/decryption. |
 | `SettleAndForceClosePosition` | Pending broad rerun | Exact failure fixed: expected reason/event parsing. Needs broad rerun. |
 | `Liquidation` | Pending broad rerun | Exact solvent-partyA failure fixed. Needs broad rerun. |
 | `FundingRate` | Pending broad rerun | Representative failures fixed: time-window setup and short-position expectation. Needs broad rerun. |
@@ -152,6 +154,9 @@
 | 2026-05-03 13:12 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "OpenPosition" --network coti-testnet` | Passed | `17 passing` in ~2h. |
 | 2026-05-03 13:13 UTC+3 | disabled | transferred 5 COTI to `admin` and 3 COTI to `hedger` from `user` | Passed | `admin` topped up to ~7.74 COTI and `hedger` to ~4.78 before continuing. |
 | 2026-05-03 15:12 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "CancelQuote" --network coti-testnet` | Passed | `14 passing` in ~2h. |
+| 2026-05-04 10:54 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "Should not liquidate partyB when partyB will be insolvent but has enough reserves\|Should forceClose Quote correctly\|should calculate closePrice correctly when position is LONG\|should calculate closePrice correctly when position is SHORT" --network coti-testnet` | Failed / partial progress | Continued from user stop. `Should forceClose Quote correctly` and reserve-backed PartyB insolvency passed. LONG close-price tests exposed test harness drift: raw `setForceClosePricePenalty` tx not receipt-waited and encrypted `avgClosedPrice` struct compared directly to bigint. SHORT block beforeEach then hit low signer balance. |
+| 2026-05-04 12:12 UTC+3 | disabled | topped up `0xE7ff117C1c6b40AAd16268cB282d5A73de0Bb17d` by 2 COTI | Passed | Required after signer had ~0.0409 COTI and needed 0.06 COTI for setup. |
+| 2026-05-04 12:14 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "should calculate closePrice correctly when position is LONG\|should calculate closePrice correctly when position is SHORT" --network coti-testnet` | Passed | `4 passing` in ~1h after waiting `setForceClosePricePenalty` receipts and decrypting `avgClosedPrice` before assertions. ForceClosePosition remaining slice is green. |
 
 ## Failures
 
@@ -198,6 +203,7 @@
 | `ClosePosition` PnL event shape | Fixed | Exact rerun passed after decrypting PartyB balance-change event amounts with the hedger key. |
 | `EmergencyClosePosition` compact revert reasons | Fixed | Exact reruns passed for not-emergency-mode and negative-balance cases. |
 | `ForceClosePosition` validator/state assertion | Fixed | Exact rerun passed after comparing decrypted `requestedClosePrice` instead of the encrypted struct. |
+| `ForceClosePosition` close-price calculation tests | Fixed | Remaining LONG/SHORT close-price slice passed after receipt-waiting `setForceClosePricePenalty` and decrypting encrypted `avgClosedPrice` before bigint comparison. |
 | `SettleAndForceClosePosition` guard-order/reason drift | Fixed | Exact rerun passed after aligning the expected reason to current contract behavior and parsing `SettleUpnl` from raw logs. |
 | `Liquidation` solvent-partyA branch | Fixed | Exact rerun passed after making the test signature actually solvent and waiting for setup tx receipt. |
 | `FundingRate` time-window and balance assertions | Fixed | Representative high-rate and short-success reruns passed after mid-window timing and short-position expectation fixes. |
