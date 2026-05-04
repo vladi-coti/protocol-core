@@ -8,6 +8,7 @@ import {limitQuoteRequestBuilder, marketQuoteRequestBuilder} from "./models/requ
 import {SendQuoteValidator} from "./models/validators/SendQuoteValidator"
 import {decimal, getBlockTimestamp, pausePartyA} from "./utils/Common"
 import {getDummySingleUpnlAndPriceSig} from "./utils/SignatureUtils"
+import {runTx} from "./utils/TxUtils"
 import {loadFixtureCompatible, timeCompatible} from "./utils/testHelpers";
 
 export function shouldBehaveLikeSendQuote(): void {
@@ -92,11 +93,13 @@ export function shouldBehaveLikeSendQuote(): void {
 	})
 
 	it("Quote should expire", async function () {
-		let {quoteId} = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).deadline(getBlockTimestamp(5n)).build())
+		const expiryDelay = 600n
+		let {quoteId} = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).deadline(getBlockTimestamp(expiryDelay)).build())
 		await expect(context.partyAFacet.expireQuote([quoteId])).to.be.revertedWith("LibQuote: Quote isn't expired")
-		await timeCompatible.increase(10)
-		await context.partyAFacet.expireQuote([1])
-		expect((await context.viewFacet.getQuote(1)).quoteStatus).to.be.equal(QuoteStatus.EXPIRED)
+		const quote = await context.viewFacet.getQuote(quoteId)
+		await timeCompatible.setNextBlockTimestamp(quote.deadline + 1n)
+		await runTx(context.partyAFacet.expireQuote([quoteId]))
+		expect((await context.viewFacet.getQuote(quoteId)).quoteStatus).to.be.equal(QuoteStatus.EXPIRED)
 	})
 
 	it("SendQuote - Should run successfully for limit", async function () {

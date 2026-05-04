@@ -21,6 +21,7 @@ import {getDummyHighLowPriceSig, getDummyPriceSig} from "./utils/SignatureUtils"
 import {ForceClosePositionValidator} from "./models/validators/ForceClosePositionValidator"
 import {calculateExpectedAvgPriceForForceClose, calculateExpectedClosePriceForForceClose} from "./utils/PriceUtils"
 import {QuoteStructOutput} from "../src/types/contracts/interfaces/ISymmio"
+import {runTx} from "./utils/TxUtils"
 
 export function shouldBehaveLikeForceClosePosition(): void {
 	let user: User, hedger: Hedger, hedger2: Hedger
@@ -92,8 +93,8 @@ export function shouldBehaveLikeForceClosePosition(): void {
 				.build(),
 		)
 
-		await context.controlFacet.setForceCloseMinSigPeriod(10)
-		await context.controlFacet.setForceCloseGapRatio((await context.viewFacet.getQuote(quote1LongOpened.id)).symbolId, decimal(1n, 17))
+		await runTx(context.controlFacet.setForceCloseMinSigPeriod(10))
+		await runTx(context.controlFacet.setForceCloseGapRatio((await context.viewFacet.getQuote(quote1LongOpened.id)).symbolId, decimal(1n, 17)))
 
 		quote1LongOpened = await context.viewFacet.getQuote(quote1LongOpened.id)
 		quote2ShortOpened = await context.viewFacet.getQuote(quote2ShortOpened.id)

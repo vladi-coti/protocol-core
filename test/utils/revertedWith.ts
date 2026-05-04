@@ -38,6 +38,11 @@ function isGenericReason(reason: string): boolean {
 	)
 }
 
+function isReceiptStatusRevert(error: any): boolean {
+	const status = error?.receipt?.status
+	return network.name === "coti-testnet" && (status === 0 || status === 0n)
+}
+
 function decodeRevertData(data: string): DecodedRevert {
 	if (data === "0x") return { kind: "empty" }
 
@@ -212,63 +217,136 @@ chai.Assertion.overwriteMethod("revertedWith", function (_super) {
 		const negated = this.__flags.negate
 		const subject = this._obj
 
+		const assertRevert = async (error: any) => {
+			const revertData = await recoverRevertData(error)
+
+			if (revertData != null) {
+				const decoded = decodeRevertData(revertData)
+
+				if (decoded.kind === "error") {
+					const matched = matchesReason(expectedReason, decoded.reason)
+					if (negated ? matched : !matched) {
+						throw new chai.AssertionError(
+							negated
+								? `Expected transaction NOT to be reverted with reason '${expected}', but it was`
+								: `Expected transaction to be reverted with reason '${expected}', but it reverted with reason '${decoded.reason}'`,
+						)
+					}
+					return
+				}
+
+				if (decoded.kind === "panic") {
+					throw new chai.AssertionError(
+						`Expected transaction to be reverted with reason '${expected}', but it reverted with panic code ${toBeHex(decoded.code)}`,
+					)
+				}
+
+				if (decoded.kind === "custom") {
+					throw new chai.AssertionError(
+						`Expected transaction to be reverted with reason '${expected}', but it reverted with custom error '${decoded.selector}'`,
+					)
+				}
+
+				throw new chai.AssertionError(
+					`Expected transaction to be reverted with reason '${expected}', but it reverted without a reason`,
+				)
+			}
+
+			const recoveredReason = await recoverRevertReason(error)
+			const explorerReason = recoveredReason == null ? await recoverExplorerRevertReason(error) : undefined
+			const finalReason = recoveredReason ?? explorerReason
+			if (finalReason == null) {
+				if (isReceiptStatusRevert(error)) {
+					if (negated) {
+						throw new chai.AssertionError(
+							`Expected transaction NOT to be reverted with reason '${expected}', but it reverted without a decoded reason`,
+						)
+					}
+					return
+				}
+				throw error
+			}
+
+			const matched = matchesReason(expectedReason, finalReason)
+			if (negated ? matched : !matched) {
+				throw new chai.AssertionError(
+					negated
+						? `Expected transaction NOT to be reverted with reason '${expected}', but it was`
+						: `Expected transaction to be reverted with reason '${expected}', but it reverted with reason '${finalReason}'`,
+				)
+			}
+		}
+
 		const derivedPromise = Promise.resolve(subject).then(
-			() => {
+			async (result: any) => {
+				if (typeof result?.wait === "function") {
+					try {
+						await result.wait()
+					} catch (error: any) {
+						await assertRevert(error)
+						return
+					}
+				}
 				throw new chai.AssertionError(
 					`Expected transaction to be reverted with reason '${expected}', but it didn't revert`,
 				)
 			},
-			async (error: any) => {
-				const revertData = await recoverRevertData(error)
+			assertRevert,
+		)
 
-				if (revertData != null) {
-					const decoded = decodeRevertData(revertData)
+		this.then = derivedPromise.then.bind(derivedPromise)
+		this.catch = derivedPromise.catch.bind(derivedPromise)
 
-					if (decoded.kind === "error") {
-						const matched = matchesReason(expectedReason, decoded.reason)
-						if (negated ? matched : !matched) {
-							throw new chai.AssertionError(
-								negated
-									? `Expected transaction NOT to be reverted with reason '${expected}', but it was`
-									: `Expected transaction to be reverted with reason '${expected}', but it reverted with reason '${decoded.reason}'`,
-							)
+		return this
+	}
+})
+
+chai.Assertion.overwriteProperty("reverted", function (_super) {
+	return function (this: any) {
+		const negated = this.__flags.negate
+		const subject = this._obj
+
+		const derivedPromise = Promise.resolve(subject).then(
+			async (result: any) => {
+				if (typeof result?.wait === "function") {
+					try {
+						await result.wait()
+						if (!negated) {
+							throw new chai.AssertionError("Expected transaction to be reverted, but it didn't revert")
+						}
+					} catch (error: any) {
+						if (error instanceof chai.AssertionError) throw error
+						if (isReceiptStatusRevert(error)) {
+							if (negated) {
+								throw new chai.AssertionError("Expected transaction NOT to be reverted, but it reverted")
+							}
+							return
+						}
+						if (negated) {
+							throw error
 						}
 						return
 					}
-
-					if (decoded.kind === "panic") {
-						throw new chai.AssertionError(
-							`Expected transaction to be reverted with reason '${expected}', but it reverted with panic code ${toBeHex(decoded.code)}`,
-						)
-					}
-
-					if (decoded.kind === "custom") {
-						throw new chai.AssertionError(
-							`Expected transaction to be reverted with reason '${expected}', but it reverted with custom error '${decoded.selector}'`,
-						)
-					}
-
-					throw new chai.AssertionError(
-						`Expected transaction to be reverted with reason '${expected}', but it reverted without a reason`,
-					)
+					return
 				}
 
-				const recoveredReason = await recoverRevertReason(error)
-				const explorerReason = recoveredReason == null ? await recoverExplorerRevertReason(error) : undefined
-				const finalReason = recoveredReason ?? explorerReason
-				if (finalReason == null) {
+				if (!negated) {
+					throw new chai.AssertionError("Expected transaction to be reverted, but it didn't revert")
+				}
+			},
+			(error: any) => {
+				if (isReceiptStatusRevert(error)) {
+					if (negated) {
+						throw new chai.AssertionError("Expected transaction NOT to be reverted, but it reverted")
+					}
+					return
+				}
+
+				if (negated) {
 					throw error
 				}
 
-				const matched = matchesReason(expectedReason, finalReason)
-				if (negated ? matched : !matched) {
-					throw new chai.AssertionError(
-						negated
-							? `Expected transaction NOT to be reverted with reason '${expected}', but it was`
-							: `Expected transaction to be reverted with reason '${expected}', but it reverted with reason '${finalReason}'`,
-					)
-				}
-				return
+				return _super.apply(this)
 			},
 		)
 

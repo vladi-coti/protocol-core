@@ -1,7 +1,8 @@
 import {expect} from "chai"
-import {ethers, upgrades} from "hardhat"
+import {ethers} from "hardhat"
 import {SignerWithAddress} from "@nomicfoundation/hardhat-ethers/signers"
 import {MockSymmio, MockToken, SymmioFeeDistributor} from "../src/types"
+import {runTx} from "./utils/TxUtils"
 
 export function shouldBehaveLikeFeeDistributor() {
 	describe("FeeDistributor", function () {
@@ -27,29 +28,41 @@ export function shouldBehaveLikeFeeDistributor() {
 			// Deploy mock Symmio contract
 			const MockSymmio = await ethers.getContractFactory("MockSymmio")
 			mockSymmio = await MockSymmio.deploy()
+			await mockSymmio.waitForDeployment()
 
 			// Deploy mock ERC20 token
 			const MockToken = await ethers.getContractFactory("MockToken")
 			mockToken = await MockToken.deploy("Mock Token", "MTK")
+			await mockToken.waitForDeployment()
 
 			// Set mock token as collateral in mock Symmio
-			await mockSymmio.setCollateral(await mockToken.getAddress())
+			await runTx(mockSymmio.setCollateral(await mockToken.getAddress()))
 
-			// Deploy FeeCollector
+			// Deploy FeeCollector through the manual transparent-proxy path. The
+			// upgrades plugin can return a proxy that responds with empty data on COTI.
 			const FeeCollector = await ethers.getContractFactory("SymmioFeeDistributor")
-			feeDistributor = await upgrades.deployProxy(FeeCollector, [
+			const feeDistributorImpl = await FeeCollector.deploy()
+			await feeDistributorImpl.waitForDeployment()
+			const ProxyAdmin = await ethers.getContractFactory("@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol:ProxyAdmin")
+			const proxyAdmin = await ProxyAdmin.deploy()
+			await proxyAdmin.waitForDeployment()
+			const initData = FeeCollector.interface.encodeFunctionData("initialize", [
 				admin.address,
 				await mockSymmio.getAddress(),
 				symmioReceiver.address,
 				symmioShare
-			]) as any
+			])
+			const TransparentUpgradeableProxy = await ethers.getContractFactory("@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol:TransparentUpgradeableProxy")
+			const proxy = await TransparentUpgradeableProxy.deploy(await feeDistributorImpl.getAddress(), await proxyAdmin.getAddress(), initData)
+			await proxy.waitForDeployment()
+			feeDistributor = FeeCollector.attach(await proxy.getAddress()) as any
 
 			// Grant roles
-			await feeDistributor.connect(admin).grantRole(await feeDistributor.COLLECTOR_ROLE(), collector.address)
-			await feeDistributor.connect(admin).grantRole(await feeDistributor.SETTER_ROLE(), setter.address)
-			await feeDistributor.connect(admin).grantRole(await feeDistributor.MANAGER_ROLE(), manager.address)
-			await feeDistributor.connect(admin).grantRole(await feeDistributor.PAUSER_ROLE(), pauser.address)
-			await feeDistributor.connect(admin).grantRole(await feeDistributor.UNPAUSER_ROLE(), unpauser.address)
+			await runTx(feeDistributor.connect(admin).grantRole(await feeDistributor.COLLECTOR_ROLE(), collector.address))
+			await runTx(feeDistributor.connect(admin).grantRole(await feeDistributor.SETTER_ROLE(), setter.address))
+			await runTx(feeDistributor.connect(admin).grantRole(await feeDistributor.MANAGER_ROLE(), manager.address))
+			await runTx(feeDistributor.connect(admin).grantRole(await feeDistributor.PAUSER_ROLE(), pauser.address))
+			await runTx(feeDistributor.connect(admin).grantRole(await feeDistributor.UNPAUSER_ROLE(), unpauser.address))
 		})
 
 		describe("Initialization", function () {

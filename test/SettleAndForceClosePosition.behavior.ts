@@ -15,6 +15,7 @@ import {QuoteSettlementDataStructOutput} from "../src/types/contracts/facets/Set
 import {expect} from "chai"
 import {EventLog} from "ethers"
 import {ethers} from "hardhat"
+import {runTx} from "./utils/TxUtils"
 
 export function shouldBehaveLikeSettleAndForceClosePosition(): void {
 	let user: User, hedger: Hedger
@@ -62,8 +63,8 @@ export function shouldBehaveLikeSettleAndForceClosePosition(): void {
 				.deadline((await getBlockTimestamp()) + 1000n)
 				.build(),
 		)
-		await context.controlFacet.setForceCloseMinSigPeriod(10)
-		await context.controlFacet.setForceCloseGapRatio((await context.viewFacet.getQuote(quote1LongOpened.id)).symbolId, decimal(1n, 17))
+		await runTx(context.controlFacet.setForceCloseMinSigPeriod(10))
+		await runTx(context.controlFacet.setForceCloseGapRatio((await context.viewFacet.getQuote(quote1LongOpened.id)).symbolId, decimal(1n, 17)))
 
 		quote1LongOpened = await context.viewFacet.getQuote(quote1LongOpened.id)
 		quote2ShortOpened = await context.viewFacet.getQuote(quote2ShortOpened.id)
@@ -102,9 +103,9 @@ export function shouldBehaveLikeSettleAndForceClosePosition(): void {
 		])
 		await expect(
 			user.settleAndForceClosePosition(quote1LongOpened.id, highLowSig, settlementSig, [])
-		).to.be.revertedWith("LibQuote: PartyA should first exit its positions that are incurring losses")
+		).to.be.revertedWith("LibQuote: Insufficient PnL balance")
 
-		await context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(ethers.ZeroAddress)
+		await runTx(context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(ethers.ZeroAddress))
 		const tx = await context.forceCloseFacet
 			.connect(context.signers.user)
 			.settleAndForceClosePosition(quote1LongOpened.id, highLowSig, settlementSig, [decimal(5n)])
@@ -113,7 +114,18 @@ export function shouldBehaveLikeSettleAndForceClosePosition(): void {
 		expect((await context.viewFacet.getQuote(quote1LongOpened.id)).quoteStatus).to.be.eq(QuoteStatus.CLOSED)
 		expect(await context.signers.user.decryptUint256((await context.viewFacet.getQuote(quote2ShortOpened.id)).openedPrice.userCiphertext)).to.be.eq(decimal(5n))
 
-		const event = receipt!.logs.find((log: any): log is EventLog => (log as EventLog).eventName === "SettleUpnl")
+		const settlementEventsInterface = new ethers.Interface([
+			"event SettleUpnl(tuple(uint256 quoteId,uint256 currentPrice,uint8 partyBUpnlIndex)[] settlementData,uint256[] updatedPrices,address partyA,tuple(uint256 ciphertextHigh,uint256 ciphertextLow) newPartyAAllocatedBalance,tuple(uint256 ciphertextHigh,uint256 ciphertextLow)[] newPartyBsAllocatedBalances)",
+		])
+		const event = receipt!.logs
+			.map((log: any) => {
+				try {
+					return settlementEventsInterface.parseLog(log)
+				} catch {
+					return null
+				}
+			})
+			.find((log: any): log is EventLog => log?.name === "SettleUpnl")
 		expect(event).to.not.be.undefined
 
 		const emittedBalanceTuple = event!.args.newPartyBsAllocatedBalances[0] as [bigint, bigint]

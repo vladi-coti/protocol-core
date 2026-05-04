@@ -10,6 +10,7 @@ import {decimal, getTotalLockedValuesForQuoteIds, getTradingFeeForQuotes, unDeci
 import {getDummyLiquidationSig, getDummySingleUpnlSig} from "./utils/SignatureUtils"
 import {limitQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
 import {QuoteData} from "./models/types";
+import {runTx} from "./utils/TxUtils"
 
 export function shouldBehaveLikeLiquidationFacet(): void {
 	let context: RunContext, user: User, user2: User, liquidator: User, hedger: Hedger, hedger2: Hedger
@@ -27,7 +28,7 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 
 		liquidator = new User(context, context.signers.liquidator)
 		await liquidator.setup()
-		await context.accountFacet.connect(context.signers.liquidator).allocate(0)
+		await runTx(context.accountFacet.connect(context.signers.liquidator).allocate(0))
 
 		hedger = new Hedger(context, context.signers.hedger)
 		await hedger.setup()
@@ -64,7 +65,7 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 			await expect(
 				context.liquidationFacet.liquidatePartyA(
 					context.signers.user.getAddress(),
-					await getDummyLiquidationSig("0x10", 0n, [], [], 0n, (await user.getBalanceInfo()).allocatedBalances),
+					await getDummyLiquidationSig("0x10", decimal(10000n), [], [], 0n, (await user.getBalanceInfo()).allocatedBalances),
 				),
 			).to.be.revertedWith("LiquidationFacet: PartyA is solvent")
 		})

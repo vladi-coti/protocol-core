@@ -9,7 +9,7 @@ import {User} from "./models/User"
 import {limitOpenRequestBuilder, marketOpenRequestBuilder} from "./models/requestModels/OpenRequest"
 import {limitQuoteRequestBuilder, marketQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
 import {OpenPositionValidator} from "./models/validators/OpenPositionValidator"
-import {decryptUint256, decimal, getQuoteQuantity, getTradingFeeForQuoteWithFilledAmount, pausePartyB, unDecimal} from "./utils/Common"
+import {decryptUint256, decimal, getBlockTimestamp, getQuoteQuantity, getTradingFeeForQuoteWithFilledAmount, pausePartyB, unDecimal} from "./utils/Common"
 import {getDummyPairUpnlAndPriceSig, getDummySingleUpnlSig} from "./utils/SignatureUtils"
 import {QuoteData} from "./models/types";
 
@@ -34,7 +34,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 		await hedger2.setup()
 		await hedger2.setBalances(this.hedger_allocated, this.hedger_allocated)
 
-		quoteDataArray[1] = await user.sendQuote()
+		quoteDataArray[1] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).affiliate(context.multiAccount).deadline(getBlockTimestamp(600n)).build())
 		quoteDataArray[2] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger2.address]).affiliate(context.multiAccount).positionType(PositionType.SHORT).build())
 		quoteDataArray[3] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger2.address]).affiliate(context.multiAccount).positionType(PositionType.SHORT).build())
 		quoteDataArray[4] = await user.sendQuote(marketQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).affiliate(context.multiAccount).build())
@@ -69,10 +69,10 @@ export function shouldBehaveLikeOpenPosition(): void {
 					.openPrice(decimal(1n))
 					.build(),
 			),
-		).to.be.revertedWith("PartyBFacet: Invalid filledAmount")
+		).to.be.revertedWith("PBF:fill")
 
 		// zero
-		await expect(hedger.openPosition(quoteDataArray[1], limitOpenRequestBuilder().filledAmount("0").build())).to.be.revertedWith("PartyBFacet: Invalid filledAmount")
+		await expect(hedger.openPosition(quoteDataArray[1], limitOpenRequestBuilder().filledAmount("0").build())).to.be.revertedWith("PBF:fill")
 
 		// market should get fully filled
 		await hedger.lockQuote(quoteDataArray[4])
@@ -84,17 +84,17 @@ export function shouldBehaveLikeOpenPosition(): void {
 					.openPrice(decimal(1n))
 					.build(),
 			),
-		).to.be.revertedWith("PartyBFacet: Invalid filledAmount")
+		).to.be.revertedWith("PBF:fill")
 	})
 
 	it("Should fail on invalid open price", async function () {
 		const quantity = await getQuoteQuantity(context, 1n)
 		await expect(hedger.openPosition(quoteDataArray[1], limitOpenRequestBuilder().filledAmount(quantity).openPrice(decimal(2n)).build())).to.be.revertedWith(
-			"PartyBFacet: Opened price isn't valid",
+			"PBF:open px",
 		)
 
 		await expect(hedger2.openPosition(quoteDataArray[2], limitOpenRequestBuilder().filledAmount(quantity).openPrice(decimal(5n, 17)).build())).to.be.revertedWith(
-			"PartyBFacet: Opened price isn't valid",
+			"PBF:open px",
 		)
 	})
 
@@ -158,15 +158,16 @@ export function shouldBehaveLikeOpenPosition(): void {
 					.price(decimal(1n, 17))
 					.build(),
 			),
-		).to.be.revertedWith("PartyBFacet: Quote value is low")
+		).to.be.revertedWith("PBF:value")
 
 		await expect(
 			hedger.openPosition(quoteDataArray[1], limitOpenRequestBuilder().filledAmount(decimal(1n)).openPrice(decimal(1n)).price(decimal(1n, 17)).build()),
-		).to.be.revertedWith("PartyBFacet: Quote value is low")
+		).to.be.revertedWith("PBF:value")
 	})
 
 	it("Should fail to open expired quote", async function () {
-		await timeCompatible.increase(1000)
+		const quote = await context.viewFacet.getQuote(quoteDataArray[1].quoteId)
+		await timeCompatible.setNextBlockTimestamp(quote.deadline + 1n)
 		await expect(
 			hedger.openPosition(
 				quoteDataArray[1],
@@ -176,7 +177,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 					.price(decimal(1n, 17))
 					.build(),
 			),
-		).to.be.revertedWith("PartyBFacet: Quote is expired")
+		).to.be.revertedWith("PBF:exp")
 	})
 
 	it("OpenPosition - Should run successfully for limit", async function () {
@@ -294,7 +295,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 		const decryptedFeeCollectorBalance = await context.signers.feeCollector.decryptUint256(encryptedFeeCollectorBalance)
 		expect(decryptedFeeCollectorBalance).to.equal(expectedTradingFee)
 
-		await context.accountFacet.connect(context.signers.feeCollector).claimFeeCollectorBalance(expectedTradingFee)
+		await context.accountManagementFacet.connect(context.signers.feeCollector).claimFeeCollectorBalance(expectedTradingFee)
 		expect(await context.viewFacet.balanceOf(feeCollector)).to.equal(beforePlainBalance + expectedTradingFee)
 		const remainingFeeCollectorBalance = await context.viewFacet.feeCollectorBalance(feeCollector)
 		expect(await context.signers.feeCollector.decryptUint256(remainingFeeCollectorBalance)).to.equal(0n)

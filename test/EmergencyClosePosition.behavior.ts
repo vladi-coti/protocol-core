@@ -11,6 +11,7 @@ import {decimal, pausePartyB,} from "./utils/Common"
 import {emergencyCloseRequestBuilder} from "./models/requestModels/EmergencyCloseRequest"
 import {EmergencyCloseRequestValidator} from "./models/validators/EmergencyCloseRequestValidator"
 import {QuoteData} from "./models/types";
+import {runTx} from "./utils/TxUtils"
 
 export function shouldBehaveLikeEmergencyClosePosition(): void {
 	let user: User, hedger: Hedger, hedger2: Hedger
@@ -61,13 +62,13 @@ export function shouldBehaveLikeEmergencyClosePosition(): void {
 
 		it("Should fail when not emergency mode", async function () {
 			await expect(hedger.emergencyClosePosition(1, emergencyCloseRequestBuilder().build()))
-				.to.be.revertedWith("PartyBFacet: Operation not allowed. Either emergency mode must be active, party B must be in emergency status, or the symbol must be delisted")
+				.to.be.revertedWith("PBF:emg close")
 		})
 
 		describe("Emergency status for partyB activated", async function () {
 			beforeEach(async function () {
-				await context.controlFacet.setPartyBEmergencyStatus([await hedger2.getAddress()], true)
-				await context.controlFacet.setPartyBEmergencyStatus([await hedger.getAddress()], true)
+				await runTx(context.controlFacet.setPartyBEmergencyStatus([await hedger2.getAddress()], true))
+				await runTx(context.controlFacet.setPartyBEmergencyStatus([await hedger.getAddress()], true))
 			})
 
 			it("Should fail on invalid partyB", async function () {
@@ -83,10 +84,10 @@ export function shouldBehaveLikeEmergencyClosePosition(): void {
 
 			it("Should fail on negative balance of partyA/partyB", async function () {
 				await expect(hedger.emergencyClosePosition(1, emergencyCloseRequestBuilder().upnlPartyA(decimal(-575n)).build())).to.be.revertedWith(
-					"PartyBFacet: PartyA is insolvent",
+					"PBF:A insol",
 				)
 				await expect(hedger.emergencyClosePosition(1, emergencyCloseRequestBuilder().upnlPartyB(decimal(-410n)).build())).to.be.revertedWith(
-					"PartyBFacet: PartyB should be solvent",
+					"PBF:B insol",
 				)
 			})
 
@@ -111,7 +112,7 @@ export function shouldBehaveLikeEmergencyClosePosition(): void {
 
 		describe("Emergency mode get activated", async function () {
 			beforeEach(async function () {
-				await context.controlFacet.activeEmergencyMode()
+				await runTx(context.controlFacet.activeEmergencyMode())
 			})
 
 			it("Should run successfully", async function () {
@@ -134,7 +135,7 @@ export function shouldBehaveLikeEmergencyClosePosition(): void {
 
 		describe("Symbol gets deListed", async function () {
 			beforeEach(async function () {
-				await context.controlFacet.setSymbolValidationState((await context.viewFacet.getQuote(1)).symbolId, false)
+				await runTx(context.controlFacet.setSymbolValidationState((await context.viewFacet.getQuote(1)).symbolId, false))
 			})
 
 			it("Should run successfully", async function () {

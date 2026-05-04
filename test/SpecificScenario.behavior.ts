@@ -1,6 +1,6 @@
 import {loadFixtureCompatible} from "./utils/testHelpers"
 import {Builder} from "builder-pattern"
-import {ethers} from "hardhat"
+import {ethers, network} from "hardhat"
 
 import {initializeFixture} from "./Initialize.fixture"
 import {OrderType, PositionType} from "./models/Enums"
@@ -19,22 +19,27 @@ export function shouldBehaveLikeSpecificScenario(): void {
 
 	it("Closing position with allocated less than quote value and with positive upnl", async function () {
 		const context: RunContext = this.context
+		const useImpersonation = network.name === "hardhat"
 
-		const uSigner = await ethers.getImpersonatedSigner(ethers.Wallet.createRandom().address)
+		const uSigner = useImpersonation ? await ethers.getImpersonatedSigner(ethers.Wallet.createRandom().address) : context.signers.user2
 		const user = new User(context, uSigner)
 		await user.setup()
-		await user.setNativeBalance(100n ** 18n)
+		if (useImpersonation) {
+			await user.setNativeBalance(100n ** 18n)
+		}
 
-		const hSigner = await ethers.getImpersonatedSigner(ethers.Wallet.createRandom().address)
+		const hSigner = useImpersonation ? await ethers.getImpersonatedSigner(ethers.Wallet.createRandom().address) : context.signers.hedger2
 		const hedger = new Hedger(context, hSigner)
-		await hedger.setNativeBalance(100n ** 18n)
+		if (useImpersonation) {
+			await hedger.setNativeBalance(100n ** 18n)
+		}
 		await hedger.setBalances(decimal(50000n), decimal(50000n))
 		await hedger.register()
 
 		let b = decimal(5000n)
 		await user.setBalances(b, b, b)
 
-		await user.sendQuote(
+		const quoteData = await user.sendQuote(
 			Builder<QuoteRequest>()
 				.partyBWhiteList([])
 				.quantity("32000000000000000")
@@ -45,15 +50,16 @@ export function shouldBehaveLikeSpecificScenario(): void {
 				.price("22207600000000000000000")
 				.upnlSig(getDummySingleUpnlAndPriceSig(BigInt("20817400000000000000000")))
 				.maxFundingRate(0)
+				.affiliate(ethers.ZeroAddress)
 				.symbolId(1)
 				.orderType(OrderType.MARKET)
 				.positionType(PositionType.SHORT)
 				.deadline("100000000000000000")
 				.build(),
 		)
-		await hedger.lockQuote(1)
+		await hedger.lockQuote(quoteData)
 		await hedger.openPosition(
-			1,
+			quoteData,
 			Builder<OpenRequest>()
 				.filledAmount("32000000000000000")
 				.openPrice("22207600000000000000000")

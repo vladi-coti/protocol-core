@@ -22,6 +22,7 @@ import {marketOpenRequestBuilder, OpenRequest} from "./models/requestModels/Open
 import {limitQuoteRequestBuilder, marketQuoteRequestBuilder, QuoteRequest} from "./models/requestModels/QuoteRequest"
 import {decimal, decryptUint256, PromiseOrValue} from "./utils/Common"
 import {getDummyPairUpnlAndPriceSig, getDummySingleUpnlSig} from "./utils/SignatureUtils"
+import {runTx} from "./utils/TxUtils"
 
 async function getListFormatOfQuoteRequest(
 	request: QuoteRequest,
@@ -106,15 +107,17 @@ export function shouldBehaveLikeMultiAccount() {
 		multiAccountCallSelector = multiAccount.interface.getFunction("_call").selector
 		symmioPartyBCallSelector = symmioPartyB.interface.getFunction("_call").selector
 
-		await context.controlFacet.connect(context.signers.admin).registerPartyB(await symmioPartyB.getAddress())
-		await context.controlFacet.connect(context.signers.admin).registerAffiliate(await MultiAccount.getAddress())
-		await context.controlFacet.connect(context.signers.admin).setFeeCollector(await MultiAccount.getAddress(), await hedger.getAddress())
+		await runTx(context.controlFacet.connect(context.signers.admin).registerPartyB(await symmioPartyB.getAddress()))
+		await runTx(context.controlFacet.connect(context.signers.admin).registerAffiliate(await MultiAccount.getAddress()))
+		await runTx(context.controlFacet.connect(context.signers.admin).setFeeCollector(await MultiAccount.getAddress(), await hedger.getAddress()))
 
-		await multiAccount.connect(context.signers.admin).setRevokeCooldown(300);
+		await runTx(multiAccount.connect(context.signers.admin).setRevokeCooldown(300));
 
-		await context.controlFacet
-			.connect(context.signers.admin)
-			.addSymbol("BTCUSDT", decimal(5n), decimal(1n, 16), decimal(1n, 16), decimal(100n), 28800, 900)
+		await runTx(
+			context.controlFacet
+				.connect(context.signers.admin)
+				.addSymbol("BTCUSDT", decimal(5n), decimal(1n, 16), decimal(1n, 16), decimal(100n), 28800, 900),
+		)
 	})
 
 	describe("Initialization and Settings", function () {
@@ -133,11 +136,11 @@ export function shouldBehaveLikeMultiAccount() {
 				const adminAddress = await context.signers.admin.getAddress()
 
 				// Granting SETTER_ROLE to addr1
-				await multiAccount.grantRole(await multiAccount.SETTER_ROLE(), userAddress)
+				await runTx(multiAccount.grantRole(await multiAccount.SETTER_ROLE(), userAddress))
 				expect(await multiAccount.hasRole(await multiAccount.SETTER_ROLE(), userAddress)).to.equal(true)
 
 				// Revoking SETTER_ROLE from addr1
-				await multiAccount.connect(context.signers.admin).revokeRole(await multiAccount.SETTER_ROLE(), userAddress)
+				await runTx(multiAccount.connect(context.signers.admin).revokeRole(await multiAccount.SETTER_ROLE(), userAddress))
 				expect(await multiAccount.hasRole(await multiAccount.SETTER_ROLE(), userAddress)).to.equal(false)
 			})
 
@@ -449,7 +452,7 @@ export function shouldBehaveLikeMultiAccount() {
 						it("Should fill close quote", async () => {
 							let fillCloseRequest = marketFillCloseRequestBuilder().build()
 							let fillCloseRequestParams = await getListFormatOfFillCloseRequest(fillCloseRequest, admin, symmioPartyBCallSelector)
-							let fillCloseRequestCallData = context.partyBPositionActionsFacet.interface.encodeFunctionData("fillCloseRequest", [
+							let fillCloseRequestCallData = context.partyBCloseActionsFacet.interface.encodeFunctionData("fillCloseRequest", [
 								1,
 								...fillCloseRequestParams,
 							])

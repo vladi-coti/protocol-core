@@ -9,7 +9,7 @@ import {User} from "./models/User"
 import {limitQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
 import {LockQuoteValidator} from "./models/validators/LockQuoteValidator"
 import {UnlockQuoteValidator} from "./models/validators/UnlockQuoteValidator"
-import {decimal, pausePartyB} from "./utils/Common"
+import {decimal, getBlockTimestamp, pausePartyB} from "./utils/Common"
 import {getDummySingleUpnlSig} from "./utils/SignatureUtils"
 import {QuoteStruct} from "../src/types/contracts/interfaces/ISymmio"
 import {QuoteData} from "./models/types";
@@ -35,7 +35,7 @@ export function shouldBehaveLikeLockQuote(): void {
 		await hedger2.setup()
 		await hedger2.setBalances(this.hedger_allocated, this.hedger_allocated)
 
-		quoteDataArray[1] = await user.sendQuote()
+		quoteDataArray[1] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).affiliate(context.multiAccount).deadline(getBlockTimestamp(600n)).build())
 		quoteDataArray[2] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).affiliate(context.multiAccount).positionType(PositionType.SHORT).build())
 		quoteDataArray[3] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).affiliate(context.multiAccount).positionType(PositionType.SHORT).build())
 		quoteDataArray[4] = await user.sendQuote(limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).affiliate(context.multiAccount).build())
@@ -82,7 +82,8 @@ export function shouldBehaveLikeLockQuote(): void {
 	})
 
 	it("Should fail on expired quote", async function () {
-		await timeCompatible.increase(1000)
+		const quote = await context.viewFacet.getQuote(quoteDataArray[1].quoteId)
+		await timeCompatible.setNextBlockTimestamp(quote.deadline + 1n)
 		await expect(hedger.lockQuote(quoteDataArray[1])).to.be.revertedWith("PartyBFacet: Quote is expired")
 	})
 
@@ -115,10 +116,11 @@ export function shouldBehaveLikeLockQuote(): void {
 		})
 
 		it("Should expire quote during unlock", async function () {
-			await timeCompatible.increase(1000)
+			const quote = await context.viewFacet.getQuote(quoteDataArray[1].quoteId)
+			await timeCompatible.setNextBlockTimestamp(quote.deadline + 1n)
 			await hedger.unlockQuote(quoteDataArray[1].quoteId)
-			let q: QuoteStruct = await context.viewFacet.getQuote(1)
-			expect(q.quoteStatus).to.be.equal(QuoteStatus.EXPIRED)
+			let q: QuoteStruct = await context.viewFacet.getQuote(quoteDataArray[1].quoteId)
+			expect(q.quoteStatus).to.be.equal(BigInt(QuoteStatus.EXPIRED))
 		})
 
 		it("Should run successfully", async function () {

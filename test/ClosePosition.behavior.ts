@@ -27,6 +27,7 @@ import {FillCloseRequestValidator} from "./models/validators/FillCloseRequestVal
 import {CancelCloseRequestValidator} from "./models/validators/CancelCloseRequestValidator"
 import {AcceptCancelCloseRequestValidator} from "./models/validators/AcceptCancelCloseRequestValidator"
 import {QuoteData} from "./models/types";
+import {runTx} from "./utils/TxUtils"
 
 export function shouldBehaveLikeClosePosition(): void {
 	let user: User, hedger: Hedger, hedger2: Hedger
@@ -41,7 +42,7 @@ export function shouldBehaveLikeClosePosition(): void {
 
 	async function fillCloseAndGetReceipt(quoteId: bigint, request: FillCloseRequest) {
 		const {encryptedParams, upnlSig} = await hedger.buildFillCloseRequestCalldataArgs(request)
-		const tx = await context.partyBPositionActionsFacet.connect(context.signers.hedger).fillCloseRequest(quoteId, encryptedParams, upnlSig)
+		const tx = await context.partyBCloseActionsFacet.connect(context.signers.hedger).fillCloseRequest(quoteId, encryptedParams, upnlSig)
 		const receipt = await tx.wait()
 		if (!receipt) throw new Error("FillCloseRequest failed")
 		return receipt
@@ -85,7 +86,8 @@ export function shouldBehaveLikeClosePosition(): void {
 		}
 
 		for (const log of logs) {
-			const amount = await decryptUint256(context, getBalanceChangeAmount(log), context.signers.user)
+			const amountSigner = log.name === "BalanceChangePartyB" ? context.signers.hedger : context.signers.user
+			const amount = await decryptUint256(context, getBalanceChangeAmount(log), amountSigner)
 			const eventType = getBalanceChangeType(log)
 			if (log.name === "BalanceChangePartyA" && eventType === realizedPnlIn) amounts.partyAIn = amount
 			if (log.name === "BalanceChangePartyA" && eventType === realizedPnlOut) amounts.partyAOut = amount
@@ -363,26 +365,30 @@ export function shouldBehaveLikeClosePosition(): void {
 	})
 
 	it("ClosePosition - Should expire close request", async function () {
+		const deadline = await getBlockTimestamp(600n)
 		await user.requestToClosePosition(
 			1,
 			limitCloseRequestBuilder()
 				.quantityToClose(await getQuoteQuantity(context, 1n))
 				.closePrice(decimal(1n, 17))
+				.deadline(deadline)
 				.build(),
 		)
-		await timeCompatible.increase(1000)
-		await context.partyAFacet.expireQuote([1])
+		await timeCompatible.setNextBlockTimestamp(deadline + 1n)
+		await runTx(context.partyAFacet.expireQuote([1]))
 		let q = await context.viewFacet.getQuote(1)
 		expect(q.quoteStatus).to.be.equal(QuoteStatus.OPENED)
 	})
 
 	describe("Fill Close Request", async function () {
 		beforeEach(async function () {
+			const deadline = await getBlockTimestamp(600n)
 			await user.requestToClosePosition(
 				1,
 				limitCloseRequestBuilder()
 					.quantityToClose(await getQuoteQuantity(context, 1n))
 					.closePrice(decimal(1n))
+					.deadline(deadline)
 					.build(),
 			)
 			await user.requestToClosePosition(
@@ -390,6 +396,7 @@ export function shouldBehaveLikeClosePosition(): void {
 				limitCloseRequestBuilder()
 					.quantityToClose(await getQuoteQuantity(context, 2n))
 					.closePrice(decimal(1n))
+					.deadline(deadline)
 					.build(),
 			)
 			await user.requestToClosePosition(
@@ -397,6 +404,7 @@ export function shouldBehaveLikeClosePosition(): void {
 				marketCloseRequestBuilder()
 					.quantityToClose(await getQuoteQuantity(context, 4n))
 					.closePrice(decimal(1n))
+					.deadline(deadline)
 					.build(),
 			)
 		})
@@ -435,7 +443,7 @@ export function shouldBehaveLikeClosePosition(): void {
 						.filledAmount(quantity + decimal(1n))
 						.build(),
 				),
-			).to.be.revertedWith("PartyBFacet: Invalid filledAmount")
+			).to.be.revertedWith("PBF:fill")
 			await expect(
 				hedger.fillCloseRequest(
 					4,
@@ -443,7 +451,7 @@ export function shouldBehaveLikeClosePosition(): void {
 						.filledAmount(quantity + decimal(1n))
 						.build(),
 				),
-			).to.be.revertedWith("PartyBFacet: Invalid filledAmount")
+			).to.be.revertedWith("PBF:fill")
 		})
 
 		it("Fill Close Request - Should fail on invalid close price", async function () {
@@ -558,7 +566,8 @@ export function shouldBehaveLikeClosePosition(): void {
 		})
 
 		it("Fill Close Request - Should fail due to expired request", async function () {
-			await timeCompatible.increase(1000)
+			const quote = await context.viewFacet.getQuote(1)
+			await timeCompatible.setNextBlockTimestamp(quote.deadline + 1n)
 			let closePrice = decimal(11n, 17)
 			await expect(
 				hedger.fillCloseRequest(
@@ -568,7 +577,7 @@ export function shouldBehaveLikeClosePosition(): void {
 						.closedPrice(closePrice)
 						.build(),
 				),
-			).to.be.revertedWith("PartyBFacet: Quote is expired")
+			).to.be.revertedWith("PBF:exp")
 		})
 
 		it("Fill Close Request - Should run successfully for limit", async function () {
@@ -635,10 +644,12 @@ export function shouldBehaveLikeClosePosition(): void {
 
 	describe("Cancel Close Request", async function () {
 		beforeEach(async function () {
+			const deadline = await getBlockTimestamp(600n)
 			await user.requestToClosePosition(
 				1,
 				limitCloseRequestBuilder()
 					.quantityToClose(await getQuoteQuantity(context, 4n))
+					.deadline(deadline)
 					.build(),
 			)
 		})
@@ -679,7 +690,8 @@ export function shouldBehaveLikeClosePosition(): void {
 		})
 
 		it("Should expire request", async function () {
-			await timeCompatible.increase(1000)
+			const quote = await context.viewFacet.getQuote(1)
+			await timeCompatible.setNextBlockTimestamp(quote.deadline + 1n)
 			await user.requestToCancelCloseRequest(1)
 			expect((await context.viewFacet.getQuote(1)).quoteStatus).to.be.equal(QuoteStatus.OPENED)
 		})
@@ -703,7 +715,7 @@ export function shouldBehaveLikeClosePosition(): void {
 			})
 
 			it("Should fail on invalid state", async function () {
-				await expect(hedger.acceptCancelCloseRequest(2)).to.be.revertedWith("PartyBFacet: Invalid state")
+			await expect(hedger.acceptCancelCloseRequest(2)).to.be.revertedWith("PBF:state")
 			})
 
 			it("Should run successfully", async function () {

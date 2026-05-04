@@ -58,11 +58,11 @@ export class Hedger {
 
 	public async depositToReserveVault(amount: BigNumberish) {
 		await runTx(this.context.collateral.connect(this.signer).approve(this.context.diamond, ethers.MaxUint256))
-		await runTx(this.context.accountFacet.connect(this.signer).depositToReserveVault(amount, await this.signer.getAddress()))
+		await runTx(this.context.accountManagementFacet.connect(this.signer).depositToReserveVault(amount, await this.signer.getAddress()))
 	}
 
 	public async withdrawFromReserveVault(amount: BigNumberish) {
-		await runTx(this.context.accountFacet.connect(this.signer).withdrawFromReserveVault(amount))
+		await runTx(this.context.accountManagementFacet.connect(this.signer).withdrawFromReserveVault(amount))
 	}
 
 	public async balanceOfReserveVault(): Promise<bigint> {
@@ -239,7 +239,7 @@ export class Hedger {
 
 	public async buildFillCloseRequestCalldataArgs(
 		request: FillCloseRequest,
-		selector: string = this.context.partyBPositionActionsFacet.interface.getFunction("fillCloseRequest").selector,
+		selector: string = this.context.partyBCloseActionsFacet.interface.getFunction("fillCloseRequest").selector,
 	): Promise<{
 		encryptedParams: PrivateClosePositionParamsStruct
 		upnlSig: PairUpnlAndPriceSigStruct
@@ -272,7 +272,7 @@ export class Hedger {
 		)
 		const {encryptedParams, upnlSig} = await this.buildFillCloseRequestCalldataArgs(request)
 		
-		const tx = await this.context.partyBPositionActionsFacet
+		const tx = await this.context.partyBCloseActionsFacet
 				.connect(this.signer)
 				.fillCloseRequest(
 					id,
@@ -294,7 +294,7 @@ export class Hedger {
 	}
 
 	public async acceptCancelCloseRequest(id: BigNumberish) {
-		await runTx(this.context.partyBPositionActionsFacet.connect(this.signer).acceptCancelCloseRequest(id))
+		await runTx(this.context.partyBCloseActionsFacet.connect(this.signer).acceptCancelCloseRequest(id))
 		logger.info(`Hedger::AcceptCancelCloseRequest: ${id}`)
 	}
 

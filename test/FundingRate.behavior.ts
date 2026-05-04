@@ -10,6 +10,7 @@ import {expect} from "chai"
 import {limitQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
 import {PositionType} from "./models/Enums"
 import { QuoteData } from "./models/types";
+import {runTx} from "./utils/TxUtils"
 
 export function shouldBehaveLikeFundingRate(): void {
 	let context: RunContext, user: User, user2: User, hedger: Hedger, hedger2: Hedger
@@ -21,7 +22,7 @@ export function shouldBehaveLikeFundingRate(): void {
 		await user.setup()
 		await user.setBalances(decimal(5000n), decimal(5000n), decimal(5000n))
 
-		await context.controlFacet.connect(context.signers.admin).setSymbolFundingState(1, 120, 50)
+		await runTx(context.controlFacet.connect(context.signers.admin).setSymbolFundingState(1, 120, 50))
 
 		user2 = new User(context, context.signers.user2)
 
@@ -83,7 +84,7 @@ export function shouldBehaveLikeFundingRate(): void {
 		let duration = symbol.fundingRateEpochDuration
 		let window = symbol.fundingRateWindowTime
 		let currentEpoch = BigInt(await timeCompatible.latest()) / duration * duration
-		let targetTime = (duration * 2n) + window - 1n + currentEpoch
+		let targetTime = currentEpoch + duration + (window / 2n)
 
 		await timeCompatible.setNextBlockTimestamp(targetTime)
 		await expect(
@@ -96,7 +97,7 @@ export function shouldBehaveLikeFundingRate(): void {
 		let duration = symbol.fundingRateEpochDuration
 		let window = symbol.fundingRateWindowTime
 		let currentEpoch = BigInt(await timeCompatible.latest()) / duration * duration
-		let targetTime = (duration * 2n) + window - 1n + currentEpoch
+		let targetTime = currentEpoch + duration + (window / 2n)
 
 		await timeCompatible.setNextBlockTimestamp(targetTime)
 		await expect(
@@ -109,7 +110,7 @@ export function shouldBehaveLikeFundingRate(): void {
 		let duration = symbol.fundingRateEpochDuration
 		let window = symbol.fundingRateWindowTime
 		let currentEpoch = BigInt(await timeCompatible.latest()) / duration * duration
-		let targetTime = (duration * 2n) + window - 1n + currentEpoch
+		let targetTime = currentEpoch + duration + (window / 2n)
 
 		await timeCompatible.setNextBlockTimestamp(targetTime)
 		await expect(
@@ -155,6 +156,6 @@ export function shouldBehaveLikeFundingRate(): void {
 
 		let newQuote = await context.viewFacet.getQuote(2)
 		let newOpenedPrice = await decryptUint256(context, newQuote.openedPrice.userCiphertext, context.signers.user)
-		expect(newOpenedPrice).to.be.equal(unDecimal(oldOpenedPrice * (decimal(1n) + decimal(1n, 16))))
+		expect(newOpenedPrice).to.be.equal(unDecimal(oldOpenedPrice * (decimal(1n) - decimal(1n, 16))))
 	})
 }

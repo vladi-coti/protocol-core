@@ -1,6 +1,7 @@
 import { ethers } from "hardhat"
 
 import {
+	AccountManagementFacet,
 	AccountFacet,
 	BridgeFacet,
 	ControlFacet,
@@ -14,6 +15,7 @@ import {
 	LiquidationPositionsFacet,
 	LiquidationResolutionFacet,
 	PartyAFacet,
+	PartyBCloseActionsFacet,
 	PartyBGroupActionsFacet,
 	PartyBPositionActionsFacet,
 	PartyBQuoteActionsFacet,
@@ -27,6 +29,7 @@ import { setupAccounts } from "../utils/accounts";
 
 export class RunContext {
 	accountFacet!: AccountFacet
+	accountManagementFacet!: AccountManagementFacet
 	diamondCutFacet!: DiamondCutFacet
 	diamondLoupeFacet!: DiamondLoupeFacet
 	symmio!: ISymmio
@@ -34,6 +37,7 @@ export class RunContext {
 	partyBQuoteActionsFacet!: PartyBQuoteActionsFacet
 	partyBGroupActionsFacet!: PartyBGroupActionsFacet
 	partyBPositionActionsFacet!: PartyBPositionActionsFacet
+	partyBCloseActionsFacet!: PartyBCloseActionsFacet
 	bridgeFacet!: BridgeFacet
 	viewFacet!: ViewFacet
 	liquidationFacet!: LiquidationFacet
@@ -94,12 +98,14 @@ export async function createRunContext(
 	context.multiAccount2 = multiAccount2
 	context.collateral = await ethers.getContractAt("FakeStablecoin", collateral)
 	context.accountFacet = await ethers.getContractAt("AccountFacet", diamond)
+	context.accountManagementFacet = await ethers.getContractAt("AccountManagementFacet", diamond)
 	context.diamondCutFacet = await ethers.getContractAt("DiamondCutFacet", diamond)
 	context.diamondLoupeFacet = await ethers.getContractAt("DiamondLoupeFacet", diamond)
 	context.symmio = await ethers.getContractAt("ISymmio", diamond)
 	context.partyAFacet = await ethers.getContractAt("PartyAFacet", diamond)
 	context.partyBQuoteActionsFacet = await ethers.getContractAt("PartyBQuoteActionsFacet", diamond)
 	context.partyBPositionActionsFacet = await ethers.getContractAt("PartyBPositionActionsFacet", diamond)
+	context.partyBCloseActionsFacet = await ethers.getContractAt("PartyBCloseActionsFacet", diamond)
 	context.partyBGroupActionsFacet = await ethers.getContractAt("PartyBGroupActionsFacet", diamond)
 	context.bridgeFacet = await ethers.getContractAt("BridgeFacet", diamond)
 	context.viewFacet = await ethers.getContractAt("ViewFacet", diamond)

@@ -121,7 +121,8 @@ export class ForceClosePositionValidator implements TransactionValidator {
 		} else {
 			// check closeQuote
 			expect(newQuote.quoteStatus).to.be.equal(QuoteStatus.CLOSED)
-			expect(newQuote.requestedClosePrice).to.be.equal(0)
+			const decryptedNewRequestedClosePrice = await decryptUint256(context, newQuote.requestedClosePrice.userCiphertext, arg.user.getWallet())
+			expect(decryptedNewRequestedClosePrice).to.be.equal(0n)
 		}
 	}
 }

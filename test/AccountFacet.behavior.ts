@@ -208,7 +208,8 @@ export function shouldBehaveLikeAccountFacet(): void {
 			it("Should reject dummy Muon signature after local state checks pass", async function () {
 				let rejected = false
 				try {
-					await context.accountFacet.connect(context.signers.user).deallocate("50", await getDummySingleUpnlSig())
+					const tx = await context.accountFacet.connect(context.signers.user).deallocate("50", await getDummySingleUpnlSig())
+					await tx.wait()
 				} catch {
 					rejected = true
 				}
@@ -285,15 +286,15 @@ export function shouldBehaveLikeAccountFacet(): void {
 			})
 
 			it("should deallocate for partyB successfully", async () => {
-				expect(
-					await context.accountFacet
-						.connect(context.signers.hedger)
-						.deallocateForPartyB(decimal(50n), await user.getAddress(), await getDummySingleUpnlSig()),
-				).to.not.reverted
+				const tx = await context.accountFacet
+					.connect(context.signers.hedger)
+					.deallocateForPartyB(decimal(50n), await user.getAddress(), await getDummySingleUpnlSig())
+				await tx.wait()
 
 				const newAllocatedBalanceOfPartyB = await context.viewFacet.allocatedBalanceOfPartyB(await hedger.getAddress(), await user.getAddress())
+				const decryptedAllocatedBalance = await decryptUint256(context, newAllocatedBalanceOfPartyB, context.signers.hedger)
 
-				expect(newAllocatedBalanceOfPartyB).to.be.equal(decimal(120n) - decimal(50n))
+				expect(decryptedAllocatedBalance).to.be.equal(decimal(120n) - decimal(50n))
 			})
 
 			it("should not mint balance on self transferAllocation", async () => {
