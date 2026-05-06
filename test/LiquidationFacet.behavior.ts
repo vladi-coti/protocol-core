@@ -267,7 +267,7 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 			let userAddress = await context.signers.user.getAddress()
 			let hedgerAddress = await context.signers.hedger.getAddress()
 
-			await context.liquidationFacet.liquidatePartyB(hedgerAddress, userAddress, await getDummySingleUpnlSig(decimal(-336n)))
+			await runTx(context.liquidationFacet.liquidatePartyB(hedgerAddress, userAddress, await getDummySingleUpnlSig(decimal(-336n))))
 			let balanceInfo: BalanceInfo = await hedger.getBalanceInfo(userAddress)
 			expect(balanceInfo.allocatedBalances).to.be.equal("0")
 			expect(balanceInfo.lockedCva).to.be.equal("0")
@@ -283,10 +283,12 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 		})
 
 		it("Should fail to liquidate a partyB twice", async function () {
-			await context.liquidationFacet.liquidatePartyB(
-				context.signers.hedger.getAddress(),
-				context.signers.user.getAddress(),
-				await getDummySingleUpnlSig(decimal(-336n)),
+			await runTx(
+				context.liquidationFacet.liquidatePartyB(
+					context.signers.hedger.getAddress(),
+					context.signers.user.getAddress(),
+					await getDummySingleUpnlSig(decimal(-336n)),
+				),
 			)
 			await expect(
 				context.liquidationFacet.liquidatePartyB(

@@ -1,7 +1,7 @@
 import {loadFixtureCompatible, timeCompatible} from "./utils/testHelpers"
 import {expect} from "chai"
 import {AbiCoder, BigNumberish} from "ethers"
-import {ethers, upgrades} from "hardhat"
+import {ethers, network, upgrades} from "hardhat"
 import {itUint256} from "@coti-io/coti-ethers"
 import {
 	PairUpnlAndPriceSigStruct,
@@ -23,6 +23,22 @@ import {limitQuoteRequestBuilder, marketQuoteRequestBuilder, QuoteRequest} from 
 import {decimal, decryptUint256, PromiseOrValue} from "./utils/Common"
 import {getDummyPairUpnlAndPriceSig, getDummySingleUpnlSig} from "./utils/SignatureUtils"
 import {runTx} from "./utils/TxUtils"
+
+const REVOKE_ACCESS_COOLDOWN_WAIT = 301
+
+function sleep(ms: number): Promise<void> {
+	return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function waitRevokeAccessCooldown() {
+	if (network.name === "hardhat") {
+		await timeCompatible.increase(REVOKE_ACCESS_COOLDOWN_WAIT)
+		return
+	}
+
+	console.log(`Waiting ${REVOKE_ACCESS_COOLDOWN_WAIT}s for revoke-access cooldown on testnet...`)
+	await sleep((REVOKE_ACCESS_COOLDOWN_WAIT + 2) * 1000)
+}
 
 async function getListFormatOfQuoteRequest(
 	request: QuoteRequest,
@@ -217,7 +233,7 @@ export function shouldBehaveLikeMultiAccount() {
 			it("should access delegate call to another address", async () => {
 				expect(await multiAccount.delegatedAccesses(partyAAccount, user2Address, selector)).to.be.equal(false)
 
-				expect(await multiAccount.connect(context.signers.user).delegateAccess(partyAAccount, user2Address, selector)).to.not.be.reverted
+				await runTx(multiAccount.connect(context.signers.user).delegateAccess(partyAAccount, user2Address, selector, true))
 
 				expect(await multiAccount.delegatedAccesses(partyAAccount, user2Address, selector)).to.be.equal(true)
 			})
@@ -225,29 +241,29 @@ export function shouldBehaveLikeMultiAccount() {
 			it("should revoke delegate call access to another address", async () => {
 				expect(await multiAccount.delegatedAccesses(partyAAccount, user2Address, selector)).to.be.equal(false)
 
-				await multiAccount.connect(context.signers.user).delegateAccess(partyAAccount, user2Address, selector)
+				await runTx(multiAccount.connect(context.signers.user).delegateAccess(partyAAccount, user2Address, selector, true))
 
 				expect(await multiAccount.delegatedAccesses(partyAAccount, user2Address, selector)).to.be.equal(true)
 
 				await expect(multiAccount.connect(context.signers.user).revokeAccesses(partyAAccount, user2Address, [selector]))
 					.to.be.revertedWith("MultiAccount: Revoke access not proposed")
 
-				await multiAccount.connect(context.signers.user).proposeToRevokeAccesses(partyAAccount, user2Address, [selector])
+				await runTx(multiAccount.connect(context.signers.user).proposeToRevokeAccesses(partyAAccount, user2Address, [selector]))
 				expect(await multiAccount.delegatedAccesses(partyAAccount, user2Address, selector)).to.be.equal(true)
 
 				await expect(multiAccount.connect(context.signers.user).revokeAccesses(partyAAccount, user2Address, [selector]))
 					.to.be.revertedWith("MultiAccount: Cooldown not reached")
 
-				await timeCompatible.increase(301)
-				await multiAccount.connect(context.signers.user).revokeAccesses(partyAAccount, user2Address, [selector])
+				await waitRevokeAccessCooldown()
+				await runTx(multiAccount.connect(context.signers.user).revokeAccesses(partyAAccount, user2Address, [selector]))
 				expect(await multiAccount.delegatedAccesses(partyAAccount, user2Address, selector)).to.be.equal(false)
 			})
 
 			it("should send quote with delegate access", async () => {
 				let quoteRequest1 = limitQuoteRequestBuilder().build()
 				let sendQuote1 = context.partyAFacet.interface.encodeFunctionData("sendQuote", await getListFormatOfQuoteRequest(quoteRequest1, user2, multiAccountCallSelector))
-				await multiAccount.connect(context.signers.user).delegateAccess(partyAAccount, user2Address, selector)
-				await multiAccount.connect(context.signers.user2)._call(partyAAccount, [sendQuote1])
+				await runTx(multiAccount.connect(context.signers.user).delegateAccess(partyAAccount, user2Address, selector, true))
+				await runTx(multiAccount.connect(context.signers.user2)._call(partyAAccount, [sendQuote1]))
 				expect((await context.viewFacet.getQuote(1)).quoteStatus).to.be.equal(QuoteStatus.PENDING)
 			})
 		})

@@ -76,7 +76,7 @@ export function shouldBehaveLikeFeeDistributor() {
 		describe("setSymmioAddress", function () {
 			it("Should allow setter to change Symmio address", async function () {
 				const newSymmioAddress = ethers.Wallet.createRandom().address
-				await feeDistributor.connect(setter).setSymmioAddress(newSymmioAddress)
+				await runTx(feeDistributor.connect(setter).setSymmioAddress(newSymmioAddress))
 				expect(await feeDistributor.symmioAddress()).to.equal(newSymmioAddress)
 			})
 
@@ -95,7 +95,7 @@ export function shouldBehaveLikeFeeDistributor() {
 			it("Should allow setter to change Symmio receiver and share", async function () {
 				const newReceiver = ethers.Wallet.createRandom().address
 				const newShare = ethers.parseEther("0.6")
-				await feeDistributor.connect(setter).setSymmioStakeholder(newReceiver, newShare)
+				await runTx(feeDistributor.connect(setter).setSymmioStakeholder(newReceiver, newShare))
 				expect(await feeDistributor.symmioReceiver()).to.equal(newReceiver)
 				expect(await feeDistributor.symmioShare()).to.equal(newShare)
 			})
@@ -118,7 +118,7 @@ export function shouldBehaveLikeFeeDistributor() {
 			it("Should update stakeholders array", async function () {
 				const newReceiver = ethers.Wallet.createRandom().address
 				const newShare = ethers.parseEther("0.6")
-				await feeDistributor.connect(setter).setSymmioStakeholder(newReceiver, newShare)
+				await runTx(feeDistributor.connect(setter).setSymmioStakeholder(newReceiver, newShare))
 				const updatedStakeholder = await feeDistributor.stakeholders(0)
 				expect(updatedStakeholder.receiver).to.equal(newReceiver)
 				expect(updatedStakeholder.share).to.equal(newShare)
@@ -127,9 +127,21 @@ export function shouldBehaveLikeFeeDistributor() {
 			it("Should emit SymmioStakeholderUpdated event", async function () {
 				const newReceiver = ethers.Wallet.createRandom().address
 				const newShare = ethers.parseEther("0.6")
-				await expect(feeDistributor.connect(setter).setSymmioStakeholder(newReceiver, newShare))
-					.to.emit(feeDistributor, "SymmioStakeholderUpdated")
-					.withArgs(symmioReceiver.address, newReceiver, symmioShare, newShare)
+				const receipt = await runTx(feeDistributor.connect(setter).setSymmioStakeholder(newReceiver, newShare))
+				const event = receipt.logs
+					.map(log => {
+						try {
+							return feeDistributor.interface.parseLog(log)
+						} catch {
+							return null
+						}
+					})
+					.find(log => log?.name === "SymmioStakeholderUpdated")
+
+				expect(event?.args.oldReceiver).to.equal(symmioReceiver.address)
+				expect(event?.args.newReceiver).to.equal(newReceiver)
+				expect(event?.args.oldShare).to.equal(symmioShare)
+				expect(event?.args.newShare).to.equal(newShare)
 			})
 		})
 
@@ -140,7 +152,7 @@ export function shouldBehaveLikeFeeDistributor() {
 					{receiver: stakeholder2.address, share: ethers.parseEther("0.1")},
 					{receiver: stakeholder2.address, share: ethers.parseEther("0.1")}
 				]
-				await feeDistributor.connect(manager).setStakeholders(newStakeholders)
+				await runTx(feeDistributor.connect(manager).setStakeholders(newStakeholders))
 
 				expect((await feeDistributor.stakeholders(1)).receiver).to.equal(stakeholder1.address)
 				expect((await feeDistributor.stakeholders(1)).share).to.equal(ethers.parseEther("0.3"))
@@ -153,12 +165,18 @@ export function shouldBehaveLikeFeeDistributor() {
 					{receiver: stakeholder1.address, share: ethers.parseEther("0.1")},
 					{receiver: stakeholder2.address, share: ethers.parseEther("0.4")}
 				]
-				await feeDistributor.connect(manager).setStakeholders(newStakeholders)
+				await runTx(feeDistributor.connect(manager).setStakeholders(newStakeholders))
 				expect((await feeDistributor.stakeholders(1)).receiver).to.equal(stakeholder1.address)
 				expect((await feeDistributor.stakeholders(1)).share).to.equal(ethers.parseEther("0.1"))
 				expect((await feeDistributor.stakeholders(2)).receiver).to.equal(stakeholder2.address)
 				expect((await feeDistributor.stakeholders(2)).share).to.equal(ethers.parseEther("0.4"))
-				await expect(feeDistributor.stakeholders(3)).to.be.reverted
+				let outOfBoundsReverted = false
+				try {
+					await feeDistributor.stakeholders(3)
+				} catch {
+					outOfBoundsReverted = true
+				}
+				expect(outOfBoundsReverted).to.be.true
 			})
 
 			it("Should revert if called by non-manager", async function () {
@@ -178,21 +196,21 @@ export function shouldBehaveLikeFeeDistributor() {
 		describe("claimFee", function () {
 			beforeEach(async function () {
 				// Set up stakeholders
-				await feeDistributor.connect(manager).setStakeholders([
+				await runTx(feeDistributor.connect(manager).setStakeholders([
 					{receiver: stakeholder1.address, share: ethers.parseEther("0.3")},
 					{receiver: stakeholder2.address, share: ethers.parseEther("0.2")}
-				])
+				]))
 
 				// Fund mock Symmio with tokens
 				let amount = ethers.parseEther("1000")
-				await mockToken.connect(owner).approve(await mockSymmio.getAddress(), amount)
-				await mockSymmio.connect(owner).depositFor(amount, await feeDistributor.getAddress())
+				await runTx(mockToken.connect(owner).approve(await mockSymmio.getAddress(), amount))
+				await runTx(mockSymmio.connect(owner).depositFor(amount, await feeDistributor.getAddress()))
 			})
 
 			it("Should distribute fees correctly", async function () {
 				const claimAmount = ethers.parseEther("100")
 
-				await feeDistributor.connect(collector).claimFee(claimAmount)
+				await runTx(feeDistributor.connect(collector).claimFee(claimAmount))
 
 				expect(await mockToken.balanceOf(symmioReceiver.address)).to.equal(ethers.parseEther("50"))
 				expect(await mockToken.balanceOf(stakeholder1.address)).to.equal(ethers.parseEther("30"))
@@ -200,7 +218,7 @@ export function shouldBehaveLikeFeeDistributor() {
 			})
 
 			it("Should distribute fees correctly in claimAll", async function () {
-				await feeDistributor.connect(collector).claimAllFee()
+				await runTx(feeDistributor.connect(collector).claimAllFee())
 
 				expect(await mockToken.balanceOf(symmioReceiver.address)).to.equal(ethers.parseEther("500"))
 				expect(await mockToken.balanceOf(stakeholder1.address)).to.equal(ethers.parseEther("300"))
@@ -221,7 +239,7 @@ export function shouldBehaveLikeFeeDistributor() {
 			})
 
 			it("Should revert when paused", async function () {
-				await feeDistributor.connect(pauser).pause()
+				await runTx(feeDistributor.connect(pauser).pause())
 				await expect(feeDistributor.connect(collector).claimFee(100))
 					.to.be.revertedWith("Pausable: paused")
 			})
@@ -229,13 +247,13 @@ export function shouldBehaveLikeFeeDistributor() {
 
 		describe("Pause and Unpause", function () {
 			it("Should allow pauser to pause", async function () {
-				await feeDistributor.connect(pauser).pause()
+				await runTx(feeDistributor.connect(pauser).pause())
 				expect(await feeDistributor.paused()).to.be.true
 			})
 
 			it("Should allow unpauser to unpause", async function () {
-				await feeDistributor.connect(pauser).pause()
-				await feeDistributor.connect(unpauser).unpause()
+				await runTx(feeDistributor.connect(pauser).pause())
+				await runTx(feeDistributor.connect(unpauser).unpause())
 				expect(await feeDistributor.paused()).to.be.false
 			})
 
@@ -245,7 +263,7 @@ export function shouldBehaveLikeFeeDistributor() {
 			})
 
 			it("Should revert if non-unpauser tries to unpause", async function () {
-				await feeDistributor.connect(pauser).pause()
+				await runTx(feeDistributor.connect(pauser).pause())
 				await expect(feeDistributor.connect(owner).unpause())
 					.to.be.reverted
 			})

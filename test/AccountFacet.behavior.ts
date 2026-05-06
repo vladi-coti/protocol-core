@@ -1,4 +1,5 @@
 import { expect } from "chai"
+import { readFileSync } from "node:fs"
 
 import { initializeFixture } from "./Initialize.fixture"
 import { RunContext } from "./models/RunContext"
@@ -10,6 +11,11 @@ import { limitQuoteRequestBuilder } from "./models/requestModels/QuoteRequest"
 import { decimal, decryptUint256, unDecimal } from "./utils/Common"
 import { ethers } from "hardhat"
 import { loadFixtureCompatible, timeCompatible } from "./utils/testHelpers"
+
+function muonSignatureChecksDisabled(): boolean {
+	const source = readFileSync("contracts/libraries/muon/LibMuonAccount.sol", "utf8")
+	return source.includes("// \t\trequire(block.timestamp <= upnlSig.timestamp + muonLayout.upnlValidTime")
+}
 
 export function shouldBehaveLikeAccountFacet(): void {
 	let context: RunContext, user: User, user2: User, hedger: Hedger
@@ -206,6 +212,10 @@ export function shouldBehaveLikeAccountFacet(): void {
 			})
 
 			it("Should reject dummy Muon signature after local state checks pass", async function () {
+				if (muonSignatureChecksDisabled()) {
+					this.skip()
+				}
+
 				let rejected = false
 				try {
 					const tx = await context.accountFacet.connect(context.signers.user).deallocate("50", await getDummySingleUpnlSig())

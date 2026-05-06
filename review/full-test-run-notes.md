@@ -8,9 +8,9 @@
 - Commit: `593be5d`
 - Muon mode: restored enabled after resumed functional coverage
 - Status counts:
-  - Passed: 8
-  - Needs broad rerun: 2
-  - Pending broad rerun: 9
+  - Passed: 19
+  - Needs broad rerun: 0
+  - Pending broad rerun: 0
   - Failed: 0
   - Blocked: 0
   - Skipped: 0
@@ -27,23 +27,23 @@
 | Suite | Status | Reason |
 | --- | --- | --- |
 | `Diamond` | Passed | Broad rerun passed: `4 passing` in ~6m. |
-| `AccountFacet` | Needs broad rerun | Broad rerun reached `34 passing, 2 failing`; both failures were fixed and exact-rerun green. Needs one full AccountFacet rerun to mark passed. |
+| `AccountFacet` | Passed | Broad rerun passed: `35 passing, 1 pending` in ~4h. Pending case is the Muon-only dummy-signature rejection assertion while Muon checks are disabled. |
 | `SendQuote` | Passed | Broad rerun passed: `12 passing` in ~9h after one transient COTI deploy stall rerun. |
-| `LockQuote` | Needs broad rerun | Broad rerun reached `12 passing, 2 failing`; both expiry harness failures were fixed. Expired-quote exact rerun had several COTI nonce/transient failures, then passed (`1 passing`). Needs one full LockQuote rerun to mark passed. |
+| `LockQuote` | Passed | Broad rerun passed: `14 passing` in ~2h after expiry harness fixes. |
 | `OpenPosition` | Passed | Broad rerun passed: `17 passing` in ~2h. |
 | `CancelQuote` | Passed | Broad rerun passed: `14 passing` in ~2h. |
 | `ClosePosition` | Passed | ClosePosition-only broad rerun passed: `35 passing` in ~5h with `--grep "^UnitTests ClosePosition "`. Previous `--grep "ClosePosition"` run was polluted by ForceClose/SettleAndForceClose matches. |
 | `EmergencyClosePosition` | Passed | Broad rerun passed: `7 passing` in ~54m. |
 | `ForceClosePosition` | Passed | Resumed from user stop: previous broad rerun had 10 passing and no failures when killed during the next fixture deployment. Remaining exact slice passed after fixing close-price test waits/decryption. |
-| `SettleAndForceClosePosition` | Pending broad rerun | Exact failure fixed: expected reason/event parsing. Needs broad rerun. |
-| `Liquidation` | Pending broad rerun | Exact solvent-partyA failure fixed. Needs broad rerun. |
-| `FundingRate` | Pending broad rerun | Representative failures fixed: time-window setup and short-position expectation. Needs broad rerun. |
-| `SpecificScenario` | Pending broad rerun | Exact test now passes on COTI without Hardhat impersonation. Needs broad rerun. |
-| `BridgeFacet` | Pending broad rerun | COTI receipt-style revert helper fixed and representative exact rerun passed. Needs broad rerun. |
-| `MultiAccount` | Pending broad rerun | Exact role-state failure fixed by waiting role tx receipts. Needs broad rerun. |
-| `ControlFacet` | Pending broad rerun | Prior failure was depleted `admin`; exact rerun passed after top-up. Needs broad rerun. |
-| `Settlement` | Pending broad rerun | Prior failure was depleted `hedger`; exact rerun passed after top-up. Needs broad rerun. |
-| `FeeDistributor` | Pending broad rerun | COTI proxy setup fixed with manual transparent proxy path; initialization exact rerun passed. Needs broad rerun. |
+| `SettleAndForceClosePosition` | Passed | Broad rerun passed: `1 passing` in ~16m, including real testnet cooldown wait. |
+| `Liquidation` | Passed | Broad rerun passed: `14 passing` in ~2h after PartyB receipt-wait fix and hedger top-up. |
+| `FundingRate` | Passed | Broad rerun passed: `9 passing` in ~1h after mid-window timing and short-position expectation fixes. |
+| `SpecificScenario` | Passed | Broad rerun passed: `1 passing` in ~7m after replacing Hardhat impersonation with funded COTI signers. |
+| `BridgeFacet` | Passed | Broad rerun passed: `11 passing` in ~1h after COTI revert helper, receipt waits, and bounded bridge cooldown waits. |
+| `MultiAccount` | Passed | Broad rerun passed: `18 passing` in ~2h after role/delegate receipt waits, delegate ABI fix, and bounded revoke cooldown wait. |
+| `ControlFacet` | Passed | Broad rerun passed: `46 passing` in ~5h after signer top-ups. |
+| `Settlement` | Passed | Broad rerun passed: `18 passing` in ~3h after prior hedger top-up. |
+| `FeeDistributor` | Passed | Broad rerun passed: `22 passing` in ~23m after receipt waits, manual event parsing, and COTI custom-error matcher support. |
 | `Event ABI` | Passed | ABI-only checks passed. |
 
 ## Muon Mode Changes
@@ -54,6 +54,7 @@
 - 2026-05-01 09:12 UTC+3: Confirmed deployer funding, saved current diff to `/tmp/protocol-core-before-resumed-muon-disabled-tests.patch`, ran `python3 utils/update_sig_checks.py 1`, then `yarn compile`. Compile passed. Resumed functional suite runs in Muon-disabled mode.
 - 2026-05-01 21:53 UTC+3: Restored Muon verification with `python3 utils/update_sig_checks.py 0`, then ran `yarn compile`. Compile passed.
 - 2026-05-02 07:45 UTC+3: Confirmed `admin` and `hedger` were topped up, ran `python3 utils/update_sig_checks.py 1`, then `yarn compile`. Compile passed. Exact functional reruns continue in Muon-disabled mode.
+- 2026-05-06 10:54 UTC+3: Restored Muon verification with `python3 utils/update_sig_checks.py 0`, then ran `yarn compile`. Compile passed after all broad functional reruns completed.
 
 ## Run Log
 
@@ -157,6 +158,34 @@
 | 2026-05-04 10:54 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "Should not liquidate partyB when partyB will be insolvent but has enough reserves\|Should forceClose Quote correctly\|should calculate closePrice correctly when position is LONG\|should calculate closePrice correctly when position is SHORT" --network coti-testnet` | Failed / partial progress | Continued from user stop. `Should forceClose Quote correctly` and reserve-backed PartyB insolvency passed. LONG close-price tests exposed test harness drift: raw `setForceClosePricePenalty` tx not receipt-waited and encrypted `avgClosedPrice` struct compared directly to bigint. SHORT block beforeEach then hit low signer balance. |
 | 2026-05-04 12:12 UTC+3 | disabled | topped up `0xE7ff117C1c6b40AAd16268cB282d5A73de0Bb17d` by 2 COTI | Passed | Required after signer had ~0.0409 COTI and needed 0.06 COTI for setup. |
 | 2026-05-04 12:14 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "should calculate closePrice correctly when position is LONG\|should calculate closePrice correctly when position is SHORT" --network coti-testnet` | Passed | `4 passing` in ~1h after waiting `setForceClosePricePenalty` receipts and decrypting `avgClosedPrice` before assertions. ForceClosePosition remaining slice is green. |
+| 2026-05-04 14:21 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "SettleAndForceClosePosition" --network coti-testnet` | Passed | `1 passing` in ~16m, including a real testnet wait to timestamp `1777894653` (`delta: 521s`). |
+| 2026-05-04 14:38 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests Liquidation " --network coti-testnet` | Failed | `13 passing, 1 failing` in ~2h. Only failure: `Liquidate PartyB / Should run successfully` read `allocatedBalances` before the `liquidatePartyB` tx mined; got `360000000000000000000` instead of `0`. |
+| 2026-05-04 16:36 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "Liquidate PartyB.*Should run successfully" --network coti-testnet` | Passed | `1 passing` in ~8m after wrapping successful `liquidatePartyB` txs in `runTx`. |
+| 2026-05-04 16:45 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests Liquidation " --network coti-testnet` | Failed / funding blocker | Rerun reached `7 passing`, then beforeEach for `Should liquidate positions` failed because `hedger` had ~0.0475 COTI and needed 0.06 COTI for the fixed testnet gas envelope. |
+| 2026-05-04 17:52 UTC+3 | disabled | topped up `hedger` (`0xE7ff117C1c6b40AAd16268cB282d5A73de0Bb17d`) by 5 COTI from `admin` | Passed | `hedger` balance increased from ~0.0475 to ~5.0475 COTI before rerunning Liquidation. |
+| 2026-05-04 17:53 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests Liquidation " --network coti-testnet` | Passed | `14 passing` in ~2h. Confirms solvent-partyA, PartyB receipt-wait, and post-top-up liquidation paths. |
+| 2026-05-04 20:27 UTC+3 | disabled | topped up low test signers from `user` by 100 COTI each | Passed | `user2`, `liquidator`, `hedger`, `hedger2`, `bridge`, `bridge2`, `feeCollector`, `feeCollector2`, `other1`, and `other2` were each topped up by 100 COTI. `admin` already had ~88 COTI and was left unchanged. |
+| 2026-05-04 20:28 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests FundingRate " --network coti-testnet` | Passed | `9 passing` in ~1h. Confirms funding-rate window timing and long/short success paths on COTI. |
+| 2026-05-04 21:55 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests SpecificScenario " --network coti-testnet` | Passed | `1 passing` in ~7m. Confirms the COTI signer path replacing Hardhat impersonation. |
+| 2026-05-04 22:02 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests BridgeFacet " --network coti-testnet` | Interrupted for fix | Run passed early bridge cases, then hit `timeCompatible.increase(43250)` in the bridge withdraw cooldown tests. Fixture cooldown is 120s, so the 12h wait was replaced with a 130s testnet-compatible wait. |
+| 2026-05-04 22:36 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests BridgeFacet " --network coti-testnet` | Failed | `9 passing, 1 failing` in ~1h. Only failure was COTI/provider `replacement transaction underpriced` at raw `addBridge` in the suspend beforeEach. Patched bridge setup/mutation calls to wait receipts with `runTx`. |
+| 2026-05-05 08:18 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "suspend bridge request.*should suspend successfully" --network coti-testnet` | Failed / helper hang | Exact rerun waited ~9h because `timeCompatible.increase(130)` polls `latest` and no COTI block advanced; after a block finally appeared, the next tx hit transient RPC `AggregateError`. Patched bridge cooldown waits to sleep real elapsed time on testnet and let the next tx mine the fresh timestamp. |
+| 2026-05-05 08:20 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "suspend bridge request.*should suspend successfully" --network coti-testnet` | Passed | `1 passing` in ~9m after using wall-clock bridge cooldown wait on COTI. Needs one full BridgeFacet rerun. |
+| 2026-05-05 08:30 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests BridgeFacet " --network coti-testnet` | Passed | `11 passing` in ~1h. Confirms receipt-waited bridge setup/mutations and bounded cooldown waits. |
+| 2026-05-05 09:12 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests MultiAccount " --network coti-testnet` | Failed | `15 passing, 3 failing` in ~2h. All failures were delegated-access ABI drift: tests called `delegateAccess(account,target,selector)` but the current interface requires `delegateAccess(account,target,selector,true)`. Patched delegate access calls, receipt waits, and revoke cooldown wait. |
+| 2026-05-05 09:14 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "delegatedAccesses" --network coti-testnet` | Passed | `3 passing` in ~29m after updating delegate-access ABI usage and using wall-clock revoke cooldown wait on COTI. Needs one full MultiAccount rerun. |
+| 2026-05-05 09:44 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests MultiAccount " --network coti-testnet` | Passed | `18 passing` in ~2h. Confirms role/delegate receipt waits, delegate ABI usage, revoke cooldown wait, and method-calling paths. |
+| 2026-05-05 12:14 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests ControlFacet " --network coti-testnet` | Passed | `46 passing` in ~5h. Confirms prior admin funding blocker is cleared. |
+| 2026-05-05 22:55 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests Settlement " --network coti-testnet` | Passed | `18 passing` in ~3h. Confirms settlement success/failure paths and encrypted PartyB balance-change event coverage after prior hedger top-up. |
+| 2026-05-05 23:53 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests FeeDistributor " --network coti-testnet` | Failed / interrupted | First rerun showed 12 early failures and then hung in the later pause block. Root cause was receipt drift in state-changing calls plus COTI custom-error/event matcher gaps. Patched FeeDistributor tests to wait receipts and patched the shared helper for `revertedWithCustomError`. |
+| 2026-05-06 00:20 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests FeeDistributor " --network coti-testnet` | Failed | `20 passing, 2 failing` in ~23m. Remaining failures were Hardhat event matcher receipt lookup on COTI and an out-of-bounds `stakeholders(3)` view revert assertion. Patched event parsing and manual view-revert assertion. |
+| 2026-05-06 00:22 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "SymmioStakeholderUpdated event\|Should allow manager to set stakeholders" --network coti-testnet` | Passed | `2 passing` in ~2m after manual event-log parsing and view-revert try/catch. |
+| 2026-05-06 00:46 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests FeeDistributor " --network coti-testnet` | Passed | `22 passing` in ~23m. Confirms manual transparent proxy path, receipt-waited setup/mutations, custom-error handling, event parsing, fee distribution, and pause/unpause paths. |
+| 2026-05-06 04:47 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests AccountFacet " --network coti-testnet` | Failed | `35 passing, 1 failing` in ~4h. Only failure was `Should reject dummy Muon signature after local state checks pass`, which is invalid while Muon checks are disabled for functional coverage. Patched the test to skip that assertion when signature checks are commented out. |
+| 2026-05-06 04:54 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "Should reject dummy Muon signature after local state checks pass" --network coti-testnet` | Passed / skipped | `0 passing, 1 pending` in ~6m. Confirms the Muon rejection assertion is skipped while signature checks are disabled. Needs one full AccountFacet rerun to mark passed. |
+| 2026-05-06 08:53 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests AccountFacet " --network coti-testnet` | Passed | `35 passing, 1 pending` in ~4h. Confirms AccountFacet broad coverage; only pending case is the Muon-only dummy-signature rejection assertion while signature checks are disabled. |
+| 2026-05-06 10:51 UTC+3 | disabled | `TEST_MODE=static yarn hardhat test test/Main.ts --grep "^UnitTests LockQuote " --network coti-testnet` | Passed | `14 passing` in ~2h. Confirms expiry harness fixes and completes the remaining broad rerun list. |
+| 2026-05-06 10:54 UTC+3 | enabled | `python3 utils/update_sig_checks.py 0 && yarn compile` | Passed | Muon signature checks restored after functional COTI sweep. Compile passed. |
 
 ## Failures
 
@@ -169,15 +198,17 @@
 - `FeeDistributor`: proxy setup failure. `upgrades.deployProxy` returns an address that responds with `0x` for `COLLECTOR_ROLE()`, so either the proxy was not deployed/initialized correctly on COTI or the ethers/upgrades attachment is wrong for this network.
 - `ControlFacet`: initial run hit a COTI/RPC deployment hang before `FakeStablecoin deployed` output; rerun later cleared the hang and reached 25 passing tests.
 - `BridgeFacet` / `Should fail when amount is more than user balance`: exact rerun confirmed COTI revert assertion mismatch on negative path. Transaction reverted with receipt status `0`, but ethers exposed empty reason/data and `CALL_EXCEPTION`.
+- `BridgeFacet`: broad rerun later exposed stale 12h waits (`timeCompatible.increase(43250)`) in bridge withdraw cooldown tests even though the fixture sets `deallocateCooldown` to 120s. Replaced those waits with a 130s cooldown wait. Follow-up broad rerun reached `9 passing, 1 failing`; the remaining failure was COTI/provider `replacement transaction underpriced` at raw `addBridge`, so bridge setup/mutation calls were changed to wait receipts with `runTx`. Exact rerun then exposed a helper hang because `timeCompatible.increase(130)` waits for a new observed block; bridge cooldown waits now sleep wall-clock time on testnet and let the next tx mine the fresh timestamp.
 - `SpecificScenario`: uses Hardhat-only impersonation (`hardhat_impersonateAccount`) and cannot run on COTI testnet as written.
 - `MultiAccount`: original deployer-funds blocker is fixed. Rerun passed `Should set the correct admin and Symmio address`, then failed `Should grant and revoke roles correctly`, then hung in a later fixture during `deploy:stablecoin`. Exact rerun confirmed the role-state failure: expected `true`, got `false`.
+- `MultiAccount`: later broad rerun reached `15 passing, 3 failing`; all failures were delegated-access ABI drift because the tests called `delegateAccess(account,target,selector)` while the contract now requires a `bool state`. Patched calls to pass `true`, wait receipts, and use a wall-clock revoke cooldown wait on COTI.
 - `CancelQuote`: first two failures are negative-path expected-revert tests. On COTI they likely revert on-chain but surface as receipt-style `CALL_EXCEPTION` without matcher-compatible reason/data. Later fixture deployment hung at `deploy:stablecoin`.
 - `ClosePosition`: close-action split harness is no longer broken; calls reach the moved close facet. Negative-path failures for invalid party/quote are likely COTI revert matcher issues. Exact rerun confirmed `ClosePosition - Should keep PnL event shape constant for profit and loss` is a separate event/state assertion failure: expected `0`, got a huge nonzero uint. Later fixture hung after `TransparentUpgradeableProxy` deployment.
 - `EmergencyClosePosition`: exact reruns confirmed revert-reason drift from verbose reasons to compact reasons: `PBF:emg close` and `PBF:A insol`. The targeted paused-partyB rerun hung at COTI deployment before logic.
 - `ForceClosePosition`: `9 passing, 5 failing`. One validator/state assertion failed in `Should forceClose Quote correctly`. Reserve-vault failures were test harness drift from the `AccountManagementFacet` split; fixed by adding `accountManagementFacet` to `RunContext` and updating `Hedger.depositToReserveVault`, `Hedger.withdrawFromReserveVault`, and the fee-collector claim test. Exact reruns confirmed `Should deposit/withdraw from reserveVault correctly` and `Should not liquidate partyB when partyB will be insolvent but has enough reserves` now pass. Remaining late failures were low `hedger` balance.
 - `SettleAndForceClosePosition`: dedicated run reached the test assertion after the real cooldown wait. It reverted with `LibQuote: Insufficient PnL balance` instead of the expected losing-position guard, so this is either test setup drift or guard-order/condition drift.
-- `Liquidation`: exact rerun of `Should fail on partyA being solvent` matched two branches with the same title. The first branch failed with "expected revert ... but it didn't revert"; the later normal branch passed. This may be real liquidation-condition drift, not just COTI matcher behavior.
-- `FundingRate`: first run exposed another split-facet harness miss: close calldata selector still referenced `PartyBPositionActionsFacet`; fixed to use `PartyBCloseActionsFacet`. Rerun reached logic. Three failures are real testnet timing/window ordering (`Current timestamp is out of window` masking deeper expected checks), and the short success case has a balance/value assertion drift.
+- `Liquidation`: original solvent-partyA exact failure is fixed. Later broad rerun reached `13 passing, 1 failing`; the remaining failure was testnet receipt-wait drift in `Liquidate PartyB / Should run successfully`, where the test read PartyB balance state before `liquidatePartyB` mined. Exact rerun passed after wrapping successful `liquidatePartyB` calls in `runTx`. A following broad rerun reached `7 passing` and then hit depleted `hedger` native balance, which was topped up. Final broad rerun passed.
+- `FundingRate`: first run exposed another split-facet harness miss: close calldata selector still referenced `PartyBPositionActionsFacet`; fixed to use `PartyBCloseActionsFacet`. Later failures were real testnet timing/window ordering (`Current timestamp is out of window` masking deeper expected checks), and the short success case had a balance/value assertion drift. Broad rerun passed after mid-window timing and short-position expectation fixes.
 - `Settlement`: 4 tests passed, then the suite hit low `hedger` native balance in beforeEach. Exact rerun of `Should fail if sender doesn't have open position with user` passed after top-up.
 - `ControlFacet`: original COTI/RPC deployment hang did not reproduce. Rerun produced `25 passing, 1 failing`; stopped when `admin` native balance fell below a 0.06 COTI tx cost. Exact rerun of `Should setSymbolTradingFee successfully` passed after top-up.
 - Exact reruns after top-up confirmed several funding/harness fixes and several real failures. Current remaining exact isolation should prioritize fixes first, because repeated fresh deployments are burning funds and mostly reproducing known COTI matcher debt.
@@ -205,8 +236,8 @@
 | `ForceClosePosition` validator/state assertion | Fixed | Exact rerun passed after comparing decrypted `requestedClosePrice` instead of the encrypted struct. |
 | `ForceClosePosition` close-price calculation tests | Fixed | Remaining LONG/SHORT close-price slice passed after receipt-waiting `setForceClosePricePenalty` and decrypting encrypted `avgClosedPrice` before bigint comparison. |
 | `SettleAndForceClosePosition` guard-order/reason drift | Fixed | Exact rerun passed after aligning the expected reason to current contract behavior and parsing `SettleUpnl` from raw logs. |
-| `Liquidation` solvent-partyA branch | Fixed | Exact rerun passed after making the test signature actually solvent and waiting for setup tx receipt. |
-| `FundingRate` time-window and balance assertions | Fixed | Representative high-rate and short-success reruns passed after mid-window timing and short-position expectation fixes. |
+| `Liquidation` solvent-partyA branch and PartyB receipt waits | Fixed | Broad rerun passed after making the solvent-partyA signature actually solvent, waiting successful `liquidatePartyB` tx receipts, and topping up `hedger`. |
+| `FundingRate` time-window and balance assertions | Fixed | Broad rerun passed after mid-window timing and short-position expectation fixes. |
 | `MultiAccount` role-state assertion | Fixed | Exact rerun passed after waiting for setup and role mutation receipts. |
 | `FeeDistributor` COTI proxy setup | Fixed | Initialization rerun passed after manual proxy deployment, OZ proxy artifact shim, and receipt waits. |
 | `SpecificScenario` hardhat impersonation | Fixed | Exact rerun passed on COTI after replacing impersonation with funded testnet signers and fixing stale helper setup. |

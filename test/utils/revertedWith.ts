@@ -211,6 +211,14 @@ function formatExpectedReason(expectedReason: string | RegExp): string {
 	return expectedReason instanceof RegExp ? expectedReason.source : expectedReason
 }
 
+function getCustomErrorSelector(contract: any, errorName: string): string | undefined {
+	try {
+		return contract?.interface?.getError(errorName)?.selector
+	} catch {
+		return undefined
+	}
+}
+
 chai.Assertion.overwriteMethod("revertedWith", function (_super) {
 	return function (this: any, expectedReason: string | RegExp) {
 		const expected = formatExpectedReason(expectedReason)
@@ -292,6 +300,80 @@ chai.Assertion.overwriteMethod("revertedWith", function (_super) {
 				)
 			},
 			assertRevert,
+		)
+
+		this.then = derivedPromise.then.bind(derivedPromise)
+		this.catch = derivedPromise.catch.bind(derivedPromise)
+
+		return this
+	}
+})
+
+chai.Assertion.overwriteMethod("revertedWithCustomError", function (_super) {
+	return function (this: any, expectedContract: any, expectedErrorName: string) {
+		const expectedSelector = getCustomErrorSelector(expectedContract, expectedErrorName)
+		const negated = this.__flags.negate
+		const subject = this._obj
+
+		const assertCustomRevert = async (error: any) => {
+			const revertData = await recoverRevertData(error)
+
+			if (revertData != null) {
+				const decoded = decodeRevertData(revertData)
+
+				if (decoded.kind === "custom") {
+					const matched = decoded.selector === expectedSelector
+					if (negated ? matched : !matched) {
+						throw new chai.AssertionError(
+							negated
+								? `Expected transaction NOT to be reverted with custom error '${expectedErrorName}', but it was`
+								: `Expected transaction to be reverted with custom error '${expectedErrorName}', but it reverted with selector '${decoded.selector}'`,
+						)
+					}
+					return
+				}
+
+				if (decoded.kind === "empty" && isReceiptStatusRevert(error)) {
+					if (negated) {
+						throw new chai.AssertionError(
+							`Expected transaction NOT to be reverted with custom error '${expectedErrorName}', but it reverted without decoded data`,
+						)
+					}
+					return
+				}
+
+				throw new chai.AssertionError(
+					`Expected transaction to be reverted with custom error '${expectedErrorName}', but it reverted with non-custom data`,
+				)
+			}
+
+			if (isReceiptStatusRevert(error)) {
+				if (negated) {
+					throw new chai.AssertionError(
+						`Expected transaction NOT to be reverted with custom error '${expectedErrorName}', but it reverted without decoded data`,
+					)
+				}
+				return
+			}
+
+			throw error
+		}
+
+		const derivedPromise = Promise.resolve(subject).then(
+			async (result: any) => {
+				if (typeof result?.wait === "function") {
+					try {
+						await result.wait()
+					} catch (error: any) {
+						await assertCustomRevert(error)
+						return
+					}
+				}
+				throw new chai.AssertionError(
+					`Expected transaction to be reverted with custom error '${expectedErrorName}', but it didn't revert`,
+				)
+			},
+			assertCustomRevert,
 		)
 
 		this.then = derivedPromise.then.bind(derivedPromise)
