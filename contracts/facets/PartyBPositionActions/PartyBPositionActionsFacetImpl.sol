@@ -7,6 +7,7 @@ pragma solidity >=0.8.18;
 import "../../libraries/muon/LibMuonPartyB.sol";
 import "../../libraries/LibSolvency.sol";
 import "../../libraries/LibPartyBPositionsActions.sol";
+import "../../libraries/LibEncryption.sol";
 
 library PartyBPositionActionsFacetImpl {
 	using MpcCore for gtUint256;
@@ -71,9 +72,9 @@ library PartyBPositionActionsFacetImpl {
 		quote.statusModifyTimestamp = block.timestamp;
 		quote.quoteStatus = QuoteStatus.OPENED;
 		gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
-		address partyAAddr = LibAccount.getUserEncryptionAddress(quote.partyA);
-		quote.requestedClosePrice = gtZero.offBoardCombined(partyAAddr);
-		quote.quantityToClose = gtZero.offBoardCombined(partyAAddr);
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		LibEncryption.storeQuoteRequestedClosePrice(quoteLayout, quote, gtZero);
+		LibEncryption.storeQuoteQuantityToClose(quoteLayout, quote, gtZero);
 	}
 
 	function emergencyClosePosition(uint256 quoteId, PairUpnlAndPriceSig memory upnlSig) internal {
@@ -92,9 +93,9 @@ library PartyBPositionActionsFacetImpl {
 		
 		// Set encrypted fields
 		gtUint256 gtPrice = MpcCore.setPublic256(upnlSig.price);
-		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
-		quote.quantityToClose = gtFilledAmount.offBoardCombined(partyAEncryptionAddress);
-		quote.requestedClosePrice = gtPrice.offBoardCombined(partyAEncryptionAddress);
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		LibEncryption.storeQuoteQuantityToClose(quoteLayout, quote, gtFilledAmount);
+		LibEncryption.storeQuoteRequestedClosePrice(quoteLayout, quote, gtPrice);
 		
 		// Check solvency with encrypted balance calculations
 		gtInt256 gtPartyAAvailable = LibAccount.partyAAvailableBalanceForLiquidation(upnlSig.upnlPartyA, quote.partyA);

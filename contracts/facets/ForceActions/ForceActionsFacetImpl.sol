@@ -28,13 +28,12 @@ library ForceActionsFacetImpl {
 		require(block.timestamp > quote.statusModifyTimestamp + maLayout.forceCancelCooldown, "PartyAFacet: Cooldown not reached");
 		quote.statusModifyTimestamp = block.timestamp;
 		quote.quoteStatus = QuoteStatus.CANCELED;
-		accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
-		accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
-		accountLayout.observerPendingLockedBalances[quote.partyA] = LibEncryption.offBoardLockedToObserver(
-			accountLayout.pendingLockedBalances[quote.partyA].onBoard()
-		);
-		accountLayout.observerPartyBPendingLockedBalances[quote.partyB][quote.partyA] = LibEncryption.offBoardLockedToObserver(
-			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].onBoard()
+		LibEncryption.storePartyAPendingLockedBalance(accountLayout, quote.partyA, accountLayout.pendingLockedBalances[quote.partyA].subQuoteGarbled(quote));
+		LibEncryption.storePartyBPendingLockedBalance(
+			accountLayout,
+			quote.partyB,
+			quote.partyA,
+			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuoteGarbled(quote)
 		);
 
 		// send trading Fee back to partyA
@@ -64,11 +63,9 @@ library ForceActionsFacetImpl {
 		
 		// Set encrypted fields to zero
 		gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
-		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
-		quote.requestedClosePrice = gtZero.offBoardCombined(partyAEncryptionAddress);
-		quote.quantityToClose = gtZero.offBoardCombined(partyAEncryptionAddress);
-		QuoteStorage.layout().observerQuoteValues[quote.id].requestedClosePrice = LibEncryption.offBoardToObserver(gtZero);
-		QuoteStorage.layout().observerQuoteValues[quote.id].quantityToClose = LibEncryption.offBoardToObserver(gtZero);
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		LibEncryption.storeQuoteRequestedClosePrice(quoteLayout, quote, gtZero);
+		LibEncryption.storeQuoteQuantityToClose(quoteLayout, quote, gtZero);
 	}
 
 	function forceClosePosition(

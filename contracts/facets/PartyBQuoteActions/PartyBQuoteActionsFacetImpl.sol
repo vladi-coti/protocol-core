@@ -49,9 +49,11 @@ library PartyBQuoteActionsFacetImpl {
 		} else {
 			quote.statusModifyTimestamp = block.timestamp;
 			quote.quoteStatus = QuoteStatus.PENDING;
-			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
-			accountLayout.observerPartyBPendingLockedBalances[quote.partyB][quote.partyA] = LibEncryption.offBoardLockedToObserver(
-				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].onBoard()
+			LibEncryption.storePartyBPendingLockedBalance(
+				accountLayout,
+				quote.partyB,
+				quote.partyA,
+				accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuoteGarbled(quote)
 			);
 			LibQuote.removeFromPartyBPendingQuotes(quote);
 			quote.partyB = address(0);
@@ -66,13 +68,12 @@ library PartyBQuoteActionsFacetImpl {
 		require(quote.quoteStatus == QuoteStatus.CANCEL_PENDING, "PartyBFacet: Invalid state");
 		quote.statusModifyTimestamp = block.timestamp;
 		quote.quoteStatus = QuoteStatus.CANCELED;
-		accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
-		accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyB));
-		accountLayout.observerPendingLockedBalances[quote.partyA] = LibEncryption.offBoardLockedToObserver(
-			accountLayout.pendingLockedBalances[quote.partyA].onBoard()
-		);
-		accountLayout.observerPartyBPendingLockedBalances[quote.partyB][quote.partyA] = LibEncryption.offBoardLockedToObserver(
-			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].onBoard()
+		LibEncryption.storePartyAPendingLockedBalance(accountLayout, quote.partyA, accountLayout.pendingLockedBalances[quote.partyA].subQuoteGarbled(quote));
+		LibEncryption.storePartyBPendingLockedBalance(
+			accountLayout,
+			quote.partyB,
+			quote.partyA,
+			accountLayout.partyBPendingLockedBalances[quote.partyB][quote.partyA].subQuoteGarbled(quote)
 		);
 
 		// send trading Fee back to partyA

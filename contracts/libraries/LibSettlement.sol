@@ -88,8 +88,7 @@ library LibSettlement {
 			}
 			gtSettleAmounts[data.partyBUpnlIndex] = gtSettleAmounts[data.partyBUpnlIndex].add(gtSignedImpact);
 
-			quote.openedPrice = MpcCore.offBoardCombined(gtUpdatedPrice, LibAccount.getUserEncryptionAddress(quote.partyA));
-			quoteLayout.observerQuoteValues[quote.id].openedPrice = LibEncryption.offBoardToObserver(gtUpdatedPrice);
+			LibEncryption.storeQuoteOpenedPrice(quoteLayout, quote, gtUpdatedPrice);
 		}
 
 		gtInt256 gtTotalSettlementAmount = gtZeroInt;

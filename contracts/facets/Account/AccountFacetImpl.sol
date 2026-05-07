@@ -13,6 +13,7 @@ import "../../storages/MuonStorage.sol";
 import "../../libraries/muon/LibMuonAccount.sol";
 import "../../libraries/LibAccount.sol";
 import "../../libraries/LibEncryption.sol";
+import "../../libraries/LibAccountEncryption.sol";
 
 library AccountFacetImpl {
 	using SafeERC20 for IERC20;
@@ -226,92 +227,8 @@ library AccountFacetImpl {
 	}
 
 	function setEncryptionAddress(address user, address newEncryptionAddress) internal {
-        AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-        address currentMapped = accountLayout.userEncryptionAddress[user];
-        address effectiveCurrent = currentMapped == address(0) ? user : currentMapped;
-        require(newEncryptionAddress != address(0), "AccountFacet: zero encryption address");
-        require(newEncryptionAddress != effectiveCurrent, "AccountFacet: encryption address unchanged");
-
-        // Re-encrypt AccountStorage values owned by user
-        accountLayout.allocatedBalances[user] = MpcCore.offBoardCombined(
-            LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[user].ciphertext),
-            newEncryptionAddress
-        );
-		accountLayout.observerAllocatedBalances[user] = LibEncryption.offBoardToObserver(
-			LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[user].ciphertext)
-		);
-
-        GarbledLockedValues memory gtLocked = LockedValuesOps.onBoard(accountLayout.lockedBalances[user]);
-        accountLayout.lockedBalances[user] = LockedValuesOps.offBoard(gtLocked, newEncryptionAddress);
-        GarbledLockedValues memory gtPendingLocked = LockedValuesOps.onBoard(accountLayout.pendingLockedBalances[user]);
-        accountLayout.pendingLockedBalances[user] = LockedValuesOps.offBoard(gtPendingLocked, newEncryptionAddress);
-		gtUint256 gtReserveVault = LibAccount.initializeReserveVault(user);
-		accountLayout.encryptedReserveVault[user] = MpcCore.offBoardCombined(gtReserveVault, newEncryptionAddress);
-		accountLayout.observerEncryptedReserveVault[user] = LibEncryption.offBoardToObserver(gtReserveVault);
-		gtUint256 gtFeeCollectorBalance = LibAccount.initializeFeeCollectorBalance(user);
-		accountLayout.encryptedFeeCollectorBalances[user] = MpcCore.offBoardCombined(gtFeeCollectorBalance, newEncryptionAddress);
-		accountLayout.observerEncryptedFeeCollectorBalances[user] = LibEncryption.offBoardToObserver(gtFeeCollectorBalance);
-		gtUint256 gtPartyAReimbursement = LibAccount.initializePartyAReimbursement(user);
-		accountLayout.encryptedPartyAReimbursement[user] = MpcCore.offBoardCombined(gtPartyAReimbursement, newEncryptionAddress);
-		accountLayout.observerEncryptedPartyAReimbursement[user] = LibEncryption.offBoardToObserver(gtPartyAReimbursement);
-
-        // Re-encrypt all quotes owned by user
-        QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-        uint256[] storage ids = quoteLayout.quoteIdsOf[user];
-        for (uint256 i = 0; i < ids.length; i++) {
-            Quote storage q = quoteLayout.quotes[ids[i]];
-            if (q.partyA != user) continue;
-			ObserverQuoteValues storage observerValues = quoteLayout.observerQuoteValues[ids[i]];
-
-            q.openedPrice = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.openedPrice.ciphertext), newEncryptionAddress);
-            observerValues.openedPrice = LibEncryption.offBoardToObserver(LockedValuesOps.safeOnboard(q.openedPrice.ciphertext));
-            q.initialOpenedPrice = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.initialOpenedPrice.ciphertext), newEncryptionAddress);
-            observerValues.initialOpenedPrice = LibEncryption.offBoardToObserver(LockedValuesOps.safeOnboard(q.initialOpenedPrice.ciphertext));
-            q.requestedOpenPrice = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.requestedOpenPrice.ciphertext), newEncryptionAddress);
-            observerValues.requestedOpenPrice = LibEncryption.offBoardToObserver(LockedValuesOps.safeOnboard(q.requestedOpenPrice.ciphertext));
-            q.marketPrice = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.marketPrice.ciphertext), newEncryptionAddress);
-            observerValues.marketPrice = LibEncryption.offBoardToObserver(LockedValuesOps.safeOnboard(q.marketPrice.ciphertext));
-            q.quantity = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.quantity.ciphertext), newEncryptionAddress);
-            observerValues.quantity = LibEncryption.offBoardToObserver(LockedValuesOps.safeOnboard(q.quantity.ciphertext));
-            q.closedAmount = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.closedAmount.ciphertext), newEncryptionAddress);
-            observerValues.closedAmount = LibEncryption.offBoardToObserver(LockedValuesOps.safeOnboard(q.closedAmount.ciphertext));
-            q.avgClosedPrice = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.avgClosedPrice.ciphertext), newEncryptionAddress);
-            observerValues.avgClosedPrice = LibEncryption.offBoardToObserver(LockedValuesOps.safeOnboard(q.avgClosedPrice.ciphertext));
-            q.requestedClosePrice = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.requestedClosePrice.ciphertext), newEncryptionAddress);
-            observerValues.requestedClosePrice = LibEncryption.offBoardToObserver(LockedValuesOps.safeOnboard(q.requestedClosePrice.ciphertext));
-            q.quantityToClose = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.quantityToClose.ciphertext), newEncryptionAddress);
-            observerValues.quantityToClose = LibEncryption.offBoardToObserver(LockedValuesOps.safeOnboard(q.quantityToClose.ciphertext));
-            q.tradingFee = MpcCore.offBoardCombined(LockedValuesOps.safeOnboard(q.tradingFee.ciphertext), newEncryptionAddress);
-            observerValues.tradingFee = LibEncryption.offBoardToObserver(LockedValuesOps.safeOnboard(q.tradingFee.ciphertext));
-
-            GarbledLockedValues memory gtInit = LockedValuesOps.onBoard(q.initialLockedValues);
-            q.initialLockedValues = LockedValuesOps.offBoard(gtInit, newEncryptionAddress);
-            observerValues.initialLockedValues = _offBoardLockedValuesToObserver(gtInit);
-            GarbledLockedValues memory gtCurr = LockedValuesOps.onBoard(q.lockedValues);
-            q.lockedValues = LockedValuesOps.offBoard(gtCurr, newEncryptionAddress);
-            observerValues.lockedValues = _offBoardLockedValuesToObserver(gtCurr);
-        }
-
-		address[] storage partyAs = accountLayout.partyBConnectedPartyAs[user];
-		for (uint256 i = 0; i < partyAs.length; i++) {
-			address partyA = partyAs[i];
-			require(!MAStorage.layout().partyBLiquidationStatus[user][partyA], "Accessibility: PartyB isn't solvent");
-
-			gtUint256 gtPartyBAllocatedBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[user][partyA].ciphertext);
-			accountLayout.partyBAllocatedBalances[user][partyA] = MpcCore.offBoardCombined(gtPartyBAllocatedBalance, newEncryptionAddress);
-			accountLayout.observerPartyBAllocatedBalances[user][partyA] = LibEncryption.offBoardToObserver(gtPartyBAllocatedBalance);
-
-			GarbledLockedValues memory gtPartyBLocked = accountLayout.partyBLockedBalances[user][partyA].onBoard();
-			accountLayout.partyBLockedBalances[user][partyA] = gtPartyBLocked.offBoard(newEncryptionAddress);
-			accountLayout.observerPartyBLockedBalances[user][partyA] = LibEncryption.offBoardLockedToObserver(gtPartyBLocked);
-
-			GarbledLockedValues memory gtPartyBPendingLocked = accountLayout.partyBPendingLockedBalances[user][partyA].onBoard();
-			accountLayout.partyBPendingLockedBalances[user][partyA] = gtPartyBPendingLocked.offBoard(newEncryptionAddress);
-			accountLayout.observerPartyBPendingLockedBalances[user][partyA] = LibEncryption.offBoardLockedToObserver(gtPartyBPendingLocked);
-		}
-
-		accountLayout.userEncryptionAddress[user] = newEncryptionAddress;
-    }
+		LibAccountEncryption.setEncryptionAddress(user, newEncryptionAddress);
+	}
 
 	function _storePartyAAllocatedBalance(AccountStorage.Layout storage accountLayout, address partyA, gtUint256 value) private {
 		accountLayout.allocatedBalances[partyA] = LibEncryption.offBoardToUser(value, partyA);
@@ -331,18 +248,5 @@ library AccountFacetImpl {
 	function _storeFeeCollectorBalance(AccountStorage.Layout storage accountLayout, address feeCollector, gtUint256 value) private {
 		accountLayout.encryptedFeeCollectorBalances[feeCollector] = LibEncryption.offBoardToUser(value, feeCollector);
 		accountLayout.observerEncryptedFeeCollectorBalances[feeCollector] = LibEncryption.offBoardToObserver(value);
-	}
-
-	function _offBoardLockedValuesToObserver(GarbledLockedValues memory values) private returns (UserLockedValues memory) {
-		address observer = LibEncryption.getObserverEncryptionAddress();
-		if (observer == address(0)) {
-			return UserLockedValues({
-				cva: ctUint256({ ciphertextHigh: ctUint128.wrap(0), ciphertextLow: ctUint128.wrap(0) }),
-				lf: ctUint256({ ciphertextHigh: ctUint128.wrap(0), ciphertextLow: ctUint128.wrap(0) }),
-				partyAmm: ctUint256({ ciphertextHigh: ctUint128.wrap(0), ciphertextLow: ctUint128.wrap(0) }),
-				partyBmm: ctUint256({ ciphertextHigh: ctUint128.wrap(0), ciphertextLow: ctUint128.wrap(0) })
-			});
-		}
-		return LockedValuesOps.offBoardToUser(values, observer);
 	}
 }

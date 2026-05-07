@@ -69,7 +69,7 @@ library LibLiquidation {
 		for (uint256 index = 0; index < pendingQuotes.length; ) {
 			Quote storage quote = quoteLayout.quotes[pendingQuotes[index]];
 			if (quote.partyB == partyB && (quote.quoteStatus == QuoteStatus.LOCKED || quote.quoteStatus == QuoteStatus.CANCEL_PENDING)) {
-				accountLayout.pendingLockedBalances[partyA].subQuote(quote, partyAEncryptionAddress);
+				LibEncryption.storePartyAPendingLockedBalance(accountLayout, partyA, accountLayout.pendingLockedBalances[partyA].subQuoteGarbled(quote));
 				
 				// Get encrypted trading fee and update balance with encrypted operations
 				gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
@@ -122,10 +122,8 @@ library LibLiquidation {
 		
 		// Set locked balances to zero (encrypted)
 		GarbledLockedValues memory gtZeroLocked = LockedValuesOps.makeZero();
-		accountLayout.partyBLockedBalances[partyB][partyA] = gtZeroLocked.offBoard(partyBEncryptionAddress);
-		accountLayout.partyBPendingLockedBalances[partyB][partyA] = gtZeroLocked.offBoard(partyBEncryptionAddress);
-		accountLayout.observerPartyBLockedBalances[partyB][partyA] = LibEncryption.offBoardLockedToObserver(gtZeroLocked);
-		accountLayout.observerPartyBPendingLockedBalances[partyB][partyA] = LibEncryption.offBoardLockedToObserver(gtZeroLocked);
+		LibEncryption.storePartyBLockedBalance(accountLayout, partyB, partyA, gtZeroLocked);
+		LibEncryption.storePartyBPendingLockedBalance(accountLayout, partyB, partyA, gtZeroLocked);
 		
 		accountLayout.partyANonces[partyA] += 1;
 

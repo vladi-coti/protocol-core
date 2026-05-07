@@ -174,6 +174,7 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 			describe("Settle liquidation", async function () {
 				beforeEach(async function () {
 					await user.liquidatePendingPositions()
+					await context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(context.signers.liquidator.address)
 					await user.liquidatePositions([1])
 				})
 
@@ -192,10 +193,20 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 					const [settlementState] = await context.viewFacet.getSettlementStates(userAddress, [hedgerAddress])
 					expect(await context.signers.user.decryptInt256(settlementState.actualAmount)).to.equal(-pnl)
 					expect(await context.signers.user.decryptInt256(settlementState.expectedAmount)).to.equal(-pnl)
+					const [observerSettlementState] = await context.viewFacet.getObserverSettlementStates(userAddress, [hedgerAddress])
+					expect(await context.signers.liquidator.decryptInt256(observerSettlementState.actualAmount)).to.equal(-pnl)
+					expect(await context.signers.liquidator.decryptInt256(observerSettlementState.expectedAmount)).to.equal(-pnl)
+					expect(await context.signers.liquidator.decryptUint256(observerSettlementState.cva)).to.equal(userBalance.lockedCva)
 					const [partyBSettlementState] = await context.viewFacet.getPartyBSettlementStates(userAddress, [hedgerAddress])
 					expect(await context.signers.hedger.decryptInt256(partyBSettlementState.actualAmount)).to.equal(-pnl)
 					expect(await context.signers.hedger.decryptInt256(partyBSettlementState.expectedAmount)).to.equal(-pnl)
 					expect(await context.signers.hedger.decryptUint256(partyBSettlementState.cva)).to.equal(userBalance.lockedCva)
+
+					await context.accountFacet.connect(context.signers.hedger).setEncryptionAddress(context.signers.user2.address)
+					const [rotatedPartyBSettlementState] = await context.viewFacet.getPartyBSettlementStates(userAddress, [hedgerAddress])
+					expect(await context.signers.user2.decryptInt256(rotatedPartyBSettlementState.actualAmount)).to.equal(-pnl)
+					expect(await context.signers.user2.decryptInt256(rotatedPartyBSettlementState.expectedAmount)).to.equal(-pnl)
+					expect(await context.signers.user2.decryptUint256(rotatedPartyBSettlementState.cva)).to.equal(userBalance.lockedCva)
 
 					let partyBCouldDecryptPartyAState = false
 					try {
@@ -206,7 +217,7 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 					expect(partyBCouldDecryptPartyAState).to.equal(false)
 
 					await user.settleLiquidation()
-					expect(await hedger.decryptUint256(await context.viewFacet.allocatedBalanceOfPartyB(hedgerAddress, userAddress))).to.be.equal(partyBAfter)
+					expect(await context.signers.user2.decryptUint256(await context.viewFacet.allocatedBalanceOfPartyB(hedgerAddress, userAddress))).to.be.equal(partyBAfter)
 					let balanceInfoOfLiquidator = await liquidator.getBalanceInfo()
 					expect(balanceInfoOfLiquidator.allocatedBalances).to.be.equal(diff)
 				})

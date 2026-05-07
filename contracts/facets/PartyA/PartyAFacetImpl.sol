@@ -204,10 +204,7 @@ library PartyAFacetImpl {
 			ctUint256 memory ctFeeAmount = MpcCore.offBoardToUser(gtFee, LibAccount.getUserEncryptionAddress(quote.partyA));
 			emit SharedEvents.BalanceChangePartyA(quote.partyA, ctFeeAmount, SharedEvents.BalanceChangeType.PLATFORM_FEE_IN);
 			
-			accountLayout.pendingLockedBalances[quote.partyA].subQuote(quote, LibAccount.getUserEncryptionAddress(quote.partyA));
-			accountLayout.observerPendingLockedBalances[quote.partyA] = LibEncryption.offBoardLockedToObserver(
-				accountLayout.pendingLockedBalances[quote.partyA].onBoard()
-			);
+			LibEncryption.storePartyAPendingLockedBalance(accountLayout, quote.partyA, accountLayout.pendingLockedBalances[quote.partyA].subQuoteGarbled(quote));
 			LibQuote.removeFromPartyAPendingQuotes(quote);
 			result = QuoteStatus.CANCELED;
 		} else {
@@ -246,11 +243,8 @@ library PartyAFacetImpl {
 		quote.quoteStatus = QuoteStatus.CLOSE_PENDING;
 		
 		// Store encrypted values
-		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyA);
-		quote.requestedClosePrice = gtClosePrice.offBoardCombined(partyAEncryptionAddress);
-		quote.quantityToClose = gtQuantityToClose.offBoardCombined(partyAEncryptionAddress);
-		QuoteStorage.layout().observerQuoteValues[quoteId].requestedClosePrice = LibEncryption.offBoardToObserver(gtClosePrice);
-		QuoteStorage.layout().observerQuoteValues[quoteId].quantityToClose = LibEncryption.offBoardToObserver(gtQuantityToClose);
+		LibEncryption.storeQuoteRequestedClosePrice(quoteLayout, quote, gtClosePrice);
+		LibEncryption.storeQuoteQuantityToClose(quoteLayout, quote, gtQuantityToClose);
 		quote.orderType = orderType;
 		quote.deadline = deadline;
 	}

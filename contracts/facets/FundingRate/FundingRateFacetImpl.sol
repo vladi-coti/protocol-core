@@ -29,7 +29,8 @@ library FundingRateFacetImpl {
 		uint256 epochDuration;
 		uint256 windowTime;
 		for (uint256 i = 0; i < quoteIds.length; i++) {
-			Quote storage quote = QuoteStorage.layout().quotes[quoteIds[i]];
+			QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+			Quote storage quote = quoteLayout.quotes[quoteIds[i]];
 			require(quote.partyA == partyA, "ChargeFundingFacet: Invalid quote");
 			require(quote.partyB == msg.sender, "ChargeFundingFacet: Sender isn't partyB of quote");
 			require(
@@ -70,8 +71,7 @@ library FundingRateFacetImpl {
 				} else {
 					gtOpenedPrice = gtOpenedPrice.checkedSub(gtPriceDiff);
 				}
-				quote.openedPrice = gtOpenedPrice.offBoardCombined(LibAccount.getUserEncryptionAddress(quote.partyA));
-				QuoteStorage.layout().observerQuoteValues[quote.id].openedPrice = LibEncryption.offBoardToObserver(gtOpenedPrice);
+				LibEncryption.storeQuoteOpenedPrice(quoteLayout, quote, gtOpenedPrice);
 				
 				// Calculate impact on balances
 				gtInt256 gtImpact = gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(gtScaleFactor).toSigned();
@@ -90,8 +90,7 @@ library FundingRateFacetImpl {
 				} else {
 					gtOpenedPrice = gtOpenedPrice.checkedAdd(gtPriceDiff);
 				}
-				quote.openedPrice = gtOpenedPrice.offBoardCombined(LibAccount.getUserEncryptionAddress(quote.partyA));
-				QuoteStorage.layout().observerQuoteValues[quote.id].openedPrice = LibEncryption.offBoardToObserver(gtOpenedPrice);
+				LibEncryption.storeQuoteOpenedPrice(quoteLayout, quote, gtOpenedPrice);
 				
 				// Calculate impact on balances
 				gtInt256 gtImpact = gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(gtScaleFactor).toSigned();

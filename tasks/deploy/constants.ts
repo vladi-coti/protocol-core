@@ -22,6 +22,7 @@ export const FacetNames = [
 ]
 
 export const LibraryNames = [
+	"LibAccountEncryption",
 	"ForceActionsFacetImpl",
 	"PartyBGroupActionsFacetImpl",
 ]

@@ -25,15 +25,11 @@ library DeferredLiquidationFacetImpl {
 	using LockedValuesOps for GarbledLockedValues;
 
 	function _storeLiquidationDeficit(AccountStorage.Layout storage accountLayout, address partyA, gtUint256 value) private {
-		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
-		accountLayout.encryptedLiquidationDeficit[partyA] = MpcCore.offBoardCombined(value, partyAEncryptionAddress);
-		accountLayout.observerEncryptedLiquidationDeficit[partyA] = LibEncryption.offBoardToObserver(value);
+		LibEncryption.storeLiquidationDeficit(accountLayout, partyA, value);
 	}
 
 	function _storeLiquidationFee(AccountStorage.Layout storage accountLayout, address partyA, gtUint256 value) private {
-		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
-		accountLayout.encryptedLiquidationFee[partyA] = MpcCore.offBoardCombined(value, partyAEncryptionAddress);
-		accountLayout.observerEncryptedLiquidationFee[partyA] = LibEncryption.offBoardToObserver(value);
+		LibEncryption.storeLiquidationFee(accountLayout, partyA, value);
 	}
 
 	function deferredLiquidatePartyA(address partyA, DeferredLiquidationSig memory liquidationSig) internal {
@@ -63,8 +59,7 @@ library DeferredLiquidationFacetImpl {
 			
 			gtUint256 gtCurrentReimbursement = LibAccount.initializePartyAReimbursement(partyA);
 			gtUint256 gtNewReimbursement = gtCurrentReimbursement.checkedAdd(gtAvailableBalanceAmount);
-			accountLayout.encryptedPartyAReimbursement[partyA] = MpcCore.offBoardCombined(gtNewReimbursement, LibAccount.getUserEncryptionAddress(partyA));
-			accountLayout.observerEncryptedPartyAReimbursement[partyA] = LibEncryption.offBoardToObserver(gtNewReimbursement);
+			LibEncryption.storePartyAReimbursement(accountLayout, partyA, gtNewReimbursement);
 		}
 
 		maLayout.liquidationStatus[partyA] = true;
@@ -81,7 +76,9 @@ library DeferredLiquidationFacetImpl {
 			disputed: false,
 			liquidationTimestamp: liquidationSig.liquidationTimestamp
 		});
-		accountLayout.settlementStates[partyA][address(0)].actualAmount = MpcCore.offBoardCombined(
+		LibEncryption.storeIntForAddress(
+			accountLayout.settlementStates[partyA][address(0)].actualAmount,
+			accountLayout.observerSettlementStates[partyA][address(0)].actualAmount,
 			MpcCore.setPublic256(int256(0)),
 			LibAccount.getUserEncryptionAddress(partyA)
 		);

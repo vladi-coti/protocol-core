@@ -201,6 +201,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 	})
 
 	it("OpenPosition - Should run successfully partially for limit", async function () {
+		await context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(context.signers.liquidator.address)
 		const validator = new OpenPositionValidator()
 		const beforeOut = await validator.before(context, {
 			user: user,
@@ -221,6 +222,10 @@ export function shouldBehaveLikeOpenPosition(): void {
 			newQuoteId: BigInt(5),
 			newQuoteTargetStatus: QuoteStatus.PENDING,
 		})
+
+		const childObserverQuote = await context.viewFacet.getObserverQuoteValues(5n)
+		expect(await context.signers.liquidator.decryptUint256(childObserverQuote.quantity)).to.equal(quantity - filledAmount)
+		expect(await context.signers.liquidator.decryptUint256(childObserverQuote.lockedValues.cva)).to.be.greaterThan(0n)
 	})
 
 	it("Should emit raw child quote identities while encrypting PartyB values to partyB key on partial open", async function () {
@@ -299,6 +304,26 @@ export function shouldBehaveLikeOpenPosition(): void {
 		expect(await context.viewFacet.balanceOf(feeCollector)).to.equal(beforePlainBalance + expectedTradingFee)
 		const remainingFeeCollectorBalance = await context.viewFacet.feeCollectorBalance(feeCollector)
 		expect(await context.signers.feeCollector.decryptUint256(remainingFeeCollectorBalance)).to.equal(0n)
+	})
+
+	it("Should keep observer fee collector and quote mirrors fresh when opening", async function () {
+		await context.controlFacet.connect(context.signers.admin).setTrustedObserverAddress(context.signers.liquidator.address)
+		await hedger.lockQuote(quoteDataArray[4])
+		const openedPrice = decimal(1n)
+		const filledAmount = await getQuoteQuantity(context, 4n)
+		const expectedTradingFee = await getTradingFeeForQuoteWithFilledAmount(context, 4n, filledAmount)
+		const feeCollector = await context.viewFacet.getFeeCollector(context.multiAccount)
+
+		await hedger.openPosition(quoteDataArray[4], marketOpenRequestBuilder().filledAmount(filledAmount).openPrice(openedPrice).price(decimal(1n)).build())
+
+		const observerFeeCollectorBalance = await context.viewFacet.observerFeeCollectorBalance(feeCollector)
+		expect(await context.signers.liquidator.decryptUint256(observerFeeCollectorBalance)).to.equal(expectedTradingFee)
+
+		const observerQuote = await context.viewFacet.getObserverQuoteValues(4n)
+		expect(await context.signers.liquidator.decryptUint256(observerQuote.openedPrice)).to.equal(openedPrice)
+		expect(await context.signers.liquidator.decryptUint256(observerQuote.quantity)).to.equal(filledAmount)
+		expect(await context.signers.liquidator.decryptUint256(observerQuote.closedAmount)).to.equal(0n)
+		expect(await context.signers.liquidator.decryptUint256(observerQuote.lockedValues.cva)).to.be.greaterThan(0n)
 	})
 
 	describe("Group Actions", async function () {
