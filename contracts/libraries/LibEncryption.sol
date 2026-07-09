@@ -10,8 +10,20 @@ import "../storages/QuoteStorage.sol";
 import "./LibLockedValues.sol";
 
 library LibEncryption {
+	using MpcCore for gtUint256;
 	using LockedValuesOps for LockedValues;
 	using LockedValuesOps for GarbledLockedValues;
+
+	uint256 internal constant MAX_NONNEGATIVE_SIGNED = 1 << 255;
+
+	/**
+	 * @notice Cast encrypted unsigned value to signed only when it fits in non-negative int256 range.
+	 */
+	function toNonNegativeSigned(gtUint256 value) internal returns (gtInt256) {
+		gtBool fitsSignedRange = value.lt(MpcCore.setPublic256(MAX_NONNEGATIVE_SIGNED));
+		require(MpcCore.decrypt(fitsSignedRange), "LibEncryption: unsigned value exceeds signed range");
+		return MpcCore.toSigned(value);
+	}
 
 	function getUserEncryptionAddress(address user) internal view returns (address) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();

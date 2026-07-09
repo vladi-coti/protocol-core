@@ -93,7 +93,7 @@ library PartyAFacetImpl {
 
 		// Check available balance sufficiency using LibAccount
 		gtInt256 gtAvailableBalance = LibAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
-		gtBool balanceSufficient = totalRequired.toSigned().le(gtAvailableBalance);
+		gtBool balanceSufficient = LibEncryption.toNonNegativeSigned(totalRequired).le(gtAvailableBalance);
 
 		require(MpcCore.decrypt(lfSufficient), "PartyAFacet: LF is not enough");
 		require(MpcCore.decrypt(quoteSufficient), "PartyAFacet: Quote value is low");
