@@ -57,24 +57,24 @@ library LibSolvency {
 		if (quote.positionType == PositionType.LONG) {
 			gtPartyAAvailableBalance = MpcCore.mux(
 				gtOpenedPriceGteMarket,
-				gtPartyAAvailableBalance.add(gtDiff),
-				gtPartyAAvailableBalance.sub(gtDiff)
+				gtPartyAAvailableBalance.checkedAdd(gtDiff),
+				gtPartyAAvailableBalance.checkedSub(gtDiff)
 			);
 			gtPartyBAvailableBalance = MpcCore.mux(
 				gtOpenedPriceGteMarket,
-				gtPartyBAvailableBalance.sub(gtDiff),
-				gtPartyBAvailableBalance.add(gtDiff)
+				gtPartyBAvailableBalance.checkedSub(gtDiff),
+				gtPartyBAvailableBalance.checkedAdd(gtDiff)
 			);
 		} else {
 			gtPartyAAvailableBalance = MpcCore.mux(
 				gtOpenedPriceGteMarket,
-				gtPartyAAvailableBalance.sub(gtDiff),
-				gtPartyAAvailableBalance.add(gtDiff)
+				gtPartyAAvailableBalance.checkedSub(gtDiff),
+				gtPartyAAvailableBalance.checkedAdd(gtDiff)
 			);
 			gtPartyBAvailableBalance = MpcCore.mux(
 				gtOpenedPriceGteMarket,
-				gtPartyBAvailableBalance.add(gtDiff),
-				gtPartyBAvailableBalance.sub(gtDiff)
+				gtPartyBAvailableBalance.checkedAdd(gtDiff),
+				gtPartyBAvailableBalance.checkedSub(gtDiff)
 			);
 		}
 		
@@ -130,8 +130,8 @@ library LibSolvency {
 			gtUint256 gtUnlockedAmount = gtFilledAmount.checkedMul(gtCvaLf).div(gtQuoteOpenAmount);
 
 			// Add unlocked amount to both parties (this is always positive)
-			gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(LibEncryption.toNonNegativeSigned(gtUnlockedAmount));
-			gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(LibEncryption.toNonNegativeSigned(gtUnlockedAmount));
+			gtPartyBAvailableBalance = gtPartyBAvailableBalance.checkedAdd(LibEncryption.toNonNegativeSigned(gtUnlockedAmount));
+			gtPartyAAvailableBalance = gtPartyAAvailableBalance.checkedAdd(LibEncryption.toNonNegativeSigned(gtUnlockedAmount));
 
 			// Convert market price to encrypted value for comparison
 			gtUint256 gtMarketPrice = MpcCore.setPublic256(marketPrice);
@@ -143,16 +143,16 @@ library LibSolvency {
 				gtUint256 gtPriceDiff = MpcCore.max(gtClosedPrice, gtMarketPrice).checkedSub(MpcCore.min(gtClosedPrice, gtMarketPrice));
 				gtInt256 gtDiff = LibEncryption.toNonNegativeSigned(gtFilledAmount.checkedMul(gtPriceDiff).div(gtScaleFactor));
 				
-				gtPartyBAvailableBalance = MpcCore.mux(gtClosedPriceGteMarket, gtPartyBAvailableBalance.add(gtDiff), gtPartyBAvailableBalance.sub(gtDiff));
-				gtPartyAAvailableBalance = MpcCore.mux(gtClosedPriceGteMarket, gtPartyAAvailableBalance.sub(gtDiff), gtPartyAAvailableBalance.add(gtDiff));
+				gtPartyBAvailableBalance = MpcCore.mux(gtClosedPriceGteMarket, gtPartyBAvailableBalance.checkedAdd(gtDiff), gtPartyBAvailableBalance.checkedSub(gtDiff));
+				gtPartyAAvailableBalance = MpcCore.mux(gtClosedPriceGteMarket, gtPartyAAvailableBalance.checkedSub(gtDiff), gtPartyAAvailableBalance.checkedAdd(gtDiff));
 			} else if (quote.positionType == PositionType.SHORT) {
 				gtBool gtClosedPriceLteMarket = gtClosedPrice.le(gtMarketPrice);
 
 				gtUint256 gtPriceDiff = MpcCore.max(gtClosedPrice, gtMarketPrice).checkedSub(MpcCore.min(gtClosedPrice, gtMarketPrice));
 				gtInt256 gtDiff = LibEncryption.toNonNegativeSigned(gtFilledAmount.checkedMul(gtPriceDiff).div(gtScaleFactor));
 				
-				gtPartyBAvailableBalance = MpcCore.mux(gtClosedPriceLteMarket, gtPartyBAvailableBalance.add(gtDiff), gtPartyBAvailableBalance.sub(gtDiff));
-				gtPartyAAvailableBalance = MpcCore.mux(gtClosedPriceLteMarket, gtPartyAAvailableBalance.sub(gtDiff), gtPartyAAvailableBalance.add(gtDiff));
+				gtPartyBAvailableBalance = MpcCore.mux(gtClosedPriceLteMarket, gtPartyBAvailableBalance.checkedAdd(gtDiff), gtPartyBAvailableBalance.checkedSub(gtDiff));
+				gtPartyAAvailableBalance = MpcCore.mux(gtClosedPriceLteMarket, gtPartyAAvailableBalance.checkedSub(gtDiff), gtPartyAAvailableBalance.checkedAdd(gtDiff));
 			}
 		}
 		
@@ -186,8 +186,8 @@ library LibSolvency {
 			gtUint256 gtQuoteOpenAmount = LibQuote.quoteOpenAmount(quote);
 			gtUint256 gtUnlockedAmount = gtFilledAmount.checkedMul(gtCvaLf).div(gtQuoteOpenAmount);
 
-			gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(LibEncryption.toNonNegativeSigned(gtUnlockedAmount));
-			gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(LibEncryption.toNonNegativeSigned(gtUnlockedAmount));
+			gtPartyBAvailableBalance = gtPartyBAvailableBalance.checkedAdd(LibEncryption.toNonNegativeSigned(gtUnlockedAmount));
+			gtPartyAAvailableBalance = gtPartyAAvailableBalance.checkedAdd(LibEncryption.toNonNegativeSigned(gtUnlockedAmount));
 
 			gtUint256 gtMarketPrice = MpcCore.setPublic256(marketPrice);
 			gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e18));
@@ -196,20 +196,20 @@ library LibSolvency {
 				gtBool gtClosedPriceGteMarket = gtClosedPrice.ge(gtMarketPrice);
 				gtUint256 gtPriceDiff = MpcCore.max(gtClosedPrice, gtMarketPrice).checkedSub(MpcCore.min(gtClosedPrice, gtMarketPrice));
 				gtInt256 gtDiff = LibEncryption.toNonNegativeSigned(gtFilledAmount.checkedMul(gtPriceDiff).div(gtScaleFactor));
-				gtInt256 gtPartyBDelta = MpcCore.mux(gtClosedPriceGteMarket, gtDiff, gtZero.sub(gtDiff));
+				gtInt256 gtPartyBDelta = MpcCore.mux(gtClosedPriceGteMarket, gtDiff, gtZero.checkedSub(gtDiff));
 
-				gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtPartyBDelta);
-				gtPartyAAvailableBalance = MpcCore.mux(gtClosedPriceGteMarket, gtPartyAAvailableBalance.sub(gtDiff), gtPartyAAvailableBalance.add(gtDiff));
-				gtPartyBUpnlAfterClose = gtPartyBUpnlAfterClose.add(gtPartyBDelta);
+				gtPartyBAvailableBalance = gtPartyBAvailableBalance.checkedAdd(gtPartyBDelta);
+				gtPartyAAvailableBalance = MpcCore.mux(gtClosedPriceGteMarket, gtPartyAAvailableBalance.checkedSub(gtDiff), gtPartyAAvailableBalance.checkedAdd(gtDiff));
+				gtPartyBUpnlAfterClose = gtPartyBUpnlAfterClose.checkedAdd(gtPartyBDelta);
 			} else if (quote.positionType == PositionType.SHORT) {
 				gtBool gtClosedPriceLteMarket = gtClosedPrice.le(gtMarketPrice);
 				gtUint256 gtPriceDiff = MpcCore.max(gtClosedPrice, gtMarketPrice).checkedSub(MpcCore.min(gtClosedPrice, gtMarketPrice));
 				gtInt256 gtDiff = LibEncryption.toNonNegativeSigned(gtFilledAmount.checkedMul(gtPriceDiff).div(gtScaleFactor));
-				gtInt256 gtPartyBDelta = MpcCore.mux(gtClosedPriceLteMarket, gtDiff, gtZero.sub(gtDiff));
+				gtInt256 gtPartyBDelta = MpcCore.mux(gtClosedPriceLteMarket, gtDiff, gtZero.checkedSub(gtDiff));
 
-				gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtPartyBDelta);
-				gtPartyAAvailableBalance = MpcCore.mux(gtClosedPriceLteMarket, gtPartyAAvailableBalance.sub(gtDiff), gtPartyAAvailableBalance.add(gtDiff));
-				gtPartyBUpnlAfterClose = gtPartyBUpnlAfterClose.add(gtPartyBDelta);
+				gtPartyBAvailableBalance = gtPartyBAvailableBalance.checkedAdd(gtPartyBDelta);
+				gtPartyAAvailableBalance = MpcCore.mux(gtClosedPriceLteMarket, gtPartyAAvailableBalance.checkedSub(gtDiff), gtPartyAAvailableBalance.checkedAdd(gtDiff));
+				gtPartyBUpnlAfterClose = gtPartyBUpnlAfterClose.checkedAdd(gtPartyBDelta);
 			}
 		}
 

@@ -82,11 +82,11 @@ library LibSettlement {
 			gtInt256 gtSignedImpact;
 
 			if (quote.positionType == PositionType.LONG) {
-				gtSignedImpact = MpcCore.mux(gtUpdatedGtOpened, gtZeroInt.sub(gtImpact), gtImpact);
+				gtSignedImpact = MpcCore.mux(gtUpdatedGtOpened, gtZeroInt.checkedSub(gtImpact), gtImpact);
 			} else {
-				gtSignedImpact = MpcCore.mux(gtUpdatedGtOpened, gtImpact, gtZeroInt.sub(gtImpact));
+				gtSignedImpact = MpcCore.mux(gtUpdatedGtOpened, gtImpact, gtZeroInt.checkedSub(gtImpact));
 			}
-			gtSettleAmounts[data.partyBUpnlIndex] = gtSettleAmounts[data.partyBUpnlIndex].add(gtSignedImpact);
+			gtSettleAmounts[data.partyBUpnlIndex] = gtSettleAmounts[data.partyBUpnlIndex].checkedAdd(gtSignedImpact);
 
 			LibEncryption.storeQuoteOpenedPrice(quoteLayout, quote, gtUpdatedPrice);
 		}
@@ -112,7 +112,7 @@ library LibSettlement {
 			accountLayout.partyBNonces[partyB][partyA] += 1;
 
 			gtInt256 gtSettlementAmount = gtSettleAmounts[i];
-			gtTotalSettlementAmount = gtTotalSettlementAmount.add(gtSettlementAmount);
+			gtTotalSettlementAmount = gtTotalSettlementAmount.checkedAdd(gtSettlementAmount);
 			if (MpcCore.decrypt(gtSettlementAmount.ge(gtZeroInt))) {
 				// Update PartyB balance with encrypted operations
 				gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
@@ -127,7 +127,7 @@ library LibSettlement {
 			} else {
 				// Update PartyB balance with encrypted operations
 				gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
-				gtUint256 gtAmount = gtZeroInt.sub(gtSettlementAmount).fromSigned();
+				gtUint256 gtAmount = gtZeroInt.checkedSub(gtSettlementAmount).fromSigned();
 				gtUint256 gtNewBalance = gtPartyBBalance.checkedAdd(gtAmount);
 				LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtNewBalance);
 				
@@ -153,7 +153,7 @@ library LibSettlement {
 		} else {
 			// Update PartyA balance with encrypted operations
 			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
-			gtUint256 gtAmount = gtZeroInt.sub(gtTotalSettlementAmount).fromSigned();
+			gtUint256 gtAmount = gtZeroInt.checkedSub(gtTotalSettlementAmount).fromSigned();
 			gtUint256 gtNewBalance = gtPartyABalance.checkedSub(gtAmount);
 			LibEncryption.storePartyAAllocatedBalance(accountLayout, partyA, gtNewBalance);
 			

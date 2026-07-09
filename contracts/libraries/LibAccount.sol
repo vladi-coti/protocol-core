@@ -69,7 +69,7 @@ library LibAccount {
 
 		if (upnl >= 0) {
 			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
-			return allocatedBalance.add(gtUpnl).sub(totalLocked);
+			return allocatedBalance.checkedAdd(gtUpnl).checkedSub(totalLocked);
 		} else {
 			// If upnl < 0: considering_mm = max(-upnl, partyAmm)
 			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
@@ -80,7 +80,7 @@ library LibAccount {
 			gtInt256 cvaLfPendingTotal = LibEncryption.toNonNegativeSigned(
 				garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf).checkedAdd(garbledPendingLockedBalances.totalForPartyA())
 			);
-			return allocatedBalance.sub(cvaLfPendingTotal).sub(considering_mm);
+			return allocatedBalance.checkedSub(cvaLfPendingTotal).checkedSub(considering_mm);
 		}
 	}
 
@@ -100,7 +100,7 @@ library LibAccount {
 
 		if (upnl >= 0) {
 			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
-			return allocatedBalance.add(gtUpnl).sub(totalLocked);
+			return allocatedBalance.checkedAdd(gtUpnl).checkedSub(totalLocked);
 		} else {
 			// If upnl < 0: considering_mm = max(-upnl, partyAmm)
 			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
@@ -109,7 +109,7 @@ library LibAccount {
 			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
 
 			gtInt256 cvaLf = LibEncryption.toNonNegativeSigned(garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf));
-			return allocatedBalance.sub(cvaLf).sub(considering_mm);
+			return allocatedBalance.checkedSub(cvaLf).checkedSub(considering_mm);
 		}
 	}
 
@@ -147,8 +147,8 @@ library LibAccount {
 		GarbledLockedValues memory garbledLockedBalances = AccountStorage.layout().lockedBalances[partyA].onBoard();
 		gtInt256 cvaLf = LibEncryption.toNonNegativeSigned(garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf));
 
-		gtInt256 freeBalance = allocatedBalance.sub(cvaLf);
-		return freeBalance.add(gtUpnl);
+		gtInt256 freeBalance = allocatedBalance.checkedSub(cvaLf);
+		return freeBalance.checkedAdd(gtUpnl);
 	}
 
 	/**
@@ -170,7 +170,7 @@ library LibAccount {
 
 		if (upnl >= 0) {
 			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
-			return allocatedBalance.add(gtUpnl).sub(totalLocked);
+			return allocatedBalance.checkedAdd(gtUpnl).checkedSub(totalLocked);
 		} else {
 			// If upnl < 0: considering_mm = max(-upnl, partyBmm)
 			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
@@ -181,7 +181,7 @@ library LibAccount {
 			gtInt256 cvaLfPendingTotal = LibEncryption.toNonNegativeSigned(
 				garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf).checkedAdd(garbledPendingLockedBalances.totalForPartyB())
 			);
-			return allocatedBalance.sub(cvaLfPendingTotal).sub(considering_mm);
+			return allocatedBalance.checkedSub(cvaLfPendingTotal).checkedSub(considering_mm);
 		}
 	}
 
@@ -202,7 +202,7 @@ library LibAccount {
 
 		if (upnl >= 0) {
 			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
-			return allocatedBalance.add(gtUpnl).sub(totalLocked);
+			return allocatedBalance.checkedAdd(gtUpnl).checkedSub(totalLocked);
 		} else {
 			// If upnl < 0: considering_mm = max(-upnl, partyBmm)
 			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
@@ -211,7 +211,7 @@ library LibAccount {
 			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
 
 			gtInt256 cvaLf = LibEncryption.toNonNegativeSigned(garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf));
-			return allocatedBalance.sub(cvaLf).sub(considering_mm);
+			return allocatedBalance.checkedSub(cvaLf).checkedSub(considering_mm);
 		}
 	}
 
@@ -232,8 +232,8 @@ library LibAccount {
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
 		gtInt256 cvaLf = LibEncryption.toNonNegativeSigned(garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf));
 
-		gtInt256 freeBalance = allocatedBalanceEncrypted.sub(cvaLf);
-		return freeBalance.add(gtUpnl);
+		gtInt256 freeBalance = allocatedBalanceEncrypted.checkedSub(cvaLf);
+		return freeBalance.checkedAdd(gtUpnl);
 	}
 
 	/**

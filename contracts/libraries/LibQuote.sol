@@ -229,13 +229,13 @@ library LibQuote {
 		(gtBool gtHasMadeProfit, gtUint256 gtPnl) = getValueOfQuoteForPartyA(gtClosedPrice, gtFilledAmount, quote);
 		gtInt256 gtZeroInt = MpcCore.setPublic256(int256(0));
 		gtInt256 gtSignedPnl = gtPnl.toSigned();
-		gtInt256 gtPartyADelta = MpcCore.mux(gtHasMadeProfit, gtZeroInt.sub(gtSignedPnl), gtSignedPnl);
-		gtInt256 gtPartyBDelta = MpcCore.mux(gtHasMadeProfit, gtSignedPnl, gtZeroInt.sub(gtSignedPnl));
+		gtInt256 gtPartyADelta = MpcCore.mux(gtHasMadeProfit, gtZeroInt.checkedSub(gtSignedPnl), gtSignedPnl);
+		gtInt256 gtPartyBDelta = MpcCore.mux(gtHasMadeProfit, gtSignedPnl, gtZeroInt.checkedSub(gtSignedPnl));
 
-		gtInt256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext).toSigned();
-		gtInt256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext).toSigned();
-		gtInt256 gtNewPartyABalance = gtPartyABalance.add(gtPartyADelta);
-		gtInt256 gtNewPartyBBalance = gtPartyBBalance.add(gtPartyBDelta);
+		gtInt256 gtPartyABalance = LibEncryption.toNonNegativeSigned(LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[quote.partyA].ciphertext));
+		gtInt256 gtPartyBBalance = LibEncryption.toNonNegativeSigned(LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext));
+		gtInt256 gtNewPartyABalance = gtPartyABalance.checkedAdd(gtPartyADelta);
+		gtInt256 gtNewPartyBBalance = gtPartyBBalance.checkedAdd(gtPartyBDelta);
 		require(
 			MpcCore.decrypt(gtNewPartyABalance.ge(gtZeroInt).and(gtNewPartyBBalance.ge(gtZeroInt))),
 			"LibQuote: Insufficient PnL balance"
