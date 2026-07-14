@@ -30,4 +30,5 @@ export const LibraryNames = [
 export const DEPLOYMENT_LOG_FILE = "deployed.json"
 
 export const testnetChainId = 7082400n
+export const simCotiChainId = 7082401n
 export const gasOptions = { gasLimit: 60000000, gasPrice: 1000000000 }

@@ -9,6 +9,7 @@
   "devDependencies": {
     "@coti-io/coti-contracts": "github:vladi-coti/coti-contracts#feat/signed",
     "@coti-io/coti-ethers": "github:vladi-coti/coti-ethers#extended-uint-support",
+    "@coti-io/sim-coti-node": "file:../../coti/sim-coti-node",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/abstract-signer": "^5.7.0",
     "@ethersproject/bignumber": "^5.7.0",
@@ -16,9 +17,12 @@
     "@ethersproject/providers": "^5.7.2",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.7",
     "@nomicfoundation/hardhat-ethers": "^3.0.6",
+    "@nomicfoundation/hardhat-ignition": "^0.15.16",
+    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.0",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.11",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@nomicfoundation/hardhat-verify": "^2.0.8",
+    "@nomicfoundation/ignition-core": "^0.15.15",
     "@openzeppelin/contracts": "^4.9.6",
     "@openzeppelin/contracts-upgradeable": "^4.9.6",
     "@openzeppelin/hardhat-upgrades": "^3.0.1",
@@ -48,6 +52,7 @@
     "typechain": "^8.3.2",
     "typescript": "^5.5.4",
     "typescript-json-serializer": "^6.0.1",
+    "viem": "^2.44.1",
     "winston": "^3.13.1"
   },
   "files": [
@@ -71,7 +76,8 @@
     "coverage": "hardhat coverage --testfiles \"test/**/*.ts\" && yarn typechain",
     "lint": "yarn lint:sol && yarn lint:ts",
     "lint:sol": "solhint --config ./.solhint.json --solcoverjs ./.solcover.js --max-warnings 0 \"contracts/**/*.sol\"",
-    "postinstall": "DOTENV_CONFIG_PATH=./.env yarn typechain",
+    "postinstall": "node scripts/build-coti-git-deps.js && DOTENV_CONFIG_PATH=./.env yarn typechain",
+    "build:coti-deps": "node scripts/build-coti-git-deps.js",
     "test": "hardhat test",
     "typechain": "cross-env TS_NODE_TRANSPILE_ONLY=true hardhat typechain"
   },

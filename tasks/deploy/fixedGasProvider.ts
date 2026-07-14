@@ -1,12 +1,13 @@
 import { extendEnvironment } from "hardhat/config"
 import type { HardhatRuntimeEnvironment } from "hardhat/types"
-import { gasOptions, testnetChainId } from "./constants"
+import { gasOptions, simCotiChainId, testnetChainId } from "./constants"
 
 function shouldUseFixedGas(hre: HardhatRuntimeEnvironment): boolean {
 	const configuredChainId = hre.network?.config?.chainId
 	if (configuredChainId != null) {
 		try {
-			return BigInt(configuredChainId) === testnetChainId
+			const id = BigInt(configuredChainId)
+			return id === testnetChainId || id === simCotiChainId
 		} catch {
 			return false
 		}

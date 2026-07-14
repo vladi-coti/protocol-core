@@ -3,13 +3,18 @@ import { ethers } from "hardhat"
 import { network } from "hardhat"
 import { RunContext } from "../models/RunContext"
 import { time } from "@nomicfoundation/hardhat-network-helpers"
-import { gasOptions, testnetChainId } from "../../tasks/deploy/constants"
+import { gasOptions, simCotiChainId, testnetChainId } from "../../tasks/deploy/constants"
 
 const TESTNET_TIME_POLL_MS = 5_000
 const TESTNET_EXTRA_SECONDS = 1n
 
 function sleep(ms: number): Promise<void> {
 	return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/** In-process Hardhat or local sim-coti-node (Hardhat JSON-RPC with time travel). */
+function supportsInstantTimeTravel(): boolean {
+	return network.name === "hardhat" || network.name === "localSimCoti"
 }
 
 async function waitForTestnetTimestamp(targetTimestamp: bigint): Promise<void> {
@@ -34,10 +39,11 @@ export async function loadFixtureCompatible(fixtureFunction: () => Promise<RunCo
 
 	// This repo runs local tests on Hardhat while emulating the COTI chain ID.
 	// Detect the in-process Hardhat network by name instead of chain ID.
+	// localSimCoti is an external Hardhat node — no snapshot/loadFixture support across the RPC.
 	if (network.name === "hardhat") {
 		return await loadFixture(fixtureFunction)
 	} else {
-		// For testnets, just call the fixture function directly
+		// For testnets / sim, just call the fixture function directly
 		// Gas handling is done globally by wrapOverrides.ts
 		console.log(`Running on testnet (chainId: ${chain.chainId}), initializing without snapshots...`)
 		return await fixtureFunction()
@@ -48,10 +54,9 @@ export async function loadFixtureCompatible(fixtureFunction: () => Promise<RunCo
  * Utility function to get network-specific gas options
  */
 export async function getNetworkGasOptions() {
-	const network = await ethers.provider.getNetwork()
+	const chain = await ethers.provider.getNetwork()
 
-	if (network.chainId === testnetChainId) {
-		// COTI testnet
+	if (chain.chainId === testnetChainId || chain.chainId === simCotiChainId || network.name === "localSimCoti") {
 		return gasOptions
 	}
 
@@ -73,12 +78,12 @@ export const timeCompatible = {
 	async increase(seconds: bigint | number): Promise<void> {
 		const chain = await ethers.provider.getNetwork()
 
-		if (network.name === "hardhat") {
-			// Use hardhat-network-helpers for the local Hardhat network even when it
-			// emulates a non-31337 chain ID.
+		if (supportsInstantTimeTravel()) {
+			// hardhat-network-helpers uses evm_increaseTime / evm_mine — works on
+			// in-process Hardhat and on external sim-coti-node (Hardhat JSON-RPC).
 			await time.increase(seconds)
 		} else {
-			// On testnet, wait until block.timestamp has actually advanced beyond the
+			// On real testnet, wait until block.timestamp has actually advanced beyond the
 			// requested delta. Add one extra second because many cooldown checks use `>`.
 			const latestBlock = await ethers.provider.getBlock("latest")
 			const startTimestamp = BigInt(latestBlock!.timestamp)
@@ -91,9 +96,7 @@ export const timeCompatible = {
 		}
 	},
 	async latest(): Promise<number> {
-		if (network.name === "hardhat") {
-			// Use hardhat-network-helpers for the local Hardhat network even when it
-			// emulates a non-31337 chain ID.
+		if (supportsInstantTimeTravel()) {
 			return await time.latest()
 		} else {
 			// For testnets, get current block timestamp
@@ -102,12 +105,10 @@ export const timeCompatible = {
 		}
 	},
 	async setNextBlockTimestamp(timestamp: bigint): Promise<void> {
-		if (network.name === "hardhat") {
-			// Use hardhat-network-helpers for the local Hardhat network even when it
-			// emulates a non-31337 chain ID.
+		if (supportsInstantTimeTravel()) {
 			await time.setNextBlockTimestamp(timestamp)
 		} else {
-			// On testnet we cannot set time, only wait until the chain reaches it.
+			// On real testnet we cannot set time, only wait until the chain reaches it.
 			const targetTimestamp = BigInt(timestamp)
 			const currentBlock = await ethers.provider.getBlock("latest")
 			const currentTimestamp = BigInt(currentBlock!.timestamp)

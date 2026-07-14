@@ -1,8 +1,8 @@
 import fs from "fs"
 import hre from "hardhat"
 import { JsonRpcProvider, parseEther, Wallet } from "@coti-io/coti-ethers"
-import { getNetworkGasOptions } from "./testHelpers";
-import { gasOptions as defaultGasOptions, testnetChainId } from "../../tasks/deploy/constants"
+import { getNetworkGasOptions } from "./testHelpers"
+import { gasOptions as defaultGasOptions, simCotiChainId, testnetChainId } from "../../tasks/deploy/constants"
 
 let pks = process.env.PRIVATE_KEYS_STR ? process.env.PRIVATE_KEYS_STR.split(",") : []
 
@@ -11,8 +11,18 @@ function isTestnetChain(): boolean {
 	return network.chainId === Number(testnetChainId)
 }
 
+function isSimChain(): boolean {
+	if (hre.network.name === "localSimCoti") return true
+	const chainId = hre.network.config.chainId
+	return chainId != null && Number(chainId) === Number(simCotiChainId)
+}
+
+async function loadSimCotiEthers() {
+	return await import("@coti-io/sim-coti-node/coti-ethers")
+}
+
 function patchProviderForTestnet(provider: any) {
-	if (!isTestnetChain()) return
+	if (!isTestnetChain() && !isSimChain()) return
 
 	const gasLimit = BigInt(defaultGasOptions.gasLimit)
 	const gasPrice = BigInt(defaultGasOptions.gasPrice)
@@ -28,7 +38,7 @@ function patchProviderForTestnet(provider: any) {
 }
 
 function wrapWalletForTestnet(wallet: Wallet): Wallet {
-	if (!isTestnetChain()) return wallet
+	if (!isTestnetChain() && !isSimChain()) return wallet
 
 	const gasLimit = BigInt(defaultGasOptions.gasLimit)
 	const gasPrice = BigInt(defaultGasOptions.gasPrice)
@@ -45,7 +55,6 @@ function wrapWalletForTestnet(wallet: Wallet): Wallet {
 		const response = await originalSendTransaction(patchedTx)
 		if (response && typeof response.wait === "function") {
 			const receipt = await response.wait()
-			// Return a proxy that makes wait() a no-op returning the cached receipt
 			return new Proxy(response, {
 				get(target, p) {
 					if (p === "wait") return async () => receipt
@@ -60,19 +69,23 @@ function wrapWalletForTestnet(wallet: Wallet): Wallet {
 }
 
 export async function setupAccounts() {
-	// Get the network configuration from hardhat config
 	const networkName = hre.network.name
 	const networkConfig = hre.config.networks[networkName]
 	const gasOptions = await getNetworkGasOptions()
-	
-	if (!networkConfig || typeof networkConfig !== 'object' || !('url' in networkConfig)) {
+	const sim = isSimChain()
+
+	if (!networkConfig || typeof networkConfig !== "object" || !("url" in networkConfig)) {
 		throw new Error(`Network configuration not found for ${networkName}`)
 	}
-	
-	const provider = new JsonRpcProvider(networkConfig.url);
+
+	// Prefer HRE provider so sim wallets share nonce state with hardhat-ethers deploys.
+	const provider = (sim ? (hre.ethers.provider as any) : new JsonRpcProvider(networkConfig.url as string)) as JsonRpcProvider
 	patchProviderForTestnet(provider)
 
-	if (pks.length == 0) {
+	if (sim) {
+		const { HARDHAT_DEFAULT_PRIVATE_KEYS } = await loadSimCotiEthers()
+		pks = [...HARDHAT_DEFAULT_PRIVATE_KEYS]
+	} else if (pks.length == 0) {
 		const key1 = Wallet.createRandom(provider)
 		const key2 = Wallet.createRandom(provider)
 		pks = [key1.privateKey, key2.privateKey]
@@ -90,37 +103,49 @@ export async function setupAccounts() {
 
 	let userKeys = process.env.USER_KEYS ? process.env.USER_KEYS.split(",") : []
 
-	const fundAccount = async (wallet: Wallet, mainWallet: Wallet) => {
+	const fundAccount = async (wallet: Wallet, mainWallet: Wallet, nonce: number) => {
 		const userBalance = await provider.getBalance(wallet.address)
 		if (userBalance === BigInt("0")) {
-			await (await mainWallet.sendTransaction({ to: wallet.address, value: parseEther("1.0") , ...gasOptions})).wait()
+			const tx = await mainWallet.sendTransaction({
+				to: wallet.address,
+				value: parseEther("1.0"),
+				nonce,
+				gasLimit: (gasOptions as any).gasLimit ?? defaultGasOptions.gasLimit,
+				gasPrice: (gasOptions as any).gasPrice ?? defaultGasOptions.gasPrice,
+			})
+			await tx.wait()
+			return true
 		}
+		return false
 	}
 
 	const toAccount = async (wallet: Wallet, userKey?: string) => {
+		if (sim) {
+			const { enableCotiEthersSimWallet } = await loadSimCotiEthers()
+			return (await enableCotiEthersSimWallet(wallet as any, provider as any)) as unknown as Wallet
+		}
 		if (userKey) {
 			wallet.setAesKey(userKey)
 			return wallet
 		}
-
-		// console.log("************* Onboarding user ", wallet.address, " *************")
-		// await wallet.generateOrRecoverAes()
-		// console.log("************* Onboarded! created user key and saved into .env file *************")
-
 		return wallet
 	}
 
 	let accounts: Wallet[] = []
-	// if (userKeys.length !== wallets.length) {
-	// 	await Promise.all(wallets.map(async account => await fundAccount(account, wallets[0])))
-
-	// 	accounts = await Promise.all(wallets.map(async account => await toAccount(account)))
-	// 	setEnvValue("USER_KEYS", accounts.map(a => a.getUserOnboardInfo()?.aesKey).join(","))
-	// } else {
+	if (sim) {
+		let nonce = await provider.getTransactionCount(wallets[0].address, "latest")
+		for (const account of wallets.slice(1)) {
+			const sent = await fundAccount(account, wallets[0], nonce)
+			if (sent) nonce += 1
+		}
+		accounts = []
+		for (const account of wallets) {
+			accounts.push(await toAccount(account))
+		}
+	} else {
 		accounts = await Promise.all(wallets.map(async (account, i) => await toAccount(account, userKeys[i])))
-	// }
+	}
 
-	// Wrap wallets with auto-wait for testnet
 	return accounts.map(wrapWalletForTestnet)
 }
 

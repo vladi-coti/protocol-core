@@ -34,7 +34,12 @@ export async function getBlockTimestamp(additional: bigint = 0n): Promise<bigint
 	if (network.name === "hardhat") {
 		return BigInt(await time.latest()) + 1n + additional
 	}
-	if (network.name === "coti-testnet" || network.name === "soda-testnet" || network.name === "private-testnet") {
+	if (
+		network.name === "coti-testnet" ||
+		network.name === "soda-testnet" ||
+		network.name === "private-testnet" ||
+		network.name === "localSimCoti"
+	) {
 		const latestBlock = await ethers.provider.getBlock("latest")
 		if (!latestBlock) {
 			throw new Error(`Unable to read latest block timestamp on network ${network.name}`)
@@ -213,11 +218,11 @@ export async function getTradingFeeForQuoteWithFilledAmount(context: RunContext,
 }
 
 export async function pausePartyB(context: RunContext): Promise<void> {
-	await context.controlFacet.connect(context.signers.admin).pausePartyBActions()
+	await context.controlFacet.connect(context.signers.admin as any).pausePartyBActions()
 }
 
 export async function pausePartyA(context: RunContext): Promise<void> {
-	await context.controlFacet.connect(context.signers.admin).pausePartyAActions()
+	await context.controlFacet.connect(context.signers.admin as any).pausePartyAActions()
 }
 
 export async function getValue<T>(pov: T | Promise<T>): Promise<T> {
