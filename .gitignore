@@ -38,3 +38,5 @@ docs
 .venv
 
 .DS_Store
+
+review/**/progress-data.json

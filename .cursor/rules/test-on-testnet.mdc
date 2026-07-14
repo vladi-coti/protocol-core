@@ -1,9 +1,11 @@
 ---
-description: Verify tests on the configured testnet by default
+description: Verify tests on the configured testnet by default. Read before any COTI testnet test run.
 alwaysApply: true
 ---
 
 # Test Network Policy
+
+**Before running any COTI testnet tests**, read this rule and follow it. Do not start `npx hardhat test` on `coti-testnet` until Muon test setup (below) is confirmed.
 
 - For this repository, run verification on the configured testnet by default.
 - Do not switch to `--network hardhat` or assume local time-travel unless the user explicitly asks for local-only testing.
@@ -16,3 +18,18 @@ alwaysApply: true
 - On COTI testnet, revert decoding can be misleading: ethers may show empty revert `data`, missing `reason`, or a generic execution revert even when calldata was present.
 - If revert data is missing or ambiguous, inspect the transaction on COTI Scan (`https://testnet.cotiscan.io/`) for any available revert reason or execution details before concluding what failed.
 - Do not infer "empty calldata" or "wrong ABI" from COTI testnet revert output alone; verify by checking the caller code, ABI, selector path, and any parallel evidence before concluding.
+
+## Muon signatures (audit / testnet work)
+
+Tests use dummy Muon sigs (`signature: 0`). Production Muon verification must stay **disabled** while running audit or integration tests on COTI testnet — otherwise successful paths (e.g. `sendQuote`) revert with `no zero inputs allowed` after passing balance checks.
+
+- **Before testnet runs:** ensure checks are disabled:
+  ```bash
+  python3 utils/update_sig_checks.py 1
+  ```
+- **After testnet runs** (or before production deploy): re-enable:
+  ```bash
+  python3 utils/update_sig_checks.py 0
+  ```
+- Same toggle as `utils/runTests.sh` (disable → test → re-enable). Do not commit Muon-disabled `contracts/libraries/muon/*.sol` unless the user explicitly asks; treat it as local test setup.
+- If `sendQuote` or similar succeeds on revert-only audit tests but fails on success paths with `no zero inputs allowed`, Muon is likely still enabled — run step 1, recompile, retry.
