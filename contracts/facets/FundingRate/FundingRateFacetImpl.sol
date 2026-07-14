@@ -75,8 +75,8 @@ library FundingRateFacetImpl {
 				
 				// Calculate impact on balances
 				gtInt256 gtImpact = gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(gtScaleFactor).toSigned();
-				gtPartyAAvailableBalance = gtPartyAAvailableBalance.sub(gtImpact);
-				gtPartyBAvailableBalance = gtPartyBAvailableBalance.add(gtImpact);
+				gtPartyAAvailableBalance = gtPartyAAvailableBalance.checkedSub(gtImpact);
+				gtPartyBAvailableBalance = gtPartyBAvailableBalance.checkedAdd(gtImpact);
 			} else {
 				require(uint256(-rates[i]) <= quote.maxFundingRate, "ChargeFundingFacet: High funding rate");
 				
@@ -94,8 +94,8 @@ library FundingRateFacetImpl {
 				
 				// Calculate impact on balances
 				gtInt256 gtImpact = gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(gtScaleFactor).toSigned();
-				gtPartyAAvailableBalance = gtPartyAAvailableBalance.add(gtImpact);
-				gtPartyBAvailableBalance = gtPartyBAvailableBalance.sub(gtImpact);
+				gtPartyAAvailableBalance = gtPartyAAvailableBalance.checkedAdd(gtImpact);
+				gtPartyBAvailableBalance = gtPartyBAvailableBalance.checkedSub(gtImpact);
 			}
 			quote.lastFundingPaymentTimestamp = paidTimestamp;
 		}

@@ -182,12 +182,12 @@ library ForceActionsFacetImpl {
 			LibQuote.closeQuote(quote, gtQuantityToClose, gtClosePrice);
 		} else {
 			// Check if PartyB has enough reserve using encrypted comparison
-			gtInt256 gtWithReserve = gtPartyBAvailableBalance.add(gtReserveAmount.toSigned());
+			gtInt256 gtWithReserve = gtPartyBAvailableBalance.checkedAdd(gtReserveAmount.toSigned());
 			gtBool gtCanUseReserve = gtWithReserve.ge(gtZero);
 			if (MpcCore.decrypt(gtCanUseReserve)) {
 				// Calculate available amount using encrypted operations
 				// available = -partyBAvailableBalance (negate to get the deficit amount)
-				gtInt256 gtNegBalance = gtZero.sub(gtPartyBAvailableBalance);
+				gtInt256 gtNegBalance = gtZero.checkedSub(gtPartyBAvailableBalance);
 				gtUint256 gtAvailableAmount = gtNegBalance.fromSigned();
 				gtUint256 gtNewReserveBalance = gtReserveAmount.checkedSub(gtAvailableAmount);
 				LibEncryption.storeReserveVault(accountLayout, quote.partyB, gtNewReserveBalance);

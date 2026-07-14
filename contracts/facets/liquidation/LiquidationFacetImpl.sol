@@ -26,7 +26,7 @@ library LiquidationFacetImpl {
 
     function _signedPnlDelta(gtBool gtHasMadeProfit, gtInt256 gtProfitAmount, gtInt256 gtLossAmount) private returns (gtInt256) {
         gtInt256 gtZero = MpcCore.setPublic256(int256(0));
-        return MpcCore.mux(gtHasMadeProfit, gtZero.sub(gtLossAmount), gtProfitAmount);
+        return MpcCore.mux(gtHasMadeProfit, gtZero.checkedSub(gtLossAmount), gtProfitAmount);
     }
 
     function _storeLiquidationDeficit(AccountStorage.Layout storage accountLayout, address partyA, gtUint256 value) private {
@@ -96,7 +96,7 @@ library LiquidationFacetImpl {
             gtContribution = MpcCore.decrypt(gtPartyBBalance.ge(gtSettleAmount)) ? gtSettleAmount : gtPartyBBalance;
         }
         gtInt256 gtCurrentAccumulated = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][address(0)].actualAmount.ciphertext);
-        gtInt256 gtNewAccumulated = gtCurrentAccumulated.add(gtContribution);
+        gtInt256 gtNewAccumulated = gtCurrentAccumulated.checkedAdd(gtContribution);
         LibEncryption.storeIntForAddress(
             accountLayout.settlementStates[partyA][address(0)].actualAmount,
             accountLayout.observerSettlementStates[partyA][address(0)].actualAmount,
@@ -166,7 +166,7 @@ library LiquidationFacetImpl {
         if (accountLayout.liquidationDetails[partyA].liquidationType == LiquidationType.NONE) {
             gtUint256 gtLf = LockedValuesOps.safeOnboard(accountLayout.lockedBalances[partyA].lf.ciphertext);
             gtUint256 gtCva = LockedValuesOps.safeOnboard(accountLayout.lockedBalances[partyA].cva.ciphertext);
-            gtUint256 gtDeficitMagnitude = MpcCore.setPublic256(int256(0)).sub(gtAvailableBalance2).fromSigned();
+            gtUint256 gtDeficitMagnitude = MpcCore.setPublic256(int256(0)).checkedSub(gtAvailableBalance2).fromSigned();
             gtBool gtNormal = gtDeficitMagnitude.lt(gtLf);
             gtBool gtLate = gtDeficitMagnitude.le(gtLf.checkedAdd(gtCva));
             
@@ -293,12 +293,15 @@ library LiquidationFacetImpl {
 
                 gtInt256 gtAmountDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAmount.toSigned());
                 gtInt256 gtCurrentActual = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
-                gtInt256 gtNewActual = gtCurrentActual.add(gtAmountDelta);
+                gtInt256 gtNewActual = gtCurrentActual.checkedAdd(gtAmountDelta);
                 _storeSettlementActual(accountLayout, partyA, quote.partyB, gtNewActual, partyAEncryptionAddress, partyBEncryptionAddress);
                 _copySettlementActualToExpected(accountLayout, partyA, quote.partyB);
             } else if (accountLayout.liquidationDetails[partyA].liquidationType == LiquidationType.LATE) {
                 gtUint256 gtTotalCva = LockedValuesOps.safeOnboard(accountLayout.lockedBalances[partyA].cva.ciphertext);
-                gtUint256 gtAdjustedCva = gtQuoteCva.checkedSub(gtQuoteCva.checkedMul(gtDeficit).div(gtTotalCva));
+                // Zero total CVA ⇒ LATE only when deficit == LF (stored deficit 0); no CVA to haircut.
+                gtUint256 gtAdjustedCva = MpcCore.decrypt(gtTotalCva.eq(MpcCore.setPublic256(uint256(0))))
+                    ? gtQuoteCva
+                    : gtQuoteCva.checkedSub(gtQuoteCva.checkedMul(gtDeficit).div(gtTotalCva));
                 
                 // Update cva with encrypted operations
                 gtUint256 gtCurrentCva = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].cva.ciphertext);
@@ -307,7 +310,7 @@ library LiquidationFacetImpl {
                 
                 gtInt256 gtAmountDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAmount.toSigned());
                 gtInt256 gtCurrentActual = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
-                gtInt256 gtNewActual = gtCurrentActual.add(gtAmountDelta);
+                gtInt256 gtNewActual = gtCurrentActual.checkedAdd(gtAmountDelta);
                 _storeSettlementActual(accountLayout, partyA, quote.partyB, gtNewActual, partyAEncryptionAddress, partyBEncryptionAddress);
                 _copySettlementActualToExpected(accountLayout, partyA, quote.partyB);
             } else if (accountLayout.liquidationDetails[partyA].liquidationType == LiquidationType.OVERDUE) {
@@ -318,11 +321,11 @@ library LiquidationFacetImpl {
                 gtInt256 gtExpectedDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAmount.toSigned());
 
                 gtInt256 gtCurrentActual = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
-                gtInt256 gtNewActual = gtCurrentActual.add(gtActualDelta);
+                gtInt256 gtNewActual = gtCurrentActual.checkedAdd(gtActualDelta);
                 _storeSettlementActual(accountLayout, partyA, quote.partyB, gtNewActual, partyAEncryptionAddress, partyBEncryptionAddress);
 
                 gtInt256 gtCurrentExpected = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].expectedAmount.ciphertext);
-                gtInt256 gtNewExpected = gtCurrentExpected.add(gtExpectedDelta);
+                gtInt256 gtNewExpected = gtCurrentExpected.checkedAdd(gtExpectedDelta);
                 _storeSettlementExpected(accountLayout, partyA, quote.partyB, gtNewExpected, partyAEncryptionAddress, partyBEncryptionAddress);
             }
             LibEncryption.storePartyBLockedBalance(

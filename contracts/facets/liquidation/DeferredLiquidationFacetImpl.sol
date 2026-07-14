@@ -106,7 +106,7 @@ library DeferredLiquidationFacetImpl {
 		if (detail.liquidationType == LiquidationType.NONE) {
 			gtUint256 gtLf = LockedValuesOps.safeOnboard(accountLayout.lockedBalances[partyA].lf.ciphertext);
 			gtUint256 gtCva = LockedValuesOps.safeOnboard(accountLayout.lockedBalances[partyA].cva.ciphertext);
-			gtUint256 gtDeficitMagnitude = MpcCore.setPublic256(int256(0)).sub(gtAvailableBalance2).fromSigned();
+			gtUint256 gtDeficitMagnitude = MpcCore.setPublic256(int256(0)).checkedSub(gtAvailableBalance2).fromSigned();
 			gtBool gtNormal = gtDeficitMagnitude.lt(gtLf);
 			gtBool gtLate = gtDeficitMagnitude.le(gtLf.checkedAdd(gtCva));
 			

@@ -94,14 +94,15 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 
 Unblocked, highest priority — pick **one** per session:
 
-1. [Validate H-38 zero-CVA LATE divide-by-zero](tickets/logic-P0-H-38.md)
-2. [Validate H-12 settleAndForceClose wrong PartyA](tickets/logic-P0-H-12.md)
+1. [Validate H-12 settleAndForceClose wrong PartyA](tickets/logic-P0-H-12.md)
+2. [Validate H-14 force-close stale PartyB deficit](tickets/logic-P0-H-14.md)
 3. [Decide free collateral privacy model](tickets/design-H-13-free-collateral-privacy.md) *(parallel track)*
 
 ## Decisions so far
 
 - [Validate C-01 unsigned→signed cast](tickets/logic-P0-C-01.md) — **partial/valid**; sendQuote high-bit bypass not reproduced; added `LibEncryption.toNonNegativeSigned` + `test/audit/C01.test.ts` at cited sites.
 - [Validate H-02 unchecked signed MPC math](tickets/logic-P0-H-02.md) — **valid**; `gtInt256.checkedAdd/checkedSub` at cited LibAccount/LibSettlement/LibQuote/LibSolvency paths (+ follow-up sweep of remaining signed add/sub); `test/audit/H02.test.ts` passed on testnet.
+- [Validate H-38 zero-CVA LATE divide-by-zero](tickets/logic-P0-H-38.md) — **valid**; LATE settlement skips `/ totalCva` when total CVA is 0; `test/audit/H38.test.ts` green on testnet.
 
 ## Not yet specified
 

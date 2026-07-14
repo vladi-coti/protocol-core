@@ -47,7 +47,7 @@ library LibLiquidation {
 		require(MpcCore.decrypt(gtAvailableBalance.lt(gtZero)), "LiquidationFacet: partyB is solvent");
 		
 		gtUint256 gtLf = LockedValuesOps.safeOnboard(accountLayout.partyBLockedBalances[partyB][partyA].lf.ciphertext);
-		gtUint256 gtDeficitMagnitude = gtZero.sub(gtAvailableBalance).fromSigned();
+		gtUint256 gtDeficitMagnitude = gtZero.checkedSub(gtAvailableBalance).fromSigned();
 		gtUint256 gtRemainingLf = MpcCore.setPublic256(uint256(0));
 		gtUint256 gtLiquidatorShare = MpcCore.setPublic256(uint256(0));
 		gtUint256 gtPerPositionShare = MpcCore.setPublic256(uint256(0));
