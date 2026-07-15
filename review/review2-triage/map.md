@@ -102,7 +102,7 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 
 Unblocked, highest priority — pick **one** per session:
 
-1. [Validate H-16 deferred liquidation snapshot drift](tickets/logic-P0-H-16.md)
+1. [Validate H-26 force-close pre-close liquidation mismatch](tickets/logic-P0-H-26.md)
 2. [Decide free collateral privacy model](tickets/design-H-13-free-collateral-privacy.md) *(parallel track)*
 3. [Decide Muon UPNL privacy — price-only + on-chain UPNL?](tickets/privacy-P1-H-01.md) *(parallel track — ABI-wide)*
 4. [Decide observer rotation model](tickets/design-M-13-observer-rotation.md) *(parallel — proxy/indexer)*
@@ -126,6 +126,7 @@ Unblocked, highest priority — pick **one** per session:
 - [Validate H-12 settleAndForceClose wrong PartyA](tickets/logic-P0-H-12.md) — **valid**; settle against `quote.partyA` not `msg.sender`; `test/audit/H12.test.ts` green on sim (+ testnet trust sample).
 - [Validate H-14 force-close stale PartyB deficit](tickets/logic-P0-H-14.md) — **valid**; liquidate with post-reserve `gtWithReserve`; `test/audit/H14.test.ts` green on sim.
 - [Validate H-15 PartyB liquidation LF revert](tickets/logic-P0-H-15.md) — **valid**; cap `remainingLf` to PartyB allocated before `checkedSub`; `test/audit/H15.test.ts` green on sim + testnet.
+- [Validate H-16 deferred liquidation snapshot drift](tickets/logic-P0-H-16.md) — **valid**; deferred type/reimbursement use signed allocated snapshot; `test/audit/H16.test.ts` green on sim + testnet.
 
 ## Not yet specified
 

@@ -46,10 +46,7 @@ library DeferredLiquidationFacetImpl {
 		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
 		require(MpcCore.decrypt(gtLiquidationAvailableBalance.lt(gtZero)), "LiquidationFacet: PartyA is solvent");
 
-		gtInt256 gtAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
-			liquidationSig.upnl,
-			partyA
-		);
+		gtInt256 gtAvailableBalance = gtLiquidationAvailableBalance;
 		if (MpcCore.decrypt(gtAvailableBalance.gt(gtZero))) {
 			// Update allocated balance with encrypted operations
 			gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
@@ -101,6 +98,7 @@ library DeferredLiquidationFacetImpl {
 
 		gtInt256 gtAvailableBalance2 = LibAccount.partyAAvailableBalanceForLiquidation(
 			liquidationSig.upnl,
+			liquidationSig.liquidationAllocatedBalance,
 			partyA
 		);
 		if (detail.liquidationType == LiquidationType.NONE) {

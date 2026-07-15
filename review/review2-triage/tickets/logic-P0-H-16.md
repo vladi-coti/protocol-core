@@ -4,10 +4,12 @@ labels: [group:logic-security, wayfinder:research]
 priority: P0
 finding: H-16
 severity: High
-status: open
+status: closed
 blocks: —
 blocked_by: —
 report: ../report.md
+verdict: valid
+disposition: implement
 ---
 
 ## Question
@@ -32,13 +34,24 @@ Use signed snapshot for type and accounting consistently
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `valid`
+- [x] Fix disposition: `implement`
+- [x] If valid: write implement brief (minimal fix, affected files, regression test name)
 
 ## Answer
 
-*(unresolved)*
+**Valid.** Review1#4-style snapshot overload already existed (`partyAAvailableBalanceForLiquidation(upnl, allocatedBalance, partyA)`), but deferred path still re-read **current** allocated for reimbursement + NORMAL/LATE/OVERDUE after proving insolvency from `liquidationSig.liquidationAllocatedBalance`.
+
+Post-sign `allocate` can flip type (fixture: OVERDUE→NORMAL) while signature still authenticates the old snapshot.
+
+**Fix:** reuse signed snapshot for both reimbursement availability and `deferredSetSymbolsPrice` classification (`DeferredLiquidationFacetImpl.sol`).
+
+**Evidence**
+
+- Red (pre-fix): type became `NORMAL` (1) vs snapshot `OVERDUE` (3)
+- Green (post-fix): `test/audit/H16.test.ts --grep H-16` pass on `localSimCoti` + `coti-testnet`
+
+**Regression:** `test/audit/H16.test.ts` / `H16.behavior.ts`
