@@ -11,6 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TICKETS_DIR = path.join(__dirname, "tickets");
 const MAP_PATH = path.join(__dirname, "map.md");
 const DATA_PATH = path.join(__dirname, "progress-data.json");
+const TEMPLATE_PATH = path.join(__dirname, "index.template.html");
 const HTML_PATH = path.join(__dirname, "index.html");
 
 function parseFrontmatter(raw) {
@@ -191,23 +192,22 @@ function main() {
 
   fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
 
-  let html = fs.readFileSync(HTML_PATH, "utf8");
+  // index.html is gitignored — always regenerate from tracked template.
+  let html = fs.readFileSync(TEMPLATE_PATH, "utf8");
   const marker = /const WAYFINDER_DATA = [\s\S]*?\n\n    function loadData\(\)/;
   if (!marker.test(html)) {
     throw new Error(
-      "index.html missing WAYFINDER_DATA slot — expected `const WAYFINDER_DATA = ...` before `function loadData()`",
+      "index.template.html missing WAYFINDER_DATA slot — expected `const WAYFINDER_DATA = ...` before `function loadData()`",
     );
   }
   html = html.replace(
     marker,
     `const WAYFINDER_DATA = ${JSON.stringify(data)};\n\n    function loadData()`,
   );
-  // Remove legacy embed format if present from earlier builds.
-  html = html.replace(/\n<script id="wayfinder-data" type="application\/json">[\s\S]*?<\/script>/, "");
   fs.writeFileSync(HTML_PATH, html);
 
   console.log(`Wrote ${DATA_PATH} (${tickets.length} tickets)`);
-  console.log(`Embedded data in ${HTML_PATH}`);
+  console.log(`Wrote ${HTML_PATH} from template`);
   console.log(
     `Status: ${data.summary.byStatus.closed ?? 0} closed, ${data.summary.byStatus["in-progress"] ?? 0} in-progress, ${data.summary.byStatus.open ?? 0} open`,
   );

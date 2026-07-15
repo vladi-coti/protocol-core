@@ -40,3 +40,4 @@ docs
 .DS_Store
 
 review/**/progress-data.json
+review/**/index.html

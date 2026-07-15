@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wayfinder — Review2 Fix Progress</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #171a22;
+      --surface2: #1e222d;
+      --border: #2a3040;
+      --text: #e8eaef;
+      --muted: #8b93a7;
+      --accent: #6ea8fe;
+      --green: #3dd68c;
+      --amber: #f5a623;
+      --red: #f07178;
+      --purple: #c792ea;
+      --radius: 8px;
+      --font: "SF Mono", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+      --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    header {
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      color: var(--muted);
+      margin-top: 0.35rem;
+      font-size: 0.9rem;
+    }
+
+    .meta {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-family: var(--font);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+
+    .stat .label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .stat .value {
+      font-size: 1.75rem;
+      font-weight: 600;
+      font-family: var(--font);
+      margin-top: 0.25rem;
+    }
+
+    .stat .sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.15rem;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+
+    .panel h2 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      font-weight: 500;
+    }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.6rem;
+      font-size: 0.85rem;
+    }
+
+    .bar-row .name {
+      width: 5.5rem;
+      flex-shrink: 0;
+      font-family: var(--font);
+      color: var(--muted);
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 8px;
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .bar-seg { height: 100%; transition: width 0.3s; }
+    .bar-seg.closed { background: var(--green); }
+    .bar-seg.progress { background: var(--amber); }
+    .bar-seg.open { background: var(--border); }
+
+    .bar-row .count {
+      width: 3rem;
+      text-align: right;
+      font-family: var(--font);
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .legend {
+      display: flex;
+      gap: 1rem;
+      margin-top: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      margin-right: 0.35rem;
+      vertical-align: middle;
+    }
+
+    .legend .l-closed::before { background: var(--green); }
+    .legend .l-progress::before { background: var(--amber); }
+    .legend .l-open::before { background: var(--border); }
+
+    .frontier-list, .decisions-list {
+      list-style: none;
+    }
+
+    .frontier-list li, .decisions-list li {
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.875rem;
+    }
+
+    .frontier-list li:last-child, .decisions-list li:last-child {
+      border-bottom: none;
+    }
+
+    .frontier-list a, .decisions-list a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .frontier-list a:hover, .decisions-list a:hover { text-decoration: underline; }
+
+    .decisions-list .headline {
+      font-family: var(--font);
+      font-size: 0.8rem;
+      color: var(--green);
+      margin-top: 0.2rem;
+    }
+
+    .decisions-list .detail {
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-top: 0.15rem;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      align-items: center;
+    }
+
+    .toolbar input, .toolbar select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: var(--radius);
+      padding: 0.45rem 0.65rem;
+      font-size: 0.85rem;
+      font-family: var(--sans);
+    }
+
+    .toolbar input { flex: 1; min-width: 180px; }
+
+    .toolbar select { cursor: pointer; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    thead th {
+      text-align: left;
+      padding: 0.6rem 0.5rem;
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+    }
+
+    tbody td {
+      padding: 0.55rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tbody tr:hover { background: var(--surface2); }
+
+    tbody a {
+      color: var(--accent);
+      text-decoration: none;
+      font-family: var(--font);
+    }
+
+    tbody a:hover { text-decoration: underline; }
+
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-family: var(--font);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .badge.open { background: #2a3040; color: var(--muted); }
+    .badge.in-progress { background: #3d3018; color: var(--amber); }
+    .badge.closed { background: #1a3d2e; color: var(--green); }
+
+    .badge.P0 { color: var(--red); }
+    .badge.P1 { color: #ff9e64; }
+    .badge.P2 { color: var(--amber); }
+    .badge.P3 { color: var(--muted); }
+
+    .badge.logic { background: #1e2a3d; color: var(--accent); }
+    .badge.privacy { background: #2a1e3d; color: var(--purple); }
+    .badge.design { background: #1e3d2a; color: var(--green); }
+
+    .check-progress {
+      font-family: var(--font);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .check-progress .fill {
+      color: var(--text);
+    }
+
+    .question-cell {
+      max-width: 280px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+
+    .summary-cell {
+      font-size: 0.78rem;
+      color: var(--muted);
+      max-width: 200px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .table-wrap .toolbar { padding: 0.75rem 0.75rem 0; }
+
+    .table-scroll { max-height: 520px; overflow-y: auto; }
+
+    footer {
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-family: var(--font);
+    }
+
+    footer code {
+      background: var(--surface2);
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Wayfinder — Review2 Fix Progress</h1>
+      <p>Audit triage tracker for <a href="../report.md" style="color:var(--accent)">report.md</a> (50 findings, 52 tickets incl. design decisions)</p>
+      <div class="meta">
+        <span id="generated-at">Loading…</span>
+        <span id="validation-pct"></span>
+      </div>
+    </header>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h2>By group</h2>
+        <div id="bars-group"></div>
+        <div class="legend">
+          <span class="l-closed">Closed</span>
+          <span class="l-progress">In progress</span>
+          <span class="l-open">Open</span>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>By priority</h2>
+        <div id="bars-priority"></div>
+        <div class="legend">
+          <span class="l-closed">Closed</span>
+          <span class="l-progress">In progress</span>
+          <span class="l-open">Open</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h2>Frontier — start here</h2>
+        <ol class="frontier-list" id="frontier"></ol>
+      </div>
+      <div class="panel">
+        <h2>Decisions so far</h2>
+        <ul class="decisions-list" id="decisions"></ul>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <div class="toolbar">
+        <input type="search" id="search" placeholder="Search finding, id, question…" />
+        <select id="filter-status">
+          <option value="">All statuses</option>
+          <option value="open">Open</option>
+          <option value="in-progress">In progress</option>
+          <option value="closed">Closed</option>
+        </select>
+        <select id="filter-group">
+          <option value="">All groups</option>
+          <option value="logic">Logic / Security</option>
+          <option value="privacy">Privacy leak</option>
+          <option value="design">Design / Product</option>
+        </select>
+        <select id="filter-priority">
+          <option value="">All priorities</option>
+          <option value="P0">P0</option>
+          <option value="P1">P1</option>
+          <option value="P2">P2</option>
+          <option value="P3">P3</option>
+        </select>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Finding</th>
+              <th>Group</th>
+              <th>Pri</th>
+              <th>Status</th>
+              <th>Checklist</th>
+              <th>Question</th>
+              <th>Outcome</th>
+            </tr>
+          </thead>
+          <tbody id="ticket-rows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer>
+      Regenerate: <code>node review/wayfinder/build-progress.mjs</code>
+      · Open: <code>open review/wayfinder/index.html</code> or serve this folder
+    </footer>
+  </div>
+
+  <script>
+    const WAYFINDER_DATA = null;
+
+    function loadData() {
+      if (WAYFINDER_DATA) return WAYFINDER_DATA;
+      throw new Error("No embedded data — run: node review/wayfinder/build-progress.mjs");
+    }
+
+    function pct(n, total) {
+      return total ? Math.round((n / total) * 100) : 0;
+    }
+
+    function renderBars(containerId, buckets, order) {
+      const el = document.getElementById(containerId);
+      el.innerHTML = order
+        .filter((k) => buckets[k])
+        .map((key) => {
+          const b = buckets[key];
+          const closed = b.closed ?? 0;
+          const prog = b["in-progress"] ?? 0;
+          const open = b.open ?? 0;
+          const t = b.total;
+          return `<div class="bar-row">
+            <span class="name">${key}</span>
+            <div class="bar-track">
+              <div class="bar-seg closed" style="width:${pct(closed,t)}%"></div>
+              <div class="bar-seg progress" style="width:${pct(prog,t)}%"></div>
+              <div class="bar-seg open" style="width:${pct(open,t)}%"></div>
+            </div>
+            <span class="count">${closed}/${t}</span>
+          </div>`;
+        })
+        .join("");
+    }
+
+    function renderStats(s) {
+      const st = s.byStatus;
+      document.getElementById("stats").innerHTML = `
+        <div class="stat"><div class="label">Total tickets</div><div class="value">${s.total}</div></div>
+        <div class="stat"><div class="label">Closed</div><div class="value" style="color:var(--green)">${st.closed ?? 0}</div><div class="sub">${s.closedPct}% triaged</div></div>
+        <div class="stat"><div class="label">In progress</div><div class="value" style="color:var(--amber)">${st["in-progress"] ?? 0}</div></div>
+        <div class="stat"><div class="label">Open</div><div class="value">${st.open ?? 0}</div></div>
+        <div class="stat"><div class="label">Checklist items</div><div class="value">${s.validationProgress}%</div><div class="sub">validation steps done</div></div>
+      `;
+    }
+
+    function renderFrontier(items) {
+      document.getElementById("frontier").innerHTML = items
+        .map(
+          (f, i) =>
+            `<li><strong>${i + 1}.</strong> <a href="tickets/${f.file}">${esc(f.title)}</a></li>`,
+        )
+        .join("");
+    }
+
+    function renderDecisions(items) {
+      document.getElementById("decisions").innerHTML =
+        items.length === 0
+          ? "<li>No closed decisions yet.</li>"
+          : items
+              .map(
+                (d) =>
+                  `<li><a href="tickets/${d.file}">${esc(d.title)}</a><div class="headline">${esc(d.headline)}</div>${d.detail ? `<div class="detail">${esc(d.detail)}</div>` : ""}</li>`,
+              )
+              .join("");
+    }
+
+    function esc(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function statusBadge(status) {
+      const label = status === "in-progress" ? "in progress" : status;
+      return `<span class="badge ${status}">${label}</span>`;
+    }
+
+    function renderRows(tickets) {
+      const tbody = document.getElementById("ticket-rows");
+      tbody.innerHTML = tickets
+        .map((t) => {
+          const { done, total } = t.checklist;
+          const chk =
+            total > 0
+              ? `<span class="check-progress"><span class="fill">${done}</span>/${total}</span>`
+              : "—";
+          return `<tr data-status="${t.status}" data-group="${t.group}" data-priority="${t.priority}">
+            <td><a href="tickets/${t.file}">${esc(t.finding)}</a><br><span style="font-size:0.7rem;color:var(--muted)">${esc(t.id)}</span></td>
+            <td><span class="badge ${t.group}">${t.group}</span></td>
+            <td><span class="badge ${t.priority}">${t.priority}</span></td>
+            <td>${statusBadge(t.status)}</td>
+            <td>${chk}</td>
+            <td class="question-cell">${esc(t.question.replace(/^[^:]+:\s*/, ""))}</td>
+            <td class="summary-cell">${t.summary ? esc(t.summary) : "—"}</td>
+          </tr>`;
+        })
+        .join("");
+    }
+
+    function applyFilters() {
+      const q = document.getElementById("search").value.toLowerCase();
+      const status = document.getElementById("filter-status").value;
+      const group = document.getElementById("filter-group").value;
+      const priority = document.getElementById("filter-priority").value;
+
+      for (const row of document.querySelectorAll("#ticket-rows tr")) {
+        const text = row.textContent.toLowerCase();
+        const show =
+          (!q || text.includes(q)) &&
+          (!status || row.dataset.status === status) &&
+          (!group || row.dataset.group === group) &&
+          (!priority || row.dataset.priority === priority);
+        row.style.display = show ? "" : "none";
+      }
+    }
+
+    function init() {
+      const data = loadData();
+      const s = data.summary;
+
+      document.getElementById("generated-at").textContent =
+        "Updated " + new Date(data.generatedAt).toLocaleString();
+      document.getElementById("validation-pct").textContent =
+        s.validationProgress + "% checklist complete across all tickets";
+
+      renderStats(s);
+      renderBars("bars-group", s.byGroup, ["logic", "privacy", "design"]);
+      renderBars("bars-priority", s.byPriority, ["P0", "P1", "P2", "P3"]);
+      renderFrontier(data.frontier);
+      renderDecisions(data.decisions);
+
+      const priorityOrder = { P0: 0, P1: 1, P2: 2, P3: 3 };
+      const sorted = [...data.tickets].sort((a, b) => {
+        const pa = priorityOrder[a.priority] ?? 9;
+        const pb = priorityOrder[b.priority] ?? 9;
+        if (pa !== pb) return pa - pb;
+        return (a.finding ?? "").localeCompare(b.finding ?? "");
+      });
+      renderRows(sorted);
+
+      for (const id of ["search", "filter-status", "filter-group", "filter-priority"]) {
+        document.getElementById(id).addEventListener("input", applyFilters);
+        document.getElementById(id).addEventListener("change", applyFilters);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

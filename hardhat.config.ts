@@ -69,7 +69,7 @@ const config: HardhatUserConfig = {
 			accounts: privateKeyList,
 			gasPrice: 1000000000,
 			gasMultiplier: 1.5,
-			blockGasLimit: 30000000,
+			blockGasLimit: 120000000,
 			timeout: 120000,
 			initialBaseFeePerGas: 1200000000, // 1.2 gwei
 		},

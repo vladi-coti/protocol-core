@@ -31,4 +31,5 @@ export const DEPLOYMENT_LOG_FILE = "deployed.json"
 
 export const testnetChainId = 7082400n
 export const simCotiChainId = 7082401n
-export const gasOptions = { gasLimit: 60000000, gasPrice: 1000000000 }
+// COTI testnet block gasLimit is 120M; settle+force-close + MPC burns >60M.
+export const gasOptions = { gasLimit: 120000000, gasPrice: 1000000000 }
