@@ -177,7 +177,7 @@ library ForceActionsFacetImpl {
 		gtBool gtPartyBSolvent = gtPartyBAvailableBalance.ge(gtZero);
 		if (MpcCore.decrypt(gtPartyBSolvent)) {
 			if (updatedPrices.length > 0) {
-				LibSettlement.settleUpnl(settlementSig, updatedPrices, msg.sender, true);
+				LibSettlement.settleUpnl(settlementSig, updatedPrices, quote.partyA, true);
 			}
 			LibQuote.closeQuote(quote, gtQuantityToClose, gtClosePrice);
 		} else {
@@ -201,7 +201,7 @@ library ForceActionsFacetImpl {
 				ctUint256 memory ctAvailableAmount = MpcCore.offBoardToUser(gtAvailableAmount, LibAccount.getUserEncryptionAddress(quote.partyB));
 				emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, ctAvailableAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
 				if (updatedPrices.length > 0) {
-					LibSettlement.settleUpnl(settlementSig, updatedPrices, msg.sender, true);
+					LibSettlement.settleUpnl(settlementSig, updatedPrices, quote.partyA, true);
 				}
 				LibQuote.closeQuote(quote, gtQuantityToClose, gtClosePrice);
 			} else {

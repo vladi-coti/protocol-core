@@ -56,12 +56,12 @@ contract SettleAndForceCloseFacet is Accessibility, Pausable, IPartiesEvents, Fo
 		} else {
 			ctUint256[] memory newPartyBsAllocatedBalances = new ctUint256[](1);
 			newPartyBsAllocatedBalances[0] = AccountStorage.layout().partyBAllocatedBalances[quote.partyB][quote.partyA].userCiphertext;
-			ctUint256 memory ctAllocatedBalance = AccountStorage.layout().allocatedBalances[msg.sender].userCiphertext;
+			ctUint256 memory ctAllocatedBalance = AccountStorage.layout().allocatedBalances[quote.partyA].userCiphertext;
 
 			emit SettleUpnl(
 				settleSig.quotesSettlementsData,
 				updatedPrices,
-				msg.sender,
+				quote.partyA,
 				ctAllocatedBalance,
 				newPartyBsAllocatedBalances
 			);

@@ -57,7 +57,7 @@ Calldata, events, views, revert oracles, or metadata disclosure. **Fix or explic
 | --- | --- | --- | --- |
 | P0 | [Validate H-04 force-close price oracle](tickets/privacy-P0-H-04.md) | H-04 | — |
 | P0 | [Validate H-08 balance threshold revert oracle](tickets/privacy-P0-H-08.md) | H-08 | — |
-| P1 | [Validate H-01 Muon UPNL plaintext calldata](tickets/privacy-P1-H-01.md) | H-01 | — (fix likely needs-human / Muon off-chain)¹ |
+| P1 | [Validate H-01 Muon UPNL plaintext calldata](tickets/privacy-P1-H-01.md) | H-01 | grilling — preferred: price-only Muon + on-chain UPNL¹ |
 | P1 | [Validate H-06 allocation event plaintext deltas](tickets/privacy-P1-H-06.md) | H-06 | [Decide account delta privacy model](tickets/design-H-13-free-collateral-privacy.md)¹ |
 | P1 | [Validate H-07 reserve/fee event plaintext](tickets/privacy-P1-H-07.md) | H-07 | — |
 | P1 | [Validate H-11 settlement event plaintext opened prices](tickets/privacy-P1-H-11.md) | H-11 | — |
@@ -76,7 +76,7 @@ Calldata, events, views, revert oracles, or metadata disclosure. **Fix or explic
 | P3 | [Validate M-47 stale plaintext liquidation detail fields](tickets/privacy-P3-M-47.md) | M-47 | — |
 | P3 | [Validate M-49 public quote metadata intent leak](tickets/privacy-P3-M-49.md) | M-49 | [Decide quote metadata privacy scope](tickets/design-M-49-quote-metadata-privacy.md) |
 
-¹ H-01 fix path depends on Muon redesign — use design ticket for disposition even if leak is confirmed valid.
+¹ H-01 is the Muon privacy architecture grilling ticket (see its Related + Early decisions). Do not grant Muon nodes observer/proxy decrypt.
 
 ## Group 3 — Design / Product Decision (5 tickets)
 
@@ -97,6 +97,19 @@ Unblocked, highest priority — pick **one** per session:
 1. [Validate H-12 settleAndForceClose wrong PartyA](tickets/logic-P0-H-12.md)
 2. [Validate H-14 force-close stale PartyB deficit](tickets/logic-P0-H-14.md)
 3. [Decide free collateral privacy model](tickets/design-H-13-free-collateral-privacy.md) *(parallel track)*
+4. [Decide Muon UPNL privacy — price-only + on-chain UPNL?](tickets/privacy-P1-H-01.md) *(parallel track — ABI-wide)*
+5. [Decide observer rotation model](tickets/design-M-13-observer-rotation.md) *(parallel — proxy/indexer)*
+
+## Early privacy / architecture decisions (grill soon)
+
+| Decision ticket | Gates |
+| --- | --- |
+| [H-01 Muon UPNL model](tickets/privacy-P1-H-01.md) | almost all Muon-backed APIs; H-05, M-47, settlement/force UPNL surfaces |
+| [H-13 free collateral / deltas](tickets/design-H-13-free-collateral-privacy.md) | H-06, H-27; aegas/solver account APIs |
+| [M-13 observer rotation](tickets/design-M-13-observer-rotation.md) | M-14, M-44; proxy + graph |
+| [M-49 quote metadata](tickets/design-M-49-quote-metadata-privacy.md) | M-49 |
+| [M-16 liquidation type](tickets/design-M-16-liquidation-type-disclosure.md) | M-16 privacy |
+| [M-22 COTI dep pins](tickets/design-M-22-coti-dependencies.md) | all client builds / mainnet repro |
 
 ## Decisions so far
 
@@ -109,9 +122,7 @@ Unblocked, highest priority — pick **one** per session:
 - **Implement-fix tickets** — one per validated finding; created when validation closes with verdict `valid` or `partial`. Skills: `tdd` → `implement`.
 - **Cross-finding dedup** — C-01 and H-02 may share a single bounds-checking fix; decide during P0 validation whether to merge implementation tickets.
 - **Review1 overlap** — several review2 findings may already be partially addressed (e.g. H-05 vs report5#3, H-16 vs report1#4). Validation tickets must check current code, not assume greenfield.
-- **Muon architecture ticket** — if H-01 is confirmed, may need a separate grilling session on off-chain Muon changes (out of repo scope).
-
 ## Out of scope
 
-- Rewriting Muon off-chain signer infrastructure (on-chain validation only; disposition documented in H-01 ticket).
-- Full encrypted calldata for every account movement without product sign-off (gated by [Decide free collateral privacy model](tickets/design-H-13-free-collateral-privacy.md)).
+- Giving Muon network participants observer/proxy decrypt (rejected under H-01 preferred path).
+- Full encrypted account movement calldata without product sign-off (gated by [H-13](tickets/design-H-13-free-collateral-privacy.md)).

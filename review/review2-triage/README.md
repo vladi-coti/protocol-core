@@ -1,49 +1,35 @@
-# Wayfinder: Review2 Audit Triage
+# Review2 audit triage
 
-Local markdown issue tracker for [`report.md`](../report.md).
+Local markdown tracker for [`report.md`](../report.md).
 
 ## Usage
 
 ```bash
-# Open the map (start here)
-review/review2/wayfinder/map.md
+# Map (start here)
+review/review2-triage/map.md
 
-# Work one ticket per session
-/wayfinder review/review2/wayfinder/map.md
-# or name a ticket:
-/wayfinder review/review2/wayfinder/tickets/logic-P0-C-01.md
+# After ticket updates — regenerate local dashboard
+node review/review2-triage/build-progress.mjs
+open review/review2-triage/index.html   # generated; gitignored
 ```
 
 ## Structure
 
 | Path | Role |
 | --- | --- |
-| [`map.md`](map.md) | `wayfinder:map` — destination, frontier, decisions index |
-| [`tickets/*.md`](tickets/) | Child issues — one finding or design decision each |
-| [`index.html`](index.html) | Progress dashboard (open in browser) |
-| [`build-progress.mjs`](build-progress.mjs) | Regenerate dashboard data from tickets |
+| [`map.md`](map.md) | Destination, frontier, decisions |
+| [`tickets/*.md`](tickets/) | One finding / design decision each |
+| [`index.template.html`](index.template.html) | Dashboard shell (tracked) |
+| `index.html` | Built dashboard (gitignored) |
+| [`build-progress.mjs`](build-progress.mjs) | Build dashboard from tickets |
+| [`test-runs/sim-vs-testnet.md`](test-runs/sim-vs-testnet.md) | Sim vs testnet agreement table |
 
-### Progress dashboard
+## Sim vs testnet
+
+Ticket evidence stays on **sim** (`localSimCoti`). Optionally dual-run to see if sim is enough to move fast:
 
 ```bash
-node review/wayfinder/build-progress.mjs   # after ticket updates
-open review/wayfinder/index.html           # macOS; or serve the folder
+./review/review2-triage/scripts/run-dual-network-test.sh '<grep>' <file.ts> '<short name>'
 ```
 
-Shows closed / in-progress / open counts, group and priority breakdown, frontier, decisions, and a filterable ticket table with checklist progress.
-
-## Ticket workflow
-
-1. Pick from **Frontier** in `map.md` (or claim a named ticket).
-2. Set ticket `status: in-progress` in frontmatter.
-3. Follow **diagnosing-bugs** — build red testnet test before theorizing.
-4. Fill **Answer** with verdict + evidence + fix disposition.
-5. Close ticket (`status: closed`); append one line to map **Decisions so far**.
-
-## Labels
-
-- `group:logic-security` — exploit / correctness / DoS
-- `group:privacy-leak` — calldata, events, views, oracles
-- `group:design-product` — intentional tradeoff; decide before fixing
-- `wayfinder:research` — AFK validation ticket
-- `wayfinder:grilling` — HITL product/architecture decision
+Updates one row in `test-runs/sim-vs-testnet.md` (Test / Sim / Testnet / Details).
