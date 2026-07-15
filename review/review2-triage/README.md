@@ -8,10 +8,11 @@ Local markdown tracker for [`report.md`](../report.md).
 # Map (start here)
 review/review2-triage/map.md
 
-# After ticket updates — regenerate local dashboard
-node review/review2-triage/build-progress.mjs
-open review/review2-triage/index.html   # generated; gitignored
+# After ticket updates — regenerate + open local dashboard
+node review/review2-triage/build-progress.mjs --open
 ```
+
+`index.html` / `progress-data.json` are generated and gitignored — do not commit.
 
 ## Structure
 

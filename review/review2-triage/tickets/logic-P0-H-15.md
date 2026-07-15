@@ -4,10 +4,12 @@ labels: [group:logic-security, wayfinder:research]
 priority: P0
 finding: H-15
 severity: High
-status: open
+status: closed
 blocks: —
 blocked_by: —
 report: ../report.md
+verdict: valid
+disposition: implement
 ---
 
 ## Question
@@ -32,13 +34,23 @@ Cap remaining LF to payable allocated balance
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `valid`
+- [x] Fix disposition: `implement`
+- [x] If valid: write implement brief (minimal fix, affected files, regression test name)
 
 ## Answer
 
-*(unresolved)*
+**Valid.** `partyBAvailableBalanceForLiquidation = alloc - (cva+lf) + upnl` can be negative while `remainingLf = lf - deficit = alloc - cva + upnl` exceeds `alloc` whenever `upnl > cva` and `lf > alloc`. Then `partyBAllocated.checkedSub(remainingLf)` reverts (`overflow error`), so insolvent PartyB cannot be liquidated.
+
+**Fix:** Cap `remainingLf` with `MpcCore.min(remainingLf, partyBAllocated)` before share split and before the subtract (`LibLiquidation.sol`).
+
+**Evidence**
+
+- Red (pre-fix): `TEST_MODE=static npx hardhat test test/audit/H15.test.ts --grep 'H-15' --network localSimCoti` → `overflow error` on `liquidatePartyB`
+- Green (post-fix): same command → pass on sim + `coti-testnet`; liquidation completes, `isPartyBLiquidated=true`, PartyB alloc=0
+- Fixture: high-LF open + `deallocateForPartyB` under inflated dummy +UPNL to leave `lf > alloc`, then liquidate with `upnl = cva+1`
+
+**Regression:** `test/audit/H15.test.ts` / `H15.behavior.ts`

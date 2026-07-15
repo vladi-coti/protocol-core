@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Wayfinder — Review2 Fix Progress</title>
+  <title>Review2 Fix Progress</title>
   <style>
     :root {
       --bg: #0f1117;
@@ -352,7 +352,7 @@
 <body>
   <div class="wrap">
     <header>
-      <h1>Wayfinder — Review2 Fix Progress</h1>
+      <h1>Review2 Fix Progress</h1>
       <p>Audit triage tracker for <a href="../report.md" style="color:var(--accent)">report.md</a> (50 findings, 52 tickets incl. design decisions)</p>
       <div class="meta">
         <span id="generated-at">Loading…</span>
@@ -436,8 +436,7 @@
     </div>
 
     <footer>
-      Regenerate: <code>node review/wayfinder/build-progress.mjs</code>
-      · Open: <code>open review/wayfinder/index.html</code> or serve this folder
+      Regenerate: <code>node review/review2-triage/build-progress.mjs --open</code>
     </footer>
   </div>
 
@@ -446,7 +445,7 @@
 
     function loadData() {
       if (WAYFINDER_DATA) return WAYFINDER_DATA;
-      throw new Error("No embedded data — run: node review/wayfinder/build-progress.mjs");
+      throw new Error("No embedded data — run: node review/review2-triage/build-progress.mjs --open");
     }
 
     function pct(n, total) {

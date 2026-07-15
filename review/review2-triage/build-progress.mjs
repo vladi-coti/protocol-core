@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
- * Scan wayfinder tickets + map.md → progress-data.json (and embed in index.html).
- * Run: node review/wayfinder/build-progress.mjs
+ * Scan triage tickets + map.md → progress-data.json (and embed in index.html).
+ * Run: node review/review2-triage/build-progress.mjs
+ *      node review/review2-triage/build-progress.mjs --open
  */
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -235,6 +237,12 @@ function main() {
   console.log(
     `Status: ${data.summary.byStatus.closed ?? 0} closed, ${data.summary.byStatus["in-progress"] ?? 0} in-progress, ${data.summary.byStatus.open ?? 0} open`,
   );
+
+  if (process.argv.includes("--open")) {
+    const opener =
+      process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+    spawnSync(opener, [HTML_PATH], { stdio: "ignore", shell: process.platform === "win32" });
+  }
 }
 
 main();

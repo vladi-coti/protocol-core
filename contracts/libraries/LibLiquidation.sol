@@ -47,6 +47,7 @@ library LibLiquidation {
 		require(MpcCore.decrypt(gtAvailableBalance.lt(gtZero)), "LiquidationFacet: partyB is solvent");
 		
 		gtUint256 gtLf = LockedValuesOps.safeOnboard(accountLayout.partyBLockedBalances[partyB][partyA].lf.ciphertext);
+		gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
 		gtUint256 gtDeficitMagnitude = gtZero.checkedSub(gtAvailableBalance).fromSigned();
 		gtUint256 gtRemainingLf = MpcCore.setPublic256(uint256(0));
 		gtUint256 gtLiquidatorShare = MpcCore.setPublic256(uint256(0));
@@ -54,6 +55,8 @@ library LibLiquidation {
 		
 		if (MpcCore.decrypt(gtDeficitMagnitude.lt(gtLf))) {
 			gtRemainingLf = gtLf.checkedSub(gtDeficitMagnitude);
+			// Positive UPNL can make remainingLf > allocated; cap to payable balance (H-15).
+			gtRemainingLf = MpcCore.min(gtRemainingLf, gtPartyBBalance);
 			gtLiquidatorShare = gtRemainingLf.checkedMul(MpcCore.setPublic256(maLayout.liquidatorShare)).div(MpcCore.setPublic256(uint256(1e18)));
 			gtPerPositionShare = gtRemainingLf.checkedSub(gtLiquidatorShare).div(MpcCore.setPublic256(quoteLayout.partyBPositionsCount[partyB][partyA]));
 		}
@@ -93,7 +96,6 @@ library LibLiquidation {
 		}
 
 		// Update allocated balances for Party A using encrypted operations
-		gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
 		gtUint256 gtValue = gtPartyBBalance.checkedSub(gtRemainingLf);
 		
 		// Update PartyA balance

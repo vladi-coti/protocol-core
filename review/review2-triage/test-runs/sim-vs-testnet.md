@@ -12,3 +12,4 @@ python3 utils/update_sig_checks.py 1
 | --- | --- | --- | --- |
 | H-12 third-party settleAndForceClose | PASS | PASS | Logic matches. Testnet needs `gasOptions.gasLimit` ≥120M for success path; force-close cooldowns ~minutes. |
 | H-14 partial-reserve force-close liquidate | PASS | PASS | Fix: pass `gtWithReserve` into `liquidatePartyBFromAvailable`. Agree on both. |
+| H-15 remainingLf > alloc (+UPNL) liquidate | PASS | PASS | Cap `remainingLf` via `MpcCore.min(..., partyBAllocated)`. Agree on both. |
