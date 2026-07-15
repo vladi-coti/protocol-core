@@ -56,7 +56,11 @@ export async function loadFixtureCompatible(fixtureFunction: () => Promise<RunCo
 export async function getNetworkGasOptions() {
 	const chain = await ethers.provider.getNetwork()
 
-	if (chain.chainId === testnetChainId || chain.chainId === simCotiChainId || network.name === "localSimCoti") {
+	if (
+		network.name === "localSimCoti" ||
+		chain.chainId === simCotiChainId ||
+		chain.chainId === testnetChainId
+	) {
 		return gasOptions
 	}
 

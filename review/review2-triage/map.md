@@ -14,6 +14,14 @@ Every finding in review2 has a recorded **verdict** (valid / invalid / partial /
 - **Prior review context:** [`review/review1/issue-tracker.md`](../../review1/issue-tracker.md) — many related issues already fixed; review2 may overlap or supersede.
 - **Ticket labels:** `wayfinder:research` (AFK validation), `wayfinder:grilling` (design choice), `group:logic-security`, `group:privacy-leak`, `group:design-product`.
 - **One ticket per session.** Claim by editing ticket status to `in-progress`.
+- **Ticket `status` (frontmatter):**
+  | Value | Meaning |
+  | --- | --- |
+  | `open` | Not started / parked |
+  | `in-progress` | Claimed this session (`wip` also ok) |
+  | `closed` | Triage finished (`done` / `fixed` / `resolved` also ok — build maps them to closed) |
+
+  Source of truth = `tickets/*.md` frontmatter; regenerate with `node review/review2-triage/build-progress.mjs`. When closing: append one line under **Decisions so far**, remove from **Frontier**.
 
 ## Group 1 — Logic / Security Exploit (27 tickets)
 
@@ -57,7 +65,7 @@ Calldata, events, views, revert oracles, or metadata disclosure. **Fix or explic
 | --- | --- | --- | --- |
 | P0 | [Validate H-04 force-close price oracle](tickets/privacy-P0-H-04.md) | H-04 | — |
 | P0 | [Validate H-08 balance threshold revert oracle](tickets/privacy-P0-H-08.md) | H-08 | — |
-| P1 | [Validate H-01 Muon UPNL plaintext calldata](tickets/privacy-P1-H-01.md) | H-01 | grilling — preferred: price-only Muon + on-chain UPNL¹ |
+| P1 | [Validate H-01 Muon UPNL plaintext calldata](tickets/privacy-P1-H-01.md) | H-01 | grilling — preferred **C**: Muon prices only + on-chain UPNL¹ |
 | P1 | [Validate H-06 allocation event plaintext deltas](tickets/privacy-P1-H-06.md) | H-06 | [Decide account delta privacy model](tickets/design-H-13-free-collateral-privacy.md)¹ |
 | P1 | [Validate H-07 reserve/fee event plaintext](tickets/privacy-P1-H-07.md) | H-07 | — |
 | P1 | [Validate H-11 settlement event plaintext opened prices](tickets/privacy-P1-H-11.md) | H-11 | — |
@@ -76,7 +84,7 @@ Calldata, events, views, revert oracles, or metadata disclosure. **Fix or explic
 | P3 | [Validate M-47 stale plaintext liquidation detail fields](tickets/privacy-P3-M-47.md) | M-47 | — |
 | P3 | [Validate M-49 public quote metadata intent leak](tickets/privacy-P3-M-49.md) | M-49 | [Decide quote metadata privacy scope](tickets/design-M-49-quote-metadata-privacy.md) |
 
-¹ H-01 is the Muon privacy architecture grilling ticket (see its Related + Early decisions). Do not grant Muon nodes observer/proxy decrypt.
+¹ H-01 grilling: prefer **C** — Muon prices only (no encrypt/decrypt); UPNL on-chain in MPC. Do not grant Muon nodes observer/proxy decrypt.
 
 ## Group 3 — Design / Product Decision (5 tickets)
 
@@ -94,11 +102,10 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 
 Unblocked, highest priority — pick **one** per session:
 
-1. [Validate H-12 settleAndForceClose wrong PartyA](tickets/logic-P0-H-12.md)
-2. [Validate H-14 force-close stale PartyB deficit](tickets/logic-P0-H-14.md)
-3. [Decide free collateral privacy model](tickets/design-H-13-free-collateral-privacy.md) *(parallel track)*
-4. [Decide Muon UPNL privacy — price-only + on-chain UPNL?](tickets/privacy-P1-H-01.md) *(parallel track — ABI-wide)*
-5. [Decide observer rotation model](tickets/design-M-13-observer-rotation.md) *(parallel — proxy/indexer)*
+1. [Validate H-15 PartyB liquidation LF revert](tickets/logic-P0-H-15.md)
+2. [Decide free collateral privacy model](tickets/design-H-13-free-collateral-privacy.md) *(parallel track)*
+3. [Decide Muon UPNL privacy — price-only + on-chain UPNL?](tickets/privacy-P1-H-01.md) *(parallel track — ABI-wide)*
+4. [Decide observer rotation model](tickets/design-M-13-observer-rotation.md) *(parallel — proxy/indexer)*
 
 ## Early privacy / architecture decisions (grill soon)
 
@@ -116,6 +123,8 @@ Unblocked, highest priority — pick **one** per session:
 - [Validate C-01 unsigned→signed cast](tickets/logic-P0-C-01.md) — **partial/valid**; sendQuote high-bit bypass not reproduced; added `LibEncryption.toNonNegativeSigned` + `test/audit/C01.test.ts` at cited sites.
 - [Validate H-02 unchecked signed MPC math](tickets/logic-P0-H-02.md) — **valid**; `gtInt256.checkedAdd/checkedSub` at cited LibAccount/LibSettlement/LibQuote/LibSolvency paths (+ follow-up sweep of remaining signed add/sub); `test/audit/H02.test.ts` passed on testnet.
 - [Validate H-38 zero-CVA LATE divide-by-zero](tickets/logic-P0-H-38.md) — **valid**; LATE settlement skips `/ totalCva` when total CVA is 0; `test/audit/H38.test.ts` green on testnet.
+- [Validate H-12 settleAndForceClose wrong PartyA](tickets/logic-P0-H-12.md) — **valid**; settle against `quote.partyA` not `msg.sender`; `test/audit/H12.test.ts` green on sim (+ testnet trust sample).
+- [Validate H-14 force-close stale PartyB deficit](tickets/logic-P0-H-14.md) — **valid**; liquidate with post-reserve `gtWithReserve`; `test/audit/H14.test.ts` green on sim.
 
 ## Not yet specified
 

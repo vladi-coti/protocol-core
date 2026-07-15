@@ -4,7 +4,7 @@ labels: [group:logic-security, wayfinder:research]
 priority: P0
 finding: H-12
 severity: High
-status: done
+status: closed
 blocks: —
 blocked_by: —
 report: ../report.md

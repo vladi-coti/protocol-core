@@ -110,6 +110,30 @@ function groupFromLabels(labels) {
   return "other";
 }
 
+const VALID_STATUSES = new Set(["open", "in-progress", "closed"]);
+const STATUS_ALIASES = {
+  done: "closed",
+  complete: "closed",
+  completed: "closed",
+  fixed: "closed",
+  resolved: "closed",
+  finished: "closed",
+  wip: "in-progress",
+  in_progress: "in-progress",
+};
+
+function normalizeStatus(raw, file) {
+  const s = (raw ?? "open").trim().toLowerCase();
+  if (VALID_STATUSES.has(s)) return s;
+  const alias = STATUS_ALIASES[s];
+  if (alias) {
+    console.warn(`WARN ${file}: status "${raw}" → "${alias}" (use only: open | in-progress | closed)`);
+    return alias;
+  }
+  console.warn(`WARN ${file}: unknown status "${raw}" → "open" (valid: open | in-progress | closed)`);
+  return "open";
+}
+
 function loadTickets() {
   const files = fs.readdirSync(TICKETS_DIR).filter((f) => f.endsWith(".md")).sort();
   return files.map((file) => {
@@ -123,7 +147,7 @@ function loadTickets() {
       finding: fm.finding ?? null,
       priority: fm.priority ?? "?",
       severity: fm.severity ?? null,
-      status: fm.status ?? "open",
+      status: normalizeStatus(fm.status, file),
       labels: Array.isArray(fm.labels) ? fm.labels : [],
       group: groupFromLabels(fm.labels),
       question: extractQuestion(raw),

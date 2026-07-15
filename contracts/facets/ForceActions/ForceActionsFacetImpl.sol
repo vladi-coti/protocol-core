@@ -216,7 +216,8 @@ library ForceActionsFacetImpl {
 				ctUint256 memory ctReserveAmount = MpcCore.offBoardToUser(gtReserveAmount, LibAccount.getUserEncryptionAddress(quote.partyB));
 				emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, ctReserveAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
 				isPartyBLiquidated = true;
-				LibLiquidation.liquidatePartyBFromAvailable(quote.partyB, quote.partyA, gtPartyBAvailableBalance, block.timestamp);
+				// Available was computed before reserve credit; use post-reserve remaining deficit.
+				LibLiquidation.liquidatePartyBFromAvailable(quote.partyB, quote.partyA, gtWithReserve, block.timestamp);
 			}
 		}
 		// Get encrypted PartyB allocated balance for return (get fresh value)

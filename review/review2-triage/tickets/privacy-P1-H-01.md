@@ -52,7 +52,7 @@ Encrypt inputs or classify as public; Muon redesign likely needed
 
 ### Related tickets
 
-**Same problem cluster (Muon / on-chain risk disclosure)** — option D or accept-leak must account for these, not only `SingleUpnlSig.upnl`:
+**Same problem cluster (Muon / on-chain risk disclosure)** — option C or accept-leak (A) must account for these, not only `SingleUpnlSig.upnl`:
 
 | Ticket | Why related |
 | --- | --- |
@@ -60,7 +60,7 @@ Encrypt inputs or classify as public; Muon redesign likely needed
 | [privacy-P3-M-47](privacy-P3-M-47.md) | Stale plaintext liquidation detail fields vs encrypted writes — leftover of mixed privacy model. |
 | [privacy-P2-M-37](privacy-P2-M-37.md) | Dispute settlement amounts as plaintext `int256[]` calldata. |
 | [privacy-P1-H-11](privacy-P1-H-11.md) | Settlement events publish opened/updated prices in plaintext (price disclosure after settle). |
-| [privacy-P2-M-24](privacy-P2-M-24.md) | Emergency close emits close price plaintext — price public-by-design under preferred D for *mark* prices; confirm close price policy. |
+| [privacy-P2-M-24](privacy-P2-M-24.md) | Emergency close emits close price plaintext — price public-by-design under preferred C for *mark* prices; confirm close price policy. |
 | [privacy-P0-H-04](privacy-P0-H-04.md) | Force-close decrypts price predicates **before** Muon sig verify — ordering bug on Muon price path; fix ordering regardless of UPNL redesign. |
 | [privacy-P3-M-34](privacy-P3-M-34.md) | Event type REALIZED_PNL_IN vs OUT leaks PnL direction even when amounts are private. |
 | [logic-P0-H-16](logic-P0-H-16.md) | Deferred liquidation mixes Muon signed historical snapshot with current encrypted balance — Muon liquidation reshape touches this. |
@@ -71,7 +71,7 @@ Encrypt inputs or classify as public; Muon redesign likely needed
 
 | Ticket | Why |
 | --- | --- |
-| [logic-P0-H-12](logic-P0-H-12.md) … [logic-P0-H-26](logic-P0-H-26.md) force-close / PartyB liq P0s | Many take Muon UPNL/price sigs; ABI + verify libs move under D. |
+| [logic-P0-H-12](logic-P0-H-12.md) … [logic-P0-H-26](logic-P0-H-26.md) force-close / PartyB liq P0s | Many take Muon UPNL/price sigs; ABI + verify libs move under C. |
 | Production checklist | [`../privx-production-checklist.txt`](../../privx-production-checklist.txt) — product Muon decision; keep in sync with this ticket. |
 
 ### Early product decisions (decide soon — not only this ticket)
@@ -113,32 +113,44 @@ Muon for prices does **not** need private RPC. Prefer architecture where Muon ne
 
 ### Options
 
+**Muon / oracle UPNL and prices in calldata**
+
+**A — Keep plaintext signed UPNL/prices as today**  
+Implication: private positions still leak PnL / risk via public Muon payloads. Faster to ship; weak privacy story for a “private” product.
+
+**B — Redesign Muon (and verification) for private-compatible inputs**  
+Implication: real privacy at the oracle edge (ciphertext / MPC attestation instead of `int256`), but off-chain Muon app + gateway work outside protocol-core; blocks claiming end-to-end private trading until done. Hard — Muon + diamond verify redesign together.
+
+**C — Preferred: drop UPNL from Muon; compute UPNL on-chain**  
+Implication: Muon stays a **simple public price oracle** — no encryption/decryption, no observer/proxy decrypt for Muon nodes. Protocol stops signing or verifying UPNL in Muon payloads; diamond computes UPNL in MPC from encrypted position storage using those prices. Real privacy at the cost of more on-chain gas and touching every UPNL call site.
+
 | Option | Summary | Feasible? |
 | --- | --- | --- |
 | A — Accept leak | Keep plaintext UPNL in calldata; document as public risk | Yes — ship today |
-| B — Encrypt UPNL in Muon/output + new verify | Ciphertext / MPC attestation instead of int256 | Hard — Muon + diamond verify redesign together |
-| C — Privileged decrypting signer | Observer-like component signs / posts encrypted UPNL | Feasible — concentrates trust in our infra |
-| **D — Preferred: Muon prices only; UPNL on-chain in MPC** | Public prices OK; contract computes UPNL from encrypted position storage before use | Yes in principle; gas + touch every UPNL call site |
+| B — Private Muon I/O | Encrypt / attest Muon outputs + new verify | Hard — Muon + verify redesign |
+| **C — Prices only + on-chain UPNL** | Strip UPNL from Muon; contract computes UPNL in MPC | Yes in principle; gas + every call site |
 
-### Preferred direction (D) — expand this
+Other ideas considered and **not** preferred: privileged decrypting signer for Muon (concentrates observer trust); giving all Muon nodes proxy/observer decrypt (rejected above).
 
-**Idea:** Muon remains a **price oracle** (public mark prices are fine). Drop UPNL from Muon calldata / hashes. Wherever the protocol today uses `upnlSig.upnl` (or party A/B UPNL fields), first **compute UPNL on-chain** from encrypted `openedPrice` / `quantity` / side (and any existing caps e.g. vs PartyB allocated that currently live in `symmio.js`), then use that `gtInt256` in solvency/accounting.
+### Preferred direction (C) — expand this
 
-**Why this fits PrivX better than B/C:**
+**Idea:** Muon remains a **price oracle** (public mark prices are fine; no encrypt/decrypt in the Muon app). Drop UPNL from Muon calldata / hashes. Wherever the protocol today uses `upnlSig.upnl` (or party A/B UPNL fields), first **compute UPNL on-chain** from encrypted `openedPrice` / `quantity` / side (and any existing caps e.g. vs PartyB allocated that currently live in `muon/symmio.js`), then use that `gtInt256` in solvency/accounting.
 
-- No observer key distribution to Muon nodes.
-- No “encrypt like solver” Muon package that still needs a new on-chain verify scheme for signed plaintext numbers.
+**Why this fits PrivX better than A/B:**
+
+- No observer key distribution to Muon nodes; Muon stays simple.
+- No “encrypt like solver” Muon package that still needs a new on-chain verify scheme for signed private numbers (that is B).
 - Gas is already very high on COTI MPC; incremental position loops are an honest cost of private accounting.
-
+- A ships fast but sabotages the private product narrative.
 **Implications to flesh out:**
 
 1. **ABI / Muon app** — New (or narrowed) sig structs: price (+ timestamp, symbol/quote ids as needed) without `upnl`. Update `signParams` / methods in `muon/symmio.js`. Retarget diamond `LibMuon*` hash packing.
 2. **On-chain UPNL helper** — Shared library: given party (+ PartyB where needed) and Muon prices map, iterate relevant open quotes, MPC compute aggregate UPNL (+ unrealized-loss style aggregates if still required). Must include the **full** relevant book or solvency is wrong/gameable.
 3. **Call-site migration** — Every consumer of signed UPNL switches to “verify price sig → compute UPNL → proceed.” List below (starter; expand).
 4. **Gas / position limits** — Define max opens or batching rules for COTI. Prototype one path (e.g. deallocate or sendQuote) on testnet before committing all paths.
-5. **Related plaintext risk fields** — Liquidation / deferred / settlement still carry UPNL or loss snapshots in Muon structs and sometimes storage/views. Prefer D must cover those or they remain H-01-shaped leaks under other names.
+5. **Related plaintext risk fields** — Liquidation / deferred / settlement still carry UPNL or loss snapshots in Muon structs and sometimes storage/views. Prefer C must cover those or they remain H-01-shaped leaks under other names.
 6. **Muon ops** — Price-only Muon needs public RPC + market APIs only; **no** private proxy auth for Muon nodes.
-7. **Product / marketing** — Until D (or B/C) ships, choosing A means claiming private DEX while broadcasting PnL on Muon txs.
+7. **Product / marketing** — Until C (or B) ships, choosing A means claiming private DEX while broadcasting PnL on Muon txs.
 
 ### Starter change surface (expand)
 
@@ -166,7 +178,7 @@ Muon for prices does **not** need private RPC. Prefer architecture where Muon ne
 
 **Off-chain**
 
-- [ ] `muon/symmio.js` (+ deploy/config) — price (and remaining public) methods; stop returning/signing UPNL for txs that move to D.
+- [ ] `muon/symmio.js` (+ deploy/config) — price (and remaining public) methods; stop returning/signing UPNL for txs that move to C. No encrypt/decrypt path for Muon.
 - [ ] Tests / solvers / aegas — stop packing dummy or real UPNL into calldata; supply price sigs only.
 - [ ] Dummy sig helpers in `test/utils/SignatureUtils.ts`
 
@@ -178,7 +190,7 @@ Muon for prices does **not** need private RPC. Prefer architecture where Muon ne
 ### Verdict / disposition (pending)
 
 - Leak: treat as **valid** once calldata inspection / one live tx confirms (checklist still open).
-- Disposition leaning: **implement** via option **D** (needs-human for gas limits + liquidation/settlement aggregate design), not accept-as-public unless product explicitly chooses A.
+- Disposition leaning: **implement** via option **C** (needs-human for gas limits + liquidation/settlement aggregate design), not accept-as-public unless product explicitly chooses A.
 
 ### Next
 

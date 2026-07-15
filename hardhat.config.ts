@@ -93,7 +93,7 @@ const config: HardhatUserConfig = {
 			],
 			gasPrice: 1000000000,
 			gasMultiplier: 1.2,
-			blockGasLimit: 60000000,
+			blockGasLimit: 120000000,
 			timeout: 120000,
 		},
 		"coti-mainnet": {
