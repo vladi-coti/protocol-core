@@ -54,6 +54,8 @@ TEST_MODE=static npx hardhat test test/audit/H04.test.ts --grep 'H-04' --network
 - Behavioral: too-high `lowest` on SHORT → early revert; valid `lowest` → close succeeds (same junk sig).
 - Source-order red→green: `verifyHighLowPrice` must precede `requestedClosePrice.ciphertext` onboard.
 
+- Dual: `localSimCoti` + `coti-testnet` PASS (`sim-vs-testnet.md`).
+
 **Fix:** call `verifyHighLowPrice` (+ settlement verify when used) immediately after public requires, before private price onboard/decrypt.
 
 **Regression:** `test/audit/H04.test.ts` / `H04.behavior.ts`

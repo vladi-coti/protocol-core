@@ -39,7 +39,7 @@ Tests use dummy Muon sigs (`signature: 0`). Production Muon verification must st
 Temporary: we are checking whether `@coti-io/sim-coti-node` (`localSimCoti`) is reliable enough to use for most audit triage instead of full `coti-testnet` runs.
 
 - **Day-to-day audit tests:** prefer sim for speed. Put sim commands/results in the ticket.
-- **Trust sample:** for paths that matter (especially anything that previously disagreed or is MPC/gas heavy), dual-run the same `--grep` and record one row in `review/review2-triage/test-runs/sim-vs-testnet.md`.
+- **Trust sample (required):** after each closed validation ticket, dual-run the same `--grep` and record one row in `review/review2-triage/test-runs/sim-vs-testnet.md`.
 
 ```bash
 # sim: cd /Users/Vlad1/coti/sim-coti-node && npm start

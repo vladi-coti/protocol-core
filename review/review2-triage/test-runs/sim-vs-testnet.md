@@ -2,8 +2,10 @@
 
 Purpose: see which audit tests agree on sim (`localSimCoti`) vs COTI testnet so we can prefer sim for speed.
 
+**Policy:** after each closed validation ticket, dual-run the same `--grep` and add one row here (do not skip for “sim-only” unless the user says so).
+
 ```bash
-# sim node: cd /Users/Vlad1/coti/sim-coti-node && npm start
+# sim: cd /home/vld/coti/sim-coti-node && npm start   # or mac path
 python3 utils/update_sig_checks.py 1
 ./review/review2-triage/scripts/run-dual-network-test.sh '<grep>' <test-file.ts> '<short name>'
 ```
@@ -15,3 +17,5 @@ python3 utils/update_sig_checks.py 1
 | H-15 remainingLf > alloc (+UPNL) liquidate | PASS | PASS | Cap `remainingLf` via `MpcCore.min(..., partyBAllocated)`. Agree on both. |
 | H-16 deferred type uses signed alloc snapshot | PASS | PASS | `deferredSetSymbolsPrice` + reimbursement use `liquidationAllocatedBalance`. |
 | H-26 force-close LF unlock before PartyB liq | PASS | PASS | Unlock closed-quote cva+lf on PartyB locks before liquidatePartyBFromAvailable |
+| H-08 allocate/internalTransfer free-balance before limit | PASS | PASS | Public balance require before encrypted allocated-limit decrypt |
+| H-04 force-close Muon before price decrypt | PASS | PASS | verifyHighLowPrice before requestedClosePrice onboard; testnet has force-close cooldown |

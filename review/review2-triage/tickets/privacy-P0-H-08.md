@@ -54,6 +54,8 @@ TEST_MODE=static npx hardhat test test/audit/H08.test.ts --grep 'H-08' --network
 - Red: free=50, limit=100, allocate/internalTransfer(200) → limit-reached first.
 - Green: same → `"Insufficient balance"`; source-order check public require before limit string.
 
+- Dual: `localSimCoti` + `coti-testnet` PASS (`sim-vs-testnet.md`).
+
 **Fix:** public `balances[msg.sender] >= amount` before encrypted limit decrypt in both functions.
 
 **Regression:** `test/audit/H08.test.ts` / `H08.behavior.ts`
