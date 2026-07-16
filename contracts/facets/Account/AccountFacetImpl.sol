@@ -47,18 +47,18 @@ library AccountFacetImpl {
 		
 		// Initialize Party A encrypted values to zeros if uninitialized
 		LibAccount.initializePartyA(msg.sender);
+
+		// H-08: public free-balance check before decrypting allocated-limit predicate.
+		require(accountLayout.balances[msg.sender] >= amount, "AccountFacet: Insufficient balance");
 		
-		// Check limit using encrypted comparison
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
 		gtUint256 gtAmount = MpcCore.setPublic256(amount);
 		gtUint256 gtLimit = MpcCore.setPublic256(GlobalAppStorage.layout().balanceLimitPerUser);
 		
-		// Check limit using encrypted comparison
 		gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtAmount);
 		gtBool gtWithinLimit = gtNewBalance.le(gtLimit);
 		require(MpcCore.decrypt(gtWithinLimit), "AccountFacet: Allocated balance limit reached");
 		
-		require(accountLayout.balances[msg.sender] >= amount, "AccountFacet: Insufficient balance");
 		accountLayout.balances[msg.sender] -= amount;
 		
 		// Store encrypted new balance
@@ -136,7 +136,9 @@ library AccountFacetImpl {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		LibAccount.initializePartyA(user);
 
-		// Check limit using encrypted comparison
+		// H-08: public sender free-balance check before decrypting recipient allocated-limit.
+		require(accountLayout.balances[msg.sender] >= amount, "AccountFacet: Insufficient balance");
+
 		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[user].ciphertext);
 		gtUint256 gtAmount = MpcCore.setPublic256(amount);
 		gtUint256 gtLimit = MpcCore.setPublic256(GlobalAppStorage.layout().balanceLimitPerUser);
@@ -145,7 +147,6 @@ library AccountFacetImpl {
 		gtBool gtWithinLimit = gtNewBalance.le(gtLimit);
 		require(MpcCore.decrypt(gtWithinLimit), "AccountFacet: Allocated balance limit reached");
 		
-		require(accountLayout.balances[msg.sender] >= amount, "AccountFacet: Insufficient balance");
 		accountLayout.balances[msg.sender] -= amount;
 		
 		// Store encrypted new balance

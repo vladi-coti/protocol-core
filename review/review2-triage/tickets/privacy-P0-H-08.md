@@ -4,10 +4,12 @@ labels: [group:privacy-leak, wayfinder:research]
 priority: P0
 finding: H-08
 severity: High
-status: open
+status: closed
 blocks: —
 blocked_by: —
 report: ../report.md
+verdict: valid
+disposition: implement
 ---
 
 ## Question
@@ -32,13 +34,26 @@ Reorder: public checks before encrypted predicate decrypt
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `valid`
+- [x] Fix disposition: `implement`
+- [x] If valid: write implement brief (minimal fix, affected files, regression test name)
 
 ## Answer
 
-*(unresolved)*
+**Valid.** `allocate` / `internalTransfer` decrypted the allocated-balance limit before checking plaintext free balance. Underfunded caller + amount that would also breach limit reverted with `"Allocated balance limit reached"` first → private threshold oracle.
+
+**Evidence (sim)**
+
+```bash
+TEST_MODE=static npx hardhat test test/audit/H08.test.ts --grep 'H-08' --network localSimCoti
+```
+
+- Red: free=50, limit=100, allocate/internalTransfer(200) → limit-reached first.
+- Green: same → `"Insufficient balance"`; source-order check public require before limit string.
+
+**Fix:** public `balances[msg.sender] >= amount` before encrypted limit decrypt in both functions.
+
+**Regression:** `test/audit/H08.test.ts` / `H08.behavior.ts`

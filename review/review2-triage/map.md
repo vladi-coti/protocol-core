@@ -102,11 +102,10 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 
 Unblocked, highest priority — pick **one** per session:
 
-1. [Validate H-08 balance threshold revert oracle](tickets/privacy-P0-H-08.md) *(privacy P0)*
-2. [Validate H-32 emergency close blocked when insolvent](tickets/logic-P1-H-32.md) *(logic P1)*
-3. [Decide free collateral privacy model](tickets/design-H-13-free-collateral-privacy.md) *(parallel track)*
-4. [Decide Muon UPNL privacy — price-only + on-chain UPNL?](tickets/privacy-P1-H-01.md) *(parallel track — ABI-wide)*
-5. [Decide observer rotation model](tickets/design-M-13-observer-rotation.md) *(parallel — proxy/indexer)*
+1. [Validate H-32 emergency close blocked when insolvent](tickets/logic-P1-H-32.md) *(logic P1)*
+2. [Decide free collateral privacy model](tickets/design-H-13-free-collateral-privacy.md) *(parallel track)*
+3. [Decide Muon UPNL privacy — price-only + on-chain UPNL?](tickets/privacy-P1-H-01.md) *(parallel track — ABI-wide)*
+4. [Decide observer rotation model](tickets/design-M-13-observer-rotation.md) *(parallel — proxy/indexer)*
 
 ## Early privacy / architecture decisions (grill soon)
 
@@ -130,6 +129,7 @@ Unblocked, highest priority — pick **one** per session:
 - [Validate H-16 deferred liquidation snapshot drift](tickets/logic-P0-H-16.md) — **valid**; deferred type/reimbursement use signed allocated snapshot; `test/audit/H16.test.ts` green on sim + testnet.
 - [Validate H-26 force-close pre-close liquidation mismatch](tickets/logic-P0-H-26.md) — **valid**; unlock closed-quote cva+lf on PartyB locks before `liquidatePartyBFromAvailable`; `test/audit/H26.test.ts` green on sim (H-14 still green).
 - [Validate H-04 force-close price oracle](tickets/privacy-P0-H-04.md) — **valid**; Muon verify before private close-price onboard/decrypt; `test/audit/H04.test.ts` green on sim.
+- [Validate H-08 balance threshold revert oracle](tickets/privacy-P0-H-08.md) — **valid**; public free-balance check before allocated-limit decrypt in allocate/internalTransfer; `test/audit/H08.test.ts` green on sim.
 
 ## Not yet specified
 
