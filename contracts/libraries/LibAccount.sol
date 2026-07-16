@@ -360,10 +360,9 @@ library LibAccount {
 			ctUint128.unwrap(encryptedReserveVault.ciphertext.ciphertextHigh) == 0 &&
 			ctUint128.unwrap(encryptedReserveVault.ciphertext.ciphertextLow) == 0
 		) {
-			gtReserveBalance = MpcCore.setPublic256(uint256(0));
-			accountLayout.encryptedReserveVault[partyB] = MpcCore.offBoardCombined(gtReserveBalance, encryptionAddress);
-			accountLayout.observerEncryptedReserveVault[partyB] = LibEncryption.offBoardToObserver(gtReserveBalance);
-			return gtReserveBalance;
+			// Leave storage empty; callers persist via store. Avoids OffBoardToUser to
+			// un-onboarded contract addresses during setEncryptionAddress bootstrap.
+			return MpcCore.setPublic256(uint256(0));
 		}
 
 		return LockedValuesOps.safeOnboard(encryptedReserveVault.ciphertext);
@@ -392,10 +391,7 @@ library LibAccount {
 			ctUint128.unwrap(encryptedReimbursement.ciphertext.ciphertextHigh) == 0 &&
 			ctUint128.unwrap(encryptedReimbursement.ciphertext.ciphertextLow) == 0
 		) {
-			gtReimbursement = MpcCore.setPublic256(uint256(0));
-			accountLayout.encryptedPartyAReimbursement[partyA] = MpcCore.offBoardCombined(gtReimbursement, encryptionAddress);
-			accountLayout.observerEncryptedPartyAReimbursement[partyA] = LibEncryption.offBoardToObserver(gtReimbursement);
-			return gtReimbursement;
+			return MpcCore.setPublic256(uint256(0));
 		}
 
 		return LockedValuesOps.safeOnboard(encryptedReimbursement.ciphertext);
@@ -408,17 +404,13 @@ library LibAccount {
 	 */
 	function initializeFeeCollectorBalance(address feeCollector) internal returns (gtUint256 gtFeeBalance) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		address encryptionAddress = getUserEncryptionAddress(feeCollector);
 		utUint256 storage encryptedFeeBalance = accountLayout.encryptedFeeCollectorBalances[feeCollector];
 
 		if (
 			ctUint128.unwrap(encryptedFeeBalance.ciphertext.ciphertextHigh) == 0 &&
 			ctUint128.unwrap(encryptedFeeBalance.ciphertext.ciphertextLow) == 0
 		) {
-			gtFeeBalance = MpcCore.setPublic256(uint256(0));
-			accountLayout.encryptedFeeCollectorBalances[feeCollector] = MpcCore.offBoardCombined(gtFeeBalance, encryptionAddress);
-			accountLayout.observerEncryptedFeeCollectorBalances[feeCollector] = LibEncryption.offBoardToObserver(gtFeeBalance);
-			return gtFeeBalance;
+			return MpcCore.setPublic256(uint256(0));
 		}
 
 		return LockedValuesOps.safeOnboard(encryptedFeeBalance.ciphertext);

@@ -20,3 +20,6 @@ python3 utils/update_sig_checks.py 1
 | H-08 allocate/internalTransfer free-balance before limit | PASS | PASS | Public balance require before encrypted allocated-limit decrypt |
 | H-04 force-close Muon before price decrypt | PASS | PASS | verifyHighLowPrice before requestedClosePrice onboard; testnet has force-close cooldown |
 | H-32 emergency close insolvency vs liquidation | PASS | PASS | design-choice: solvency gate intentional; liq still works in PartyB emergency |
+| H-33 fee distributor encrypted claim | PASS | PASS | claimAllFeeCollectorBalance before getClaimable/withdraw |
+| H-34 force close after deadline | PASS | PASS | require block.timestamp <= quote.deadline |
+| H-35 force-close liq reward to PartyA | PASS | PASS | liquidatePartyBFromAvailable pays quote.partyA not msg.sender |

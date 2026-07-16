@@ -30,4 +30,12 @@ contract MockSymmio {
     function balanceOf(address user) external view returns (uint256) {
         return balances[user];
     }
+
+    function claimAllFeeCollectorBalance() external {
+        // No-op for unit tests that fund free balance via depositFor.
+    }
+
+    function setEncryptionAddress(address) external {
+        // No-op for unit tests.
+    }
 }

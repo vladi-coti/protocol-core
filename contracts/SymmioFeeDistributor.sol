@@ -17,6 +17,10 @@ interface ISymmioCore {
     function getCollateral() external view returns (address);
 
     function balanceOf(address user) external view returns (uint256);
+
+    function claimAllFeeCollectorBalance() external;
+
+    function setEncryptionAddress(address newEncryptionAddress) external;
 }
 
 /// @title SymmioFeeDistributor
@@ -149,6 +153,13 @@ contract SymmioFeeDistributor is Initializable, PausableUpgradeable, AccessContr
         emit StakeholdersUpdated(newStakeholders);
     }
 
+    /// @notice Sets the COTI encryption address for this distributor on Symmio (required when it is a fee collector).
+    /// @param newEncryptionAddress Onboarded EOA used for fee-collector ciphertext offboarding
+    function setSymmioEncryptionAddress(address newEncryptionAddress) external onlyRole(SETTER_ROLE) {
+        if (newEncryptionAddress == address(0)) revert ZeroAddress();
+        ISymmioCore(symmioAddress).setEncryptionAddress(newEncryptionAddress);
+    }
+
     /// @notice Calculates the total claimable fee amount from the Symmio contract, adjusted for token decimals
     /// @return The total claimable fee amount
     function getClaimable() internal view returns (uint256) {
@@ -158,8 +169,9 @@ contract SymmioFeeDistributor is Initializable, PausableUpgradeable, AccessContr
         return balance / (10 ** (18 - decimals));
     }
 
-    /// @notice Claims all available fees and distributes them to stakeholders
+    /// @notice Claims encrypted fee-collector accruals into free balance, then distributes all free balance
     function claimAllFee() external onlyRole(COLLECTOR_ROLE) whenNotPaused {
+        ISymmioCore(symmioAddress).claimAllFeeCollectorBalance();
         claimFee(getClaimable());
     }
 

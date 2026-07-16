@@ -80,6 +80,7 @@ library ForceActionsFacetImpl {
 		SymbolStorage.Layout storage symbolLayout = SymbolStorage.layout();
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
 		require(quote.quoteStatus == QuoteStatus.CLOSE_PENDING, "PartyAFacet: Invalid state");
+		require(block.timestamp <= quote.deadline, "PartyBFacet: Close request is expired");
 		require(sig.endTime + maLayout.forceCloseSecondCooldown <= quote.deadline, "PartyBFacet: Close request is expired");
 		require(quote.orderType == OrderType.LIMIT, "PartyBFacet: Quote's order type should be LIMIT");
 		require(sig.startTime >= quote.statusModifyTimestamp + maLayout.forceCloseFirstCooldown, "PartyAFacet: Cooldown not reached");
@@ -232,7 +233,7 @@ library ForceActionsFacetImpl {
 					LibEncryption.storePartyBLockedBalance(accountLayout, quote.partyB, quote.partyA, gtPartyBLocked);
 				}
 				// Available was computed before reserve credit; use post-reserve remaining deficit.
-				LibLiquidation.liquidatePartyBFromAvailable(quote.partyB, quote.partyA, gtWithReserve, block.timestamp);
+				LibLiquidation.liquidatePartyBFromAvailable(quote.partyB, quote.partyA, gtWithReserve, block.timestamp, quote.partyA);
 			}
 		}
 		// Get encrypted PartyB allocated balance for return (get fresh value)

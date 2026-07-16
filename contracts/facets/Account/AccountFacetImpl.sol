@@ -227,6 +227,16 @@ library AccountFacetImpl {
 		accountLayout.balances[msg.sender] += amount;
 	}
 
+	/// @notice Moves the full encrypted fee-collector accrual into the caller's free balance.
+	function claimAllFeeCollectorBalance() internal {
+		gtUint256 gtCurrentFeeBalance = LibAccount.initializeFeeCollectorBalance(msg.sender);
+		uint256 amount = MpcCore.decrypt(gtCurrentFeeBalance);
+		if (amount == 0) {
+			return;
+		}
+		claimFeeCollectorBalance(amount);
+	}
+
 	function setEncryptionAddress(address user, address newEncryptionAddress) internal {
 		LibAccountEncryption.setEncryptionAddress(user, newEncryptionAddress);
 	}

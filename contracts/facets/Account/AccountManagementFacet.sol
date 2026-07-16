@@ -31,4 +31,14 @@ contract AccountManagementFacet is Accessibility, Pausable, IAccountEvents {
 		AccountFacetImpl.claimFeeCollectorBalance(amount);
 		emit ClaimFeeCollectorBalance(msg.sender, amount, AccountStorage.layout().encryptedFeeCollectorBalances[msg.sender].userCiphertext);
 	}
+
+	/// @notice Moves the full encrypted fee-collector accrual into the caller's withdrawable balance.
+	function claimAllFeeCollectorBalance() external whenNotAccountingPaused notSuspended(msg.sender) {
+		uint256 beforeBal = AccountStorage.layout().balances[msg.sender];
+		AccountFacetImpl.claimAllFeeCollectorBalance();
+		uint256 amount = AccountStorage.layout().balances[msg.sender] - beforeBal;
+		if (amount > 0) {
+			emit ClaimFeeCollectorBalance(msg.sender, amount, AccountStorage.layout().encryptedFeeCollectorBalances[msg.sender].userCiphertext);
+		}
+	}
 }

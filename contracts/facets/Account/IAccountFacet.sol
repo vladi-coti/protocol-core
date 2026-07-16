@@ -39,4 +39,6 @@ interface IAccountFacet is IAccountEvents {
 	function withdrawFromReserveVault(uint256 amount) external;
 
 	function claimFeeCollectorBalance(uint256 amount) external;
+
+	function claimAllFeeCollectorBalance() external;
 }

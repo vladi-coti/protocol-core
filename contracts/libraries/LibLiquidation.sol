@@ -27,14 +27,26 @@ library LibLiquidation {
 	 */
 	function liquidatePartyB(address partyB, address partyA, int256 upnlPartyB, uint256 timestamp) internal {
 		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
-		_liquidatePartyBFromAvailable(partyB, partyA, gtAvailableBalance, timestamp);
+		_liquidatePartyBFromAvailable(partyB, partyA, gtAvailableBalance, timestamp, msg.sender);
 	}
 
-	function liquidatePartyBFromAvailable(address partyB, address partyA, gtInt256 gtAvailableBalance, uint256 timestamp) internal {
-		_liquidatePartyBFromAvailable(partyB, partyA, gtAvailableBalance, timestamp);
+	function liquidatePartyBFromAvailable(
+		address partyB,
+		address partyA,
+		gtInt256 gtAvailableBalance,
+		uint256 timestamp,
+		address liquidator
+	) internal {
+		_liquidatePartyBFromAvailable(partyB, partyA, gtAvailableBalance, timestamp, liquidator);
 	}
 
-	function _liquidatePartyBFromAvailable(address partyB, address partyA, gtInt256 gtAvailableBalance, uint256 timestamp) private {
+	function _liquidatePartyBFromAvailable(
+		address partyB,
+		address partyA,
+		gtInt256 gtAvailableBalance,
+		uint256 timestamp,
+		address liquidator
+	) private {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		MAStorage.Layout storage maLayout = MAStorage.layout();
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
@@ -129,17 +141,16 @@ library LibLiquidation {
 		
 		accountLayout.partyANonces[partyA] += 1;
 
-		// Transfer liquidator share to the liquidator
+		// Transfer liquidator share to the designated liquidator (not necessarily msg.sender).
 		if (MpcCore.decrypt(gtLiquidatorShare.gt(MpcCore.setPublic256(uint256(0))))) {
-			address liquidatorEncryptionAddress = LibAccount.getUserEncryptionAddress(msg.sender);
-			// Update liquidator balance with encrypted operations
-			gtUint256 gtLiquidatorBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
+			LibAccount.initializePartyA(liquidator);
+			address liquidatorEncryptionAddress = LibAccount.getUserEncryptionAddress(liquidator);
+			gtUint256 gtLiquidatorBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[liquidator].ciphertext);
 			gtUint256 gtNewLiquidatorBalance = gtLiquidatorBalance.checkedAdd(gtLiquidatorShare);
-			LibEncryption.storePartyAAllocatedBalance(accountLayout, msg.sender, gtNewLiquidatorBalance);
-			
-			// Emit encrypted event
+			LibEncryption.storePartyAAllocatedBalance(accountLayout, liquidator, gtNewLiquidatorBalance);
+
 			ctUint256 memory ctLiquidatorShare = MpcCore.offBoardToUser(gtLiquidatorShare, liquidatorEncryptionAddress);
-			emit SharedEvents.BalanceChangePartyA(msg.sender, ctLiquidatorShare, SharedEvents.BalanceChangeType.LF_IN);
+			emit SharedEvents.BalanceChangePartyA(liquidator, ctLiquidatorShare, SharedEvents.BalanceChangeType.LF_IN);
 		}
 	}
 }
