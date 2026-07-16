@@ -480,6 +480,9 @@ module.exports = {
                 let { partyA, chainId, symmio } = params
                 const result = await this.uPnlPartyA(partyA, chainId, symmio, latestBlockNumber)
                 delete result.openPositions
+                delete result.uPnl
+                delete result.loss
+                delete result.notionalValueSum
                 let liquidationId
                 if (request.data.result) {
                     liquidationId = request.data.result.liquidationId
@@ -491,7 +494,7 @@ module.exports = {
             }
 
             case 'verify': {
-                let { signature, reqId, nonceAddress, start, size, liquidationId, symmio, partyA, nonce, uPnl, loss, symbolIds, prices, timestamp, chainId } = params
+                let { signature, reqId, nonceAddress, start, size, liquidationId, symmio, partyA, nonce, symbolIds, prices, timestamp, chainId } = params
                 start = parseInt(start)
                 size = parseInt(size)
                 symbolIds = JSON.parse(symbolIds)
@@ -506,8 +509,6 @@ module.exports = {
                     { type: 'string', value: 'verifyLiquidationSig' },
                     { type: 'address', value: partyA },
                     { type: 'uint256', value: nonce },
-                    { type: 'int256', value: uPnl },
-                    { type: 'int256', value: loss },
                     { type: 'uint256[]', value: symbolIds },
                     { type: 'uint256[]', value: prices },
                     { type: 'uint256', value: timestamp },
@@ -524,8 +525,6 @@ module.exports = {
                     symmio,
                     partyA,
                     nonce,
-                    uPnl,
-                    loss,
                     symbolIds: symbolIds.slice(start, start + size),
                     prices: prices.slice(start, start + size),
                     timestamp,
@@ -539,18 +538,27 @@ module.exports = {
                 const result = await this.uPnlPartyA(partyA, chainId, symmio, latestBlockNumber)
                 const price = await this.getSymbolPrice(symbolId, result.pricesMap, result.markPrices, result.maxLeverages, symmio, chainId, latestBlockNumber)
                 delete result.openPositions
+                delete result.uPnl
+                delete result.loss
+                delete result.notionalValueSum
                 return Object.assign({}, { chainId, partyA, symbolId, price, symmio, latestBlockNumber }, result)
             }
 
             case 'uPnl_B': {
                 let { partyB, partyA, chainId, symmio } = params
                 const result = await this.uPnlPartyB(partyB, partyA, chainId, symmio, latestBlockNumber)
+                delete result.uPnl
+                delete result.notionalValueSum
                 return Object.assign({}, { chainId, partyB, partyA, symmio, latestBlockNumber }, result)
             }
 
             case 'uPnl': {
                 let { partyB, partyA, chainId, symmio } = params
                 const result = await this.uPnlParties(partyB, partyA, chainId, symmio, latestBlockNumber)
+                delete result.uPnlB
+                delete result.uPnlA
+                delete result.notionalValueSumB
+                delete result.notionalValueSumA
                 return Object.assign({}, { chainId, partyB, partyA, symmio, latestBlockNumber }, result)
             }
 
@@ -558,6 +566,10 @@ module.exports = {
                 let { partyB, partyA, chainId, symbolId, symmio } = params
                 const result = await this.uPnlParties(partyB, partyA, chainId, symmio, latestBlockNumber)
                 const price = await this.getSymbolPrice(symbolId, result.pricesMap, result.markPrices, result.maxLeverages, symmio, chainId, latestBlockNumber)
+                delete result.uPnlB
+                delete result.uPnlA
+                delete result.notionalValueSumB
+                delete result.notionalValueSumA
                 return Object.assign({}, { chainId, partyB, partyA, symbolId, price, symmio, latestBlockNumber }, result)
             }
 
@@ -584,28 +596,21 @@ module.exports = {
         let { method } = request;
         switch (method) {
             case 'uPnl_A': {
-                let { partyA, uPnl, notionalValueSum, nonce, chainId, symmio } = result
-
-                if (!this.isUpnlToleranceOk(uPnl, request.data.result.uPnl, notionalValueSum, UPNL_TOLERANCE).isOk)
-                    throw { message: 'uPnl Tolerance Error' }
+                let { partyA, nonce, chainId, symmio, quoteIds, prices } = result
 
                 return [
                     { type: 'address', value: symmio },
                     { type: 'address', value: partyA },
                     { type: 'uint256', value: nonce },
-                    { type: 'int256', value: request.data.result.uPnl },
+                    { type: 'uint256[]', value: quoteIds },
+                    { type: 'uint256[]', value: request.data.result.prices },
                     { type: 'uint256', value: request.data.timestamp },
                     { type: 'uint256', value: chainId },
                 ]
             }
 
             case 'partyA_overview': {
-                let { partyA, uPnl, loss, symbolIds, notionalValueSum, nonce, chainId, symmio, liquidationId } = result
-
-                if (!this.isUpnlToleranceOk(uPnl, request.data.result.uPnl, notionalValueSum, UPNL_TOLERANCE).isOk)
-                    throw { message: 'uPnl Tolerance Error' }
-                if (!this.isUpnlToleranceOk(loss, request.data.result.loss, notionalValueSum, UPNL_TOLERANCE).isOk)
-                    throw { message: 'Loss Tolerance Error' }
+                let { partyA, symbolIds, nonce, chainId, symmio, liquidationId } = result
 
                 return [
                     { type: 'bytes', value: liquidationId },
@@ -613,8 +618,6 @@ module.exports = {
                     { type: 'string', value: 'verifyLiquidationSig' },
                     { type: 'address', value: partyA },
                     { type: 'uint256', value: nonce },
-                    { type: 'int256', value: request.data.result.uPnl },
-                    { type: 'int256', value: request.data.result.loss },
                     { type: 'uint256[]', value: symbolIds },
                     { type: 'uint256[]', value: request.data.result.symbolIdsPrices },
                     { type: 'uint256', value: request.data.timestamp },
@@ -623,7 +626,7 @@ module.exports = {
             }
 
             case 'verify': {
-                let { liquidationId, partyA, nonce, uPnl, loss, symbolIds, prices, timestamp, chainId, symmio } = result
+                let { liquidationId, partyA, nonce, symbolIds, prices, timestamp, chainId, symmio } = result
 
                 return [
                     { type: 'bytes', value: liquidationId },
@@ -631,8 +634,6 @@ module.exports = {
                     { type: 'string', value: 'verifyLiquidationSig' },
                     { type: 'address', value: partyA },
                     { type: 'uint256', value: nonce },
-                    { type: 'int256', value: uPnl },
-                    { type: 'int256', value: loss },
                     { type: 'uint256[]', value: symbolIds },
                     { type: 'uint256[]', value: prices },
                     { type: 'uint256', value: timestamp },
@@ -641,10 +642,8 @@ module.exports = {
             }
 
             case 'uPnl_A_withSymbolPrice': {
-                let { partyA, uPnl, symbolId, price, notionalValueSum, nonce, chainId, symmio } = result
+                let { partyA, symbolId, price, nonce, chainId, symmio, quoteIds, prices } = result
 
-                if (!this.isUpnlToleranceOk(uPnl, request.data.result.uPnl, notionalValueSum, UPNL_TOLERANCE).isOk)
-                    throw { message: 'uPnl Tolerance Error' }
                 if (!this.isPriceToleranceOk(price, request.data.result.price, PRICE_TOLERANCE).isOk)
                     throw { message: `Price Tolerance Error` }
 
@@ -652,38 +651,32 @@ module.exports = {
                     { type: 'address', value: symmio },
                     { type: 'address', value: partyA },
                     { type: 'uint256', value: nonce },
-                    { type: 'int256', value: request.data.result.uPnl },
                     { type: 'uint256', value: symbolId },
                     { type: 'uint256', value: request.data.result.price },
+                    { type: 'uint256[]', value: quoteIds },
+                    { type: 'uint256[]', value: prices },
                     { type: 'uint256', value: request.data.timestamp },
                     { type: 'uint256', value: chainId },
                 ]
             }
 
             case 'uPnl_B': {
-                let { partyB, partyA, uPnl, notionalValueSum, nonce, chainId, symmio } = result
-
-                if (!this.isUpnlToleranceOk(uPnl, request.data.result.uPnl, notionalValueSum, UPNL_TOLERANCE).isOk)
-                    throw { message: 'uPnl Tolerance Error' }
+                let { partyB, partyA, nonce, chainId, symmio, quoteIds, prices } = result
 
                 return [
                     { type: 'address', value: symmio },
                     { type: 'address', value: partyB },
                     { type: 'address', value: partyA },
                     { type: 'uint256', value: nonce },
-                    { type: 'int256', value: request.data.result.uPnl },
+                    { type: 'uint256[]', value: quoteIds },
+                    { type: 'uint256[]', value: request.data.result.prices },
                     { type: 'uint256', value: request.data.timestamp },
                     { type: 'uint256', value: chainId },
                 ]
             }
 
             case 'uPnl': {
-                let { partyB, partyA, uPnlB, uPnlA, notionalValueSumB, notionalValueSumA, nonceB, nonceA, chainId, symmio } = result
-
-                if (!this.isUpnlToleranceOk(uPnlB, request.data.result.uPnlB, notionalValueSumB, UPNL_TOLERANCE).isOk)
-                    throw { message: 'uPnl Tolerance Error' }
-                if (!this.isUpnlToleranceOk(uPnlA, request.data.result.uPnlA, notionalValueSumA, UPNL_TOLERANCE).isOk)
-                    throw { message: 'uPnl Tolerance Error' }
+                let { partyB, partyA, nonceB, nonceA, chainId, symmio, quoteIdsB, quoteIdsA, pricesB, pricesA } = result
 
                 return [
                     { type: 'address', value: symmio },
@@ -691,20 +684,18 @@ module.exports = {
                     { type: 'address', value: partyA },
                     { type: 'uint256', value: nonceB },
                     { type: 'uint256', value: nonceA },
-                    { type: 'int256', value: request.data.result.uPnlB },
-                    { type: 'int256', value: request.data.result.uPnlA },
+                    { type: 'uint256[]', value: quoteIdsA },
+                    { type: 'uint256[]', value: request.data.result.pricesA },
+                    { type: 'uint256[]', value: quoteIdsB },
+                    { type: 'uint256[]', value: request.data.result.pricesB },
                     { type: 'uint256', value: request.data.timestamp },
                     { type: 'uint256', value: chainId },
                 ]
             }
 
             case 'uPnlWithSymbolPrice': {
-                let { partyB, partyA, uPnlB, uPnlA, symbolId, price, notionalValueSumB, notionalValueSumA, nonceB, nonceA, chainId, symmio } = result
+                let { partyB, partyA, symbolId, price, nonceB, nonceA, chainId, symmio, quoteIdsB, quoteIdsA, pricesB, pricesA } = result
 
-                if (!this.isUpnlToleranceOk(uPnlB, request.data.result.uPnlB, notionalValueSumB, UPNL_TOLERANCE).isOk)
-                    throw { message: 'uPnl Tolerance Error' }
-                if (!this.isUpnlToleranceOk(uPnlA, request.data.result.uPnlA, notionalValueSumA, UPNL_TOLERANCE).isOk)
-                    throw { message: 'uPnl Tolerance Error' }
                 if (!this.isPriceToleranceOk(price, request.data.result.price, PRICE_TOLERANCE).isOk)
                     throw { message: `Price Tolerance Error` }
 
@@ -714,10 +705,12 @@ module.exports = {
                     { type: 'address', value: partyA },
                     { type: 'uint256', value: nonceB },
                     { type: 'uint256', value: nonceA },
-                    { type: 'int256', value: request.data.result.uPnlB },
-                    { type: 'int256', value: request.data.result.uPnlA },
                     { type: 'uint256', value: symbolId },
                     { type: 'uint256', value: request.data.result.price },
+                    { type: 'uint256[]', value: quoteIdsA },
+                    { type: 'uint256[]', value: pricesA },
+                    { type: 'uint256[]', value: quoteIdsB },
+                    { type: 'uint256[]', value: pricesB },
                     { type: 'uint256', value: request.data.timestamp },
                     { type: 'uint256', value: chainId },
                 ]

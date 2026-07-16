@@ -17,43 +17,27 @@ library LibSolvency {
 	using LockedValuesOps for LockedValues;
 	using LockedValuesOps for GarbledLockedValues;
 
-	/**
-	 * @dev Checks whether both parties (Party A and Party B) will remain solvent after opening positions for given quotes.
-	 * @param quoteId The ID of the quote for which the position is being opened.
-	 * @param gtFilledAmount The encrypted amount of the quote that will be filled by opening the position.
-	 * @param gtOpenedPrice The encrypted opened price of the position.
-	 * @param marketPrice The market price of the position that will be opened.
-	 * @param upnlPartyB The upnl of partyB
-	 * @param upnlPartyA The upnl of partyA
-	 * @param partyB Address of partyB
-	 * @param partyA Address of partyA
-	 * @return A boolean indicating whether both parties remain solvent after opening the position.
-	 */
 	function isSolventAfterOpenPosition(
 		uint256 quoteId,
 		gtUint256 gtFilledAmount,
 		gtUint256 gtOpenedPrice,
 		uint256 marketPrice,
-		int256 upnlPartyB,
-		int256 upnlPartyA,
+		gtInt256 gtUpnlPartyB,
+		gtInt256 gtUpnlPartyA,
 		address partyB,
 		address partyA
 	) internal returns (bool) {
-		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
-		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
-			upnlPartyA,
-			partyA
-		);
-		
+		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(gtUpnlPartyB, partyB, partyA);
+		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(gtUpnlPartyA, partyA);
+
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
-		
-		// Convert marketPrice to encrypted value for comparison
+
 		gtUint256 gtMarketPrice = MpcCore.setPublic256(marketPrice);
 		gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e18));
 		gtBool gtOpenedPriceGteMarket = gtOpenedPrice.ge(gtMarketPrice);
 		gtUint256 gtPriceDiff = MpcCore.max(gtOpenedPrice, gtMarketPrice).checkedSub(MpcCore.min(gtOpenedPrice, gtMarketPrice));
 		gtInt256 gtDiff = LibEncryption.toNonNegativeSigned(gtFilledAmount.checkedMul(gtPriceDiff).div(gtScaleFactor));
-		
+
 		if (quote.positionType == PositionType.LONG) {
 			gtPartyAAvailableBalance = MpcCore.mux(
 				gtOpenedPriceGteMarket,
@@ -77,86 +61,32 @@ library LibSolvency {
 				gtPartyBAvailableBalance.checkedSub(gtDiff)
 			);
 		}
-		
-		// Check solvency using encrypted comparisons - decrypt only the boolean results
+
 		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
-		gtBool gtPartyBSolvent = gtPartyBAvailableBalance.ge(gtZero);
-		gtBool gtPartyASolvent = gtPartyAAvailableBalance.ge(gtZero);
-		
-		require(MpcCore.decrypt(gtPartyBSolvent.and(gtPartyASolvent)), "LibSolvency: Available balance is lower than zero");
+		require(MpcCore.decrypt(gtPartyBAvailableBalance.ge(gtZero).and(gtPartyAAvailableBalance.ge(gtZero))), "LibSolvency: Available balance is lower than zero");
 		return true;
 	}
 
-	/**
-	 * @dev Calculates the available balances for Party A and Party B after closing positions for given quotes.
-	 * @param quoteIds The ID of the quotes for which the position is being closed.
-	 * @param gtFilledAmounts The encrypted amounts of the quotes that will be filled by closing the position.
-	 * @param gtClosedPrices The encrypted prices at which the positions will be closed.
-	 * @param marketPrices The market price of positions that will be closed.
-	 * @param upnlPartyB The upnl of partyB
-	 * @param upnlPartyA The upnl of partyA
-	 * @param partyB Address of partyB
-	 * @param partyA Address of partyA
-	 * @return gtPartyBAvailableBalance The available balance for Party B after closing the position (encrypted).
-	 * @return gtPartyAAvailableBalance The available balance for Party A after closing the position (encrypted).
-	 */
 	function getAvailableBalanceAfterClosePosition(
 		uint256[] memory quoteIds,
 		gtUint256[] memory gtFilledAmounts,
 		gtUint256[] memory gtClosedPrices,
 		uint256[] memory marketPrices,
-		int256 upnlPartyB,
-		int256 upnlPartyA,
+		gtInt256 gtUpnlPartyB,
+		gtInt256 gtUpnlPartyA,
 		address partyB,
 		address partyA
-	) internal returns (gtInt256, gtInt256) {
-		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
-		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
-			upnlPartyA,
+	) internal returns (gtInt256 gtPartyBAvailableBalance, gtInt256 gtPartyAAvailableBalance) {
+		(gtPartyBAvailableBalance, gtPartyAAvailableBalance,) = getAvailableBalanceAndPartyBUpnlAfterClosePosition(
+			quoteIds,
+			gtFilledAmounts,
+			gtClosedPrices,
+			marketPrices,
+			gtUpnlPartyB,
+			gtUpnlPartyA,
+			partyB,
 			partyA
 		);
-		
-		for (uint8 i = 0; i < quoteIds.length; i++) {
-			uint256 quoteId = quoteIds[i];
-			gtUint256 gtFilledAmount = gtFilledAmounts[i];
-			gtUint256 gtClosedPrice = gtClosedPrices[i];
-			uint256 marketPrice = marketPrices[i];
-			Quote storage quote = QuoteStorage.layout().quotes[quoteId];
-			
-			// Calculate unlocked amount with encrypted values
-			GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
-			gtUint256 gtCvaLf = gtLockedValues.cva.checkedAdd(gtLockedValues.lf);
-			gtUint256 gtQuoteOpenAmount = LibQuote.quoteOpenAmount(quote);
-			gtUint256 gtUnlockedAmount = gtFilledAmount.checkedMul(gtCvaLf).div(gtQuoteOpenAmount);
-
-			// Add unlocked amount to both parties (this is always positive)
-			gtPartyBAvailableBalance = gtPartyBAvailableBalance.checkedAdd(LibEncryption.toNonNegativeSigned(gtUnlockedAmount));
-			gtPartyAAvailableBalance = gtPartyAAvailableBalance.checkedAdd(LibEncryption.toNonNegativeSigned(gtUnlockedAmount));
-
-			// Convert market price to encrypted value for comparison
-			gtUint256 gtMarketPrice = MpcCore.setPublic256(marketPrice);
-			gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e18));
-
-			if (quote.positionType == PositionType.LONG) {
-				gtBool gtClosedPriceGteMarket = gtClosedPrice.ge(gtMarketPrice);
-
-				gtUint256 gtPriceDiff = MpcCore.max(gtClosedPrice, gtMarketPrice).checkedSub(MpcCore.min(gtClosedPrice, gtMarketPrice));
-				gtInt256 gtDiff = LibEncryption.toNonNegativeSigned(gtFilledAmount.checkedMul(gtPriceDiff).div(gtScaleFactor));
-				
-				gtPartyBAvailableBalance = MpcCore.mux(gtClosedPriceGteMarket, gtPartyBAvailableBalance.checkedAdd(gtDiff), gtPartyBAvailableBalance.checkedSub(gtDiff));
-				gtPartyAAvailableBalance = MpcCore.mux(gtClosedPriceGteMarket, gtPartyAAvailableBalance.checkedSub(gtDiff), gtPartyAAvailableBalance.checkedAdd(gtDiff));
-			} else if (quote.positionType == PositionType.SHORT) {
-				gtBool gtClosedPriceLteMarket = gtClosedPrice.le(gtMarketPrice);
-
-				gtUint256 gtPriceDiff = MpcCore.max(gtClosedPrice, gtMarketPrice).checkedSub(MpcCore.min(gtClosedPrice, gtMarketPrice));
-				gtInt256 gtDiff = LibEncryption.toNonNegativeSigned(gtFilledAmount.checkedMul(gtPriceDiff).div(gtScaleFactor));
-				
-				gtPartyBAvailableBalance = MpcCore.mux(gtClosedPriceLteMarket, gtPartyBAvailableBalance.checkedAdd(gtDiff), gtPartyBAvailableBalance.checkedSub(gtDiff));
-				gtPartyAAvailableBalance = MpcCore.mux(gtClosedPriceLteMarket, gtPartyAAvailableBalance.checkedSub(gtDiff), gtPartyAAvailableBalance.checkedAdd(gtDiff));
-			}
-		}
-		
-		return (gtPartyBAvailableBalance, gtPartyAAvailableBalance);
 	}
 
 	function getAvailableBalanceAndPartyBUpnlAfterClosePosition(
@@ -164,14 +94,14 @@ library LibSolvency {
 		gtUint256[] memory gtFilledAmounts,
 		gtUint256[] memory gtClosedPrices,
 		uint256[] memory marketPrices,
-		int256 upnlPartyB,
-		int256 upnlPartyA,
+		gtInt256 gtUpnlPartyB,
+		gtInt256 gtUpnlPartyA,
 		address partyB,
 		address partyA
 	) internal returns (gtInt256, gtInt256, gtInt256) {
-		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
-		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(upnlPartyA, partyA);
-		gtInt256 gtPartyBUpnlAfterClose = MpcCore.setPublic256(upnlPartyB);
+		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(gtUpnlPartyB, partyB, partyA);
+		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(gtUpnlPartyA, partyA);
+		gtInt256 gtPartyBUpnlAfterClose = gtUpnlPartyB;
 		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
 
 		for (uint8 i = 0; i < quoteIds.length; i++) {
@@ -216,25 +146,13 @@ library LibSolvency {
 		return (gtPartyBAvailableBalance, gtPartyAAvailableBalance, gtPartyBUpnlAfterClose);
 	}
 
-	/**
-	 * @dev Checks whether both parties (Party A and Party B) will remain solvent after closing positions for given quotes.
-	 * @param quoteIds The ID of the quotes for which the position is being closed.
-	 * @param gtFilledAmounts The encrypted amounts of the quotes that will be filled by closing the position.
-	 * @param gtClosedPrices The encrypted prices at which the positions will be closed.
-	 * @param marketPrices The market price of positions that will be closed.
-	 * @param upnlPartyB The upnl of partyB
-	 * @param upnlPartyA The upnl of partyA
-	 * @param partyB Address of partyB
-	 * @param partyA Address of partyA
-	 * @return A boolean indicating whether both parties remain solvent after closing the position.
-	 */
 	function isSolventAfterClosePosition(
 		uint256[] memory quoteIds,
 		gtUint256[] memory gtFilledAmounts,
 		gtUint256[] memory gtClosedPrices,
 		uint256[] memory marketPrices,
-		int256 upnlPartyB,
-		int256 upnlPartyA,
+		gtInt256 gtUpnlPartyB,
+		gtInt256 gtUpnlPartyA,
 		address partyB,
 		address partyA
 	) internal returns (bool) {
@@ -243,19 +161,15 @@ library LibSolvency {
 			gtFilledAmounts,
 			gtClosedPrices,
 			marketPrices,
-			upnlPartyB,
-			upnlPartyA,
+			gtUpnlPartyB,
+			gtUpnlPartyA,
 			partyB,
 			partyA
 		);
 
-		// Check solvency using encrypted comparisons - decrypt only the boolean results
 		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
-		gtBool gtPartyBSolvent = gtPartyBAvailableBalance.ge(gtZero);
-		gtBool gtPartyASolvent = gtPartyAAvailableBalance.ge(gtZero);
-		
-		require(MpcCore.decrypt(gtPartyBSolvent), "LibSolvency: Available partyB balance is lower than zero");
-		require(MpcCore.decrypt(gtPartyASolvent), "LibSolvency: Available partyA balance is lower than zero");
+		require(MpcCore.decrypt(gtPartyBAvailableBalance.ge(gtZero)), "LibSolvency: Available partyB balance is lower than zero");
+		require(MpcCore.decrypt(gtPartyAAvailableBalance.ge(gtZero)), "LibSolvency: Available partyA balance is lower than zero");
 		return true;
 	}
 }

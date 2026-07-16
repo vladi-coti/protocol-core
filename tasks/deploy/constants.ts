@@ -24,7 +24,7 @@ export const FacetNames = [
 export const LibraryNames = [
 	"LibAccountEncryption",
 	"ForceActionsFacetImpl",
-	"PartyBGroupActionsFacetImpl",
+	"PartyBPositionActionsFacetImpl",
 ]
 
 export const DEPLOYMENT_LOG_FILE = "deployed.json"

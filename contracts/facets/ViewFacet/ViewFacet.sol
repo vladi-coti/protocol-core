@@ -947,6 +947,10 @@ contract ViewFacet is IViewFacet {
 		return MAStorage.layout().pendingQuotesValidLength;
 	}
 
+	function maxPartyAOpenPositions() external view returns (uint256) {
+		return MAStorage.layout().maxPartyAOpenPositions;
+	}
+
 	/**
 	 * @notice Returns the force close gap ratio.
 	 * @param symbolId The symbolId that this ratio is for.

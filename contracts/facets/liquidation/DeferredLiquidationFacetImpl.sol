@@ -11,6 +11,7 @@ import "../../libraries/LibQuote.sol";
 import "../../libraries/LibLiquidation.sol";
 import "../../libraries/SharedEvents.sol";
 import "../../libraries/LibEncryption.sol";
+import "../../libraries/LibOnChainUpnl.sol";
 import "../../storages/MAStorage.sol";
 import "../../storages/QuoteStorage.sol";
 import "../../storages/MuonStorage.sol";
@@ -38,11 +39,8 @@ library DeferredLiquidationFacetImpl {
 
 		LibMuonLiquidation.verifyDeferredLiquidationSig(liquidationSig, partyA);
 
-		gtInt256 gtLiquidationAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
-			liquidationSig.upnl,
-			liquidationSig.liquidationAllocatedBalance,
-			partyA
-		);
+		(gtInt256 gtUpnl, gtInt256 gtTotalUnrealizedLoss) = LibOnChainUpnl.partyAUpnlAndLossFromSymbolPrices(partyA, liquidationSig.symbolIds, liquidationSig.prices);
+		gtInt256 gtLiquidationAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(gtUpnl, partyA);
 		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
 		require(MpcCore.decrypt(gtLiquidationAvailableBalance.lt(gtZero)), "LiquidationFacet: PartyA is solvent");
 
@@ -63,8 +61,8 @@ library DeferredLiquidationFacetImpl {
 		accountLayout.liquidationDetails[partyA] = LiquidationDetail({
 			liquidationId: liquidationSig.liquidationId,
 			liquidationType: LiquidationType.NONE,
-			upnl: liquidationSig.upnl,
-			totalUnrealizedLoss: liquidationSig.totalUnrealizedLoss,
+			upnl: LibEncryption.offBoardToUser(gtUpnl, LibAccount.getUserEncryptionAddress(partyA)),
+			totalUnrealizedLoss: LibEncryption.offBoardToUser(gtTotalUnrealizedLoss, LibAccount.getUserEncryptionAddress(partyA)),
 			deficit: 0,
 			liquidationFee: 0,
 			timestamp: liquidationSig.timestamp,
@@ -96,11 +94,9 @@ library DeferredLiquidationFacetImpl {
 			accountLayout.symbolsPrices[partyA][liquidationSig.symbolIds[index]] = Price(liquidationSig.prices[index], detail.timestamp);
 		}
 
-		gtInt256 gtAvailableBalance2 = LibAccount.partyAAvailableBalanceForLiquidation(
-			liquidationSig.upnl,
-			liquidationSig.liquidationAllocatedBalance,
-			partyA
-		);
+		(gtInt256 gtUpnl, gtInt256 gtTotalUnrealizedLoss) = LibOnChainUpnl.partyAUpnlAndLossFromSymbolPrices(partyA, liquidationSig.symbolIds, liquidationSig.prices);
+		gtInt256 gtAvailableBalance2 = LibAccount.partyAAvailableBalanceForLiquidation(gtUpnl, partyA);
+		detail.totalUnrealizedLoss = LibEncryption.offBoardToUser(gtTotalUnrealizedLoss, LibAccount.getUserEncryptionAddress(partyA));
 		if (detail.liquidationType == LiquidationType.NONE) {
 			gtUint256 gtLf = LockedValuesOps.safeOnboard(accountLayout.lockedBalances[partyA].lf.ciphertext);
 			gtUint256 gtCva = LockedValuesOps.safeOnboard(accountLayout.lockedBalances[partyA].cva.ciphertext);

@@ -15,14 +15,21 @@ library LibMuonSettlement {
 		require(block.timestamp <= settleSig.timestamp + muonLayout.upnlValidTime, "LibMuon: Expired signature");
 		// == ) ==
 		bytes memory encodedData;
+		bytes memory encodedPartyBPrices;
 		uint256[] memory nonces = new uint256[](settleSig.quotesSettlementsData.length);
 		for (uint8 i = 0; i < settleSig.quotesSettlementsData.length; i++) {
 			nonces[i] = AccountStorage.layout().partyBNonces[QuoteStorage.layout().quotes[settleSig.quotesSettlementsData[i].quoteId].partyB][partyA];
 			encodedData = abi.encodePacked(
 				encodedData,  // Append the previously encoded data
 				settleSig.quotesSettlementsData[i].quoteId,
-				settleSig.quotesSettlementsData[i].currentPrice,
-				settleSig.quotesSettlementsData[i].partyBUpnlIndex
+				settleSig.quotesSettlementsData[i].currentPrice
+			);
+		}
+		for (uint8 i = 0; i < settleSig.partyBPriceSigs.length; i++) {
+			encodedPartyBPrices = abi.encodePacked(
+				encodedPartyBPrices,
+				settleSig.partyBPriceSigs[i].quoteIds,
+				settleSig.partyBPriceSigs[i].prices
 			);
 		}
 		bytes32 hash = keccak256(
@@ -34,8 +41,9 @@ library LibMuonSettlement {
 				nonces,
 				AccountStorage.layout().partyANonces[partyA],
 				encodedData,
-				settleSig.upnlPartyBs,
-				settleSig.upnlPartyA,
+				settleSig.partyAPriceSig.quoteIds,
+				settleSig.partyAPriceSig.prices,
+				encodedPartyBPrices,
 				settleSig.timestamp,
 				LibMuon.getChainId()
 			)

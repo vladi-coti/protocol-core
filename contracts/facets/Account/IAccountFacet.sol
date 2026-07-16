@@ -23,6 +23,8 @@ interface IAccountFacet is IAccountEvents {
 
 	function deallocate(uint256 amount, SingleUpnlSig memory upnlSig) external;
 
+	function deallocateWithQuotePrices(uint256 amount, QuotePriceSig memory priceSig) external;
+
 	function internalTransfer(address user, uint256 amount) external;
 
 	function setEncryptionAddress(address newEncryptionAddress) external;

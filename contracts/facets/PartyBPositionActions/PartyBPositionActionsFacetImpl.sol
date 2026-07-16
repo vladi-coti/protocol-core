@@ -8,6 +8,7 @@ import "../../libraries/muon/LibMuonPartyB.sol";
 import "../../libraries/LibSolvency.sol";
 import "../../libraries/LibPartyBPositionsActions.sol";
 import "../../libraries/LibEncryption.sol";
+import "../../libraries/LibOnChainUpnl.sol";
 
 library PartyBPositionActionsFacetImpl {
 	using MpcCore for gtUint256;
@@ -21,7 +22,7 @@ library PartyBPositionActionsFacetImpl {
 		gtUint256 gtFilledAmount,
 		gtUint256 gtOpenedPrice,
 		PairUpnlAndPriceSig memory upnlSig
-	) internal returns (uint256 currentId) {
+	) public returns (uint256 currentId) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		GlobalAppStorage.Layout storage appLayout = GlobalAppStorage.layout();
 
@@ -36,13 +37,15 @@ library PartyBPositionActionsFacetImpl {
 		accountLayout.partyBNonces[quote.partyB][quote.partyA] += 1;
 
 		currentId = LibPartyBPositionsActions.openPosition(quoteId, gtFilledAmount, gtOpenedPrice);
+		gtInt256 gtPartyBUpnl = LibOnChainUpnl.partyBUpnlFromQuotePrices(quote.partyB, quote.partyA, LibOnChainUpnl.partyBPriceSigFromPairAndPrice(upnlSig));
+		gtInt256 gtPartyAUpnl = LibOnChainUpnl.partyAUpnlFromQuotePrices(quote.partyA, LibOnChainUpnl.partyAPriceSigFromPairAndPrice(upnlSig));
 		LibSolvency.isSolventAfterOpenPosition(
 			quoteId,
 			gtFilledAmount,
 			gtOpenedPrice,
 			upnlSig.price,
-			upnlSig.upnlPartyB,
-			upnlSig.upnlPartyA,
+			gtPartyBUpnl,
+			gtPartyAUpnl,
 			quote.partyB,
 			quote.partyA
 		);
@@ -59,7 +62,9 @@ library PartyBPositionActionsFacetImpl {
 		gtClosedPrices[0] = gtClosedPrice;
 		uint256[] memory marketPrices = new uint256[](1);
 		marketPrices[0] = upnlSig.price;
-		LibSolvency.isSolventAfterClosePosition(quoteIds, gtFilledAmounts, gtClosedPrices, marketPrices, upnlSig.upnlPartyB, upnlSig.upnlPartyA, quote.partyB, quote.partyA);
+		gtInt256 gtPartyBUpnl = LibOnChainUpnl.partyBUpnlFromQuotePrices(quote.partyB, quote.partyA, LibOnChainUpnl.partyBPriceSigFromPairAndPrice(upnlSig));
+		gtInt256 gtPartyAUpnl = LibOnChainUpnl.partyAUpnlFromQuotePrices(quote.partyA, LibOnChainUpnl.partyAPriceSigFromPairAndPrice(upnlSig));
+		LibSolvency.isSolventAfterClosePosition(quoteIds, gtFilledAmounts, gtClosedPrices, marketPrices, gtPartyBUpnl, gtPartyAUpnl, quote.partyB, quote.partyA);
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		accountLayout.partyBNonces[quote.partyB][quote.partyA]++;
 		accountLayout.partyANonces[quote.partyA]++;
@@ -98,8 +103,10 @@ library PartyBPositionActionsFacetImpl {
 		LibEncryption.storeQuoteRequestedClosePrice(quoteLayout, quote, gtPrice);
 		
 		// Check solvency with encrypted balance calculations
-		gtInt256 gtPartyAAvailable = LibAccount.partyAAvailableBalanceForLiquidation(upnlSig.upnlPartyA, quote.partyA);
-		gtInt256 gtPartyBAvailable = LibAccount.partyBAvailableBalanceForLiquidation(upnlSig.upnlPartyB, quote.partyB, quote.partyA);
+		gtInt256 gtPartyAUpnl = LibOnChainUpnl.partyAUpnlFromQuotePrices(quote.partyA, LibOnChainUpnl.partyAPriceSigFromPairAndPrice(upnlSig));
+		gtInt256 gtPartyBUpnl = LibOnChainUpnl.partyBUpnlFromQuotePrices(quote.partyB, quote.partyA, LibOnChainUpnl.partyBPriceSigFromPairAndPrice(upnlSig));
+		gtInt256 gtPartyAAvailable = LibAccount.partyAAvailableBalanceForLiquidation(gtPartyAUpnl, quote.partyA);
+		gtInt256 gtPartyBAvailable = LibAccount.partyBAvailableBalanceForLiquidation(gtPartyBUpnl, quote.partyB, quote.partyA);
 		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
 		
 		require(MpcCore.decrypt(gtPartyAAvailable.ge(gtZero)), "PBF:A insol");

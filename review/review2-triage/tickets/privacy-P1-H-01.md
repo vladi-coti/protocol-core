@@ -4,7 +4,7 @@ labels: [group:privacy-leak, wayfinder:research, wayfinder:grilling]
 priority: P1
 finding: H-01
 severity: High
-status: open
+status: closed
 blocks: privacy-P2-H-05, privacy-P3-M-47 (soft — shared risk snapshot privacy)
 blocked_by: —
 report: ../report.md
@@ -40,11 +40,11 @@ Encrypt inputs or classify as public; Muon redesign likely needed
 ## Resolution checklist
 
 - [x] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `valid`
+- [x] Fix disposition: `implement`
+- [x] If valid: write implement brief (minimal fix, affected files, regression test name)
 
 ## Answer
 
@@ -187,14 +187,95 @@ Other ideas considered and **not** preferred: privileged decrypting signer for M
 - Do not grant Muon nodes observer/proxy decrypt for “so they can compute UPNL off-chain.”
 - Do not treat “just encrypt UPNL in the Muon package like the solver” as sufficient without verify + ABI redesign (that is option B).
 
-### Verdict / disposition (pending)
+### Verdict / disposition
 
-- Leak: treat as **valid** once calldata inspection / one live tx confirms (checklist still open).
-- Disposition leaning: **implement** via option **C** (needs-human for gas limits + liquidation/settlement aggregate design), not accept-as-public unless product explicitly chooses A.
+- Leak: **valid** — plaintext Muon UPNL/risk fields in calldata (confirmed via ABI + `H01` state-changing struct tests).
+- Disposition: **implement** via option **C** (price-only Muon; on-chain MPC UPNL).
+- Production cap: **`maxPartyAOpenPositions = 8`** (COTI testnet force-close @8 ≈114.4M gas; @10 fails ~116.3M / status 0).
 
-### Next
+### Option C implementation — gas
 
-1. Confirm on testnet one Muon-backed tx shows plaintext UPNL in calldata (evidence for checklist).
-2. Spike: price-only Muon + on-chain UPNL for `sendQuote` or `deallocate` — measure gas vs position count.
-3. Expand change surface + Muon method matrix (which methods stay, which die).
-4. Decide liquidation/settlement aggregates (on-chain only vs still signed public — if public, document as accepted leak).
+Prototype path 1: `deallocateWithQuotePrices(amount, QuotePriceSig)` verifies quote prices, computes PartyA UPNL on-chain from encrypted open positions, then reuses deallocate solvency/accounting.
+
+Prototype path 2: `forceClosePositionWithQuotePrices(...)` keeps the force-close flow but computes both PartyA full-book UPNL and PartyB pair-book UPNL on-chain from price-only quote sigs before the close-solvency check. This is the better max-open-position sizing harness because `deallocate` only exercises PartyA accounting and is an optimistic lower bound.
+
+Full implementation path: normal state-changing Muon calldata structs no longer carry plaintext `upnl`, `upnlPartyA`, `upnlPartyB`, `upnlPartyBs`, or `totalUnrealizedLoss`. Solidity verifies price-only payloads and computes UPNL/loss aggregates from encrypted quote state in `LibOnChainUpnl`.
+
+Sim (`localSimCoti`) result:
+
+Deallocate:
+
+| open positions | baseline signed-UPNL gas | computed-UPNL gas |
+| --- | ---: | ---: |
+| 0 | 3,344,997 | 6,781,962 |
+| 1 | 3,492,297 | 9,053,380 |
+| 5 | 3,492,297 | 17,305,155 |
+| 10 | 3,492,297 | 27,617,764 |
+
+Force close:
+
+| open positions | baseline signed-UPNL gas | computed-UPNL gas |
+| --- | ---: | ---: |
+| 1 | 24,088,890 | 28,190,099 |
+| 5 | 24,477,090 | 45,024,410 |
+| 10 | 24,477,090 | 65,586,011 |
+
+Deallocate rough slope: ~6.8M base + ~2.1M per open position.
+Force-close rough slope: ~24M base + ~4.2M per open position after the first quote. At 10 positions, sim already reaches ~65.6M gas, so deallocate is too weak for cap sizing.
+
+Temporary read: if testnet agrees with sim, a 10-open-position cap is probably too high for the worst affected one-tx flow. Need testnet force-close sample before setting the production max.
+
+COTI testnet sample for 10 open positions failed before producing a successful force-close gas number:
+
+- Command: `npx hardhat test --network coti-testnet test/audit/H01.test.ts --grep "H-01 gas: force-close baseline vs computed UPNL with 10 open positions"`
+- Result: failed transaction, status `0`, `gasUsed=116,282,373`.
+- Read: 10 open positions is not viable for the worst affected one-tx path on testnet. The cap should be materially lower, or the flow must be batched/redesigned.
+
+Full migration sim (`localSimCoti`) result after moving normal call sites to price-only:
+
+Deallocate:
+
+| open positions | `deallocate` price-only gas | `deallocateWithQuotePrices` alias gas |
+| --- | ---: | ---: |
+| 0 | 6,802,100 | 6,782,240 |
+| 1 | 9,073,770 | 9,053,906 |
+| 5 | 17,326,555 | 17,306,673 |
+| 10 | 27,640,426 | 27,620,522 |
+
+Force close:
+
+| open positions | normal `forceClosePosition` price-only gas | alias gas |
+| --- | ---: | ---: |
+| 1 | 28,192,627 | 28,192,610 |
+| 5 | 45,026,754 | 45,026,737 |
+| 10 | 65,588,125 | 65,588,108 |
+
+Targeted command:
+
+```bash
+npx hardhat test --network localSimCoti test/audit/H01.test.ts --grep "H-01"
+```
+
+Result: `8 passing`.
+
+### Cap decision (testnet)
+
+| open positions | network | force-close result |
+| --- | --- | --- |
+| 10 | coti-testnet | FAIL — `gasUsed≈116.3M`, status 0 |
+| 8 | coti-testnet | PASS — `gasUsed≈114.4M` (openPosition@8 ≈98M) |
+
+Implemented: `MAStorage.maxPartyAOpenPositions`, enforced in `LibQuote.addToOpenPositions`, setter `ControlFacet.setMaxPartyAOpenPositions`, view `ViewFacet.maxPartyAOpenPositions`. Fixture + `scripts/Initialize.ts` set **8**. H01 gas benches raise the cap when counting past 8.
+
+### Implement brief
+
+- Price-only Muon structs; `LibOnChainUpnl` computes PartyA/PartyB UPNL and liquidation aggregates from encrypted quote state.
+- Normal call sites (account / open / close / settle / force-close / funding / liquidation) consume price-only sigs.
+- Liquidation detail UPNL / totalUnrealizedLoss stored encrypted (`utInt256`).
+- Code-size: extract force-close helpers in `ForceActionsFacetImpl`; delete oversized `PartyBGroupActionsFacetImpl` and link shared `PartyBPositionActionsFacetImpl.openPosition` into Group/Position facets.
+- Regression: `test/audit/H01.test.ts` (leak + gas); dual-run row in `test-runs/sim-vs-testnet.md`.
+
+### Next (follow-ons, not blocking this ticket)
+
+1. Broader suite beyond H-01 (Account / ForceClose / Settlement / Liquidation behaviors) as capacity allows.
+2. Related tickets in the Muon/privacy cluster (H-05, M-47, etc.) still own their own leftovers.

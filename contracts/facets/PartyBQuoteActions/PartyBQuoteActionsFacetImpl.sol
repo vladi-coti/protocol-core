@@ -8,6 +8,7 @@ import "../../libraries/muon/LibMuonPartyB.sol";
 import "../../libraries/LibQuote.sol";
 import "../../libraries/LibPartyBQuoteActions.sol";
 import "../../libraries/LibEncryption.sol";
+import "../../libraries/LibOnChainUpnl.sol";
 
 library PartyBQuoteActionsFacetImpl {
 	using MpcCore for gtUint256;
@@ -24,7 +25,8 @@ library PartyBQuoteActionsFacetImpl {
 		LibAccount.initializePartyB(msg.sender, quote.partyA);
 		
 		// Only decrypt the final predicates, not the underlying balance magnitudes.
-		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, quote.partyA);
+		gtInt256 gtComputedUpnl = LibOnChainUpnl.partyBUpnlFromQuotePrices(msg.sender, quote.partyA, LibOnChainUpnl.priceSigFromSingle(upnlSig));
+		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(gtComputedUpnl, msg.sender, quote.partyA);
 		gtBool gtAvailableBalanceNonNegative = LibAccount.isNonNegative(gtAvailableBalance);
 		require(MpcCore.decrypt(gtAvailableBalanceNonNegative), "PartyBFacet: Available balance is lower than zero");
 		

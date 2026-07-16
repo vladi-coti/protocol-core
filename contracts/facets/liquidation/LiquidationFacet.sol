@@ -9,6 +9,7 @@ import "../../utils/Accessibility.sol";
 import "./ILiquidationFacet.sol";
 import "./LiquidationFacetImpl.sol";
 import "../../libraries/LibEncryption.sol";
+import "../../libraries/LibOnChainUpnl.sol";
 import "./DeferredLiquidationFacetImpl.sol";
 import "../../storages/AccountStorage.sol";
 
@@ -27,8 +28,11 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		ctUint256 memory ctAllocatedBalance = accountLayout.allocatedBalances[partyA].userCiphertext;
 		address encryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
 
-		gtInt256 gtUpnl = MpcCore.setPublic256(liquidationSig.upnl);
-		gtInt256 gtTotalUnrealizedLoss = MpcCore.setPublic256(liquidationSig.totalUnrealizedLoss);
+		(gtInt256 gtUpnl, gtInt256 gtTotalUnrealizedLoss) = LibOnChainUpnl.partyAUpnlAndLossFromSymbolPrices(
+			partyA,
+			liquidationSig.symbolIds,
+			liquidationSig.prices
+		);
 		ctInt256 memory ctUpnl = MpcCore.offBoardToUser(gtUpnl, encryptionAddress);
 		ctInt256 memory ctTotalUnrealizedLoss = MpcCore.offBoardToUser(gtTotalUnrealizedLoss, encryptionAddress);
 
@@ -69,15 +73,14 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		ctUint256 memory ctAllocatedBalance = accountLayout.allocatedBalances[partyA].userCiphertext;
 		address encryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
 
-		ctInt256 memory ctUpnl = MpcCore.offBoardToUser(MpcCore.setPublic256(liquidationSig.upnl), encryptionAddress);
-		ctInt256 memory ctTotalUnrealizedLoss = MpcCore.offBoardToUser(
-			MpcCore.setPublic256(liquidationSig.totalUnrealizedLoss),
-			encryptionAddress
+		(gtInt256 gtUpnl, gtInt256 gtTotalUnrealizedLoss) = LibOnChainUpnl.partyAUpnlAndLossFromSymbolPrices(
+			partyA,
+			liquidationSig.symbolIds,
+			liquidationSig.prices
 		);
-		ctUint256 memory ctLiquidationAllocatedBalance = MpcCore.offBoardToUser(
-			MpcCore.setPublic256(liquidationSig.liquidationAllocatedBalance),
-			encryptionAddress
-		);
+		ctInt256 memory ctUpnl = MpcCore.offBoardToUser(gtUpnl, encryptionAddress);
+		ctInt256 memory ctTotalUnrealizedLoss = MpcCore.offBoardToUser(gtTotalUnrealizedLoss, encryptionAddress);
+		ctUint256 memory ctLiquidationAllocatedBalance = accountLayout.allocatedBalances[partyA].userCiphertext;
 
 		emit DeferredLiquidatePartyA(
 			msg.sender,
@@ -126,7 +129,8 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		ctUint256 memory ctPartyBAllocatedBalance = accountLayout.partyBAllocatedBalances[partyB][partyA].userCiphertext;
 		address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
-		ctInt256 memory ctUpnl = MpcCore.offBoardToUser(MpcCore.setPublic256(upnlSig.upnl), partyBEncryptionAddress);
+		gtInt256 gtUpnl = LibOnChainUpnl.partyBUpnlFromQuotePrices(partyB, partyA, LibOnChainUpnl.priceSigFromSingle(upnlSig));
+		ctInt256 memory ctUpnl = MpcCore.offBoardToUser(gtUpnl, partyBEncryptionAddress);
 
 		emit LiquidatePartyB(msg.sender, partyB, partyA, ctPartyBAllocatedBalance, ctUpnl);
 		emit ObserverLiquidatePartyB(
@@ -134,7 +138,7 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 			partyB,
 			partyA,
 			accountLayout.observerPartyBAllocatedBalances[partyB][partyA],
-			LibEncryption.offBoardToObserver(MpcCore.setPublic256(upnlSig.upnl))
+			LibEncryption.offBoardToObserver(gtUpnl)
 		);
 		LiquidationFacetImpl.liquidatePartyB(partyB, partyA, upnlSig);
 	}

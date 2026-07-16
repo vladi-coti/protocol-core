@@ -10,12 +10,19 @@ import "./ForceActionsFacetEvents.sol";
 interface IForceActionsFacet is ForceActionsFacetEvents {
 	function forceCancelCloseRequest(uint256 quoteId) external;
 
-	function forceClosePosition(uint256 quoteId, HighLowPriceSig memory sig) external;
+	function forceClosePosition(
+		uint256 quoteId,
+		HighLowPriceSig memory sig,
+		QuotePriceSig memory partyAPriceSig,
+		QuotePriceSig memory partyBPriceSig
+	) external;
 
 	function settleAndForceClosePosition(
 		uint256 quoteId,
 		HighLowPriceSig memory highLowPriceSig,
 		SettlementSig memory settleSig,
-		uint256[] memory updatedPrices
+		uint256[] memory updatedPrices,
+		QuotePriceSig memory partyAPriceSig,
+		QuotePriceSig memory partyBPriceSig
 	) external;
 }

@@ -23,8 +23,10 @@ library LibMuonFundingRate {
 				partyA,
 				AccountStorage.layout().partyBNonces[partyB][partyA],
 				AccountStorage.layout().partyANonces[partyA],
-				upnlSig.upnlPartyB,
-				upnlSig.upnlPartyA,
+				upnlSig.partyAQuoteIds,
+				upnlSig.partyAPrices,
+				upnlSig.partyBQuoteIds,
+				upnlSig.partyBPrices,
 				upnlSig.timestamp,
 				LibMuon.getChainId()
 			)

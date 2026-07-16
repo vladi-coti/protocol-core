@@ -14,6 +14,7 @@ import "../../libraries/LibAccessibility.sol";
 import "../../libraries/SharedEvents.sol";
 import "../../libraries/LibSettlement.sol";
 import "../../libraries/LibEncryption.sol";
+import "../../libraries/LibOnChainUpnl.sol";
 import "../../storages/MAStorage.sol";
 import "../../storages/QuoteStorage.sol";
 import "../../storages/MuonStorage.sol";
@@ -92,7 +93,8 @@ library PartyAFacetImpl {
 		gtUint256 totalRequired = gtTotalForPartyA.checkedAdd(gtTradingFee);
 
 		// Check available balance sufficiency using LibAccount
-		gtInt256 gtAvailableBalance = LibAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
+		gtInt256 gtComputedUpnl = LibOnChainUpnl.partyAUpnlFromQuotePrices(msg.sender, LibOnChainUpnl.priceSigFromSingleAndPrice(upnlSig));
+		gtInt256 gtAvailableBalance = LibAccount.partyAAvailableForQuote(gtComputedUpnl, msg.sender);
 		gtBool balanceSufficient = LibEncryption.toNonNegativeSigned(totalRequired).le(gtAvailableBalance);
 
 		require(MpcCore.decrypt(lfSufficient), "PartyAFacet: LF is not enough");

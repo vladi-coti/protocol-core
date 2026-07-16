@@ -24,8 +24,8 @@ function getSelectorOnlyLibraries(facetName: string) {
 	if (facetName == "ForceCloseFacet" || facetName == "SettleAndForceCloseFacet") {
 		return { ForceActionsFacetImpl: ethers.ZeroAddress }
 	}
-	if (facetName == "PartyBGroupActionsFacet") {
-		return { PartyBGroupActionsFacetImpl: ethers.ZeroAddress }
+	if (facetName == "PartyBPositionActionsFacet" || facetName == "PartyBGroupActionsFacet") {
+		return { PartyBPositionActionsFacetImpl: ethers.ZeroAddress }
 	}
 	return undefined
 }

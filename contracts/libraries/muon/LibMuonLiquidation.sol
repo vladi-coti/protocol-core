@@ -25,8 +25,6 @@ library LibMuonLiquidation {
 				"verifyLiquidationSig",
 				partyA,
 				AccountStorage.layout().partyANonces[partyA],
-				liquidationSig.upnl,
-				liquidationSig.totalUnrealizedLoss,
 				liquidationSig.symbolIds,
 				liquidationSig.prices,
 				liquidationSig.timestamp,
@@ -48,14 +46,11 @@ library LibMuonLiquidation {
 				"verifyDeferredLiquidationSig",
 				partyA,
 				AccountStorage.layout().partyANonces[partyA],
-				liquidationSig.upnl,
-				liquidationSig.totalUnrealizedLoss,
 				liquidationSig.symbolIds,
 				liquidationSig.prices,
 				liquidationSig.timestamp,
 				liquidationSig.liquidationBlockNumber,
 				liquidationSig.liquidationTimestamp,
-				liquidationSig.liquidationAllocatedBalance,
 				LibMuon.getChainId()
 			)
 		);

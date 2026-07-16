@@ -77,6 +77,8 @@ interface IControlFacet is IControlEvents {
 
 	function setPendingQuotesValidLength(uint256 pendingQuotesValidLength) external;
 
+	function setMaxPartyAOpenPositions(uint256 maxPartyAOpenPositions) external;
+
 	function setDeallocateDebounceTime(uint256 deallocateDebounceTime) external;
 
 	function setInvalidBridgedAmountsPool(address pool) external;

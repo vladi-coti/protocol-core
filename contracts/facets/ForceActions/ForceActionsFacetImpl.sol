@@ -11,6 +11,7 @@ import "../../libraries/LibLiquidation.sol";
 import "../../libraries/LibSolvency.sol";
 import "../../libraries/LibEncryption.sol";
 import "../../libraries/LibQuote.sol";
+import "../../libraries/LibOnChainUpnl.sol";
 import "../../storages/QuoteStorage.sol";
 
 library ForceActionsFacetImpl {
@@ -73,7 +74,9 @@ library ForceActionsFacetImpl {
 		uint256 quoteId,
 		HighLowPriceSig memory sig,
 		SettlementSig memory settlementSig,
-		uint256[] memory updatedPrices
+		uint256[] memory updatedPrices,
+		QuotePriceSig memory partyAPriceSig,
+		QuotePriceSig memory partyBPriceSig
 	) public returns (gtUint256 gtClosePrice, bool isPartyBLiquidated, gtInt256 gtUpnlPartyB, gtUint256 gtPartyBAllocatedBalance) {
 		MAStorage.Layout storage maLayout = MAStorage.layout();
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
@@ -93,61 +96,14 @@ library ForceActionsFacetImpl {
 			LibMuonSettlement.verifySettlement(settlementSig, quote.partyA);
 		}
 
-		// Get encrypted requestedClosePrice
-		gtUint256 gtRequestedClosePrice = LockedValuesOps.safeOnboard(quote.requestedClosePrice.ciphertext);
-		
-		// Calculate closePrice using encrypted operations
-		gtUint256 gtGapRatio = MpcCore.setPublic256(symbolLayout.forceCloseGapRatio[quote.symbolId]);
-		gtUint256 gtPenalty = MpcCore.setPublic256(maLayout.forceClosePricePenalty);
-		gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e18));
-		gtUint256 gtAveragePrice = MpcCore.setPublic256(sig.averagePrice);
-		
-		if (quote.positionType == PositionType.LONG) {
-			// Calculate encrypted minimum: gtRequestedClosePrice + (gtRequestedClosePrice * gtGapRatio) / 1e18
-			gtUint256 gtGap = gtRequestedClosePrice.checkedMul(gtGapRatio).div(gtScaleFactor);
-			gtUint256 gtMinimum = gtRequestedClosePrice.checkedAdd(gtGap);
-			
-			// Check require using encrypted comparison
-			gtUint256 gtHighest = MpcCore.setPublic256(sig.highest);
-			gtBool gtValid = gtHighest.ge(gtMinimum);
-			require(MpcCore.decrypt(gtValid), "PartyAFacet: Requested close price not reached");
-			
-			// Calculate closePrice: gtRequestedClosePrice + (gtRequestedClosePrice * gtPenalty) / 1e18
-			gtUint256 gtPenaltyAmount = gtRequestedClosePrice.checkedMul(gtPenalty).div(gtScaleFactor);
-			gtClosePrice = gtRequestedClosePrice.checkedAdd(gtPenaltyAmount);
-			
-			// Max with average: if gtClosePrice > sig.averagePrice then gtClosePrice else sig.averagePrice
-			gtBool gtClosePriceGtAverage = gtClosePrice.gt(gtAveragePrice);
-			gtClosePrice = MpcCore.mux(gtClosePriceGtAverage, gtAveragePrice, gtClosePrice);
-		} else {
-			// Calculate encrypted maximum: gtRequestedClosePrice - (gtRequestedClosePrice * gtGapRatio) / 1e18
-			gtUint256 gtGap = gtRequestedClosePrice.checkedMul(gtGapRatio).div(gtScaleFactor);
-			gtUint256 gtMaximum = gtRequestedClosePrice.checkedSub(gtGap);
-			
-			// Check require using encrypted comparison
-			gtUint256 gtLowest = MpcCore.setPublic256(sig.lowest);
-			gtBool gtValid = gtMaximum.ge(gtLowest);
-			require(MpcCore.decrypt(gtValid), "PartyAFacet: Requested close price not reached");
-			
-			// Calculate closePrice: gtRequestedClosePrice - (gtRequestedClosePrice * gtPenalty) / 1e18
-			gtUint256 gtPenaltyAmount = gtRequestedClosePrice.checkedMul(gtPenalty).div(gtScaleFactor);
-			gtClosePrice = gtRequestedClosePrice.checkedSub(gtPenaltyAmount);
-			
-			// Min with average: if gtClosePrice > sig.averagePrice then sig.averagePrice else gtClosePrice
-			gtBool gtClosePriceGtAverage = gtClosePrice.gt(gtAveragePrice);
-			gtClosePrice = MpcCore.mux(gtClosePriceGtAverage, gtClosePrice, gtAveragePrice);
-		}
-
-		// Check if closePrice equals averagePrice (decrypt for comparison)
-		gtBool gtClosePriceEqAverage = gtClosePrice.eq(gtAveragePrice);
+		gtClosePrice = _forceClosePrice(quote, sig, symbolLayout.forceCloseGapRatio[quote.symbolId], maLayout.forceClosePricePenalty);
+		gtBool gtClosePriceEqAverage = gtClosePrice.eq(MpcCore.setPublic256(sig.averagePrice));
 		if (MpcCore.decrypt(gtClosePriceEqAverage))
 			require(sig.endTime - sig.startTime >= maLayout.forceCloseMinSigPeriod, "PartyAFacet: Invalid signature period");
 
 		accountLayout.partyANonces[quote.partyA] += 1;
 		accountLayout.partyBNonces[quote.partyB][quote.partyA] += 1;
 		gtUint256 gtReserveAmount = LibAccount.initializeReserveVault(quote.partyB);
-
-		// Get encrypted quantityToClose
 		gtUint256 gtQuantityToClose = LockedValuesOps.safeOnboard(quote.quantityToClose.ciphertext);
 
 		uint256[] memory quoteIds = new uint256[](1);
@@ -157,7 +113,6 @@ library ForceActionsFacetImpl {
 		quoteIds[0] = quoteId;
 		gtFilledAmounts[0] = gtQuantityToClose;
 		gtClosedPrices[0] = gtClosePrice;
-		gtUpnlPartyB = MpcCore.setPublic256(int256(0)); // Initialize to zero
 		marketPrices[0] = sig.currentPrice;
 		gtInt256 gtPartyBAvailableBalance;
 		gtInt256 gtPartyAAvailableBalance;
@@ -166,77 +121,85 @@ library ForceActionsFacetImpl {
 			gtFilledAmounts,
 			gtClosedPrices,
 			marketPrices,
-			sig.upnlPartyB,
-			sig.upnlPartyA,
+			LibOnChainUpnl.partyBUpnlFromQuotePrices(quote.partyB, quote.partyA, partyBPriceSig),
+			LibOnChainUpnl.partyAUpnlFromQuotePrices(quote.partyA, partyAPriceSig),
 			quote.partyB,
 			quote.partyA
 		);
-		
-		// Check PartyA is solvent using encrypted comparison
+
 		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
-		gtBool gtPartyASolvent = gtPartyAAvailableBalance.ge(gtZero);
-		require(MpcCore.decrypt(gtPartyASolvent), "PartyAFacet: PartyA will be insolvent");
-		
-		// Check PartyB balance using encrypted comparisons
-		gtBool gtPartyBSolvent = gtPartyBAvailableBalance.ge(gtZero);
-		if (MpcCore.decrypt(gtPartyBSolvent)) {
-			if (updatedPrices.length > 0) {
-				LibSettlement.settleUpnl(settlementSig, updatedPrices, quote.partyA, true);
-			}
-			LibQuote.closeQuote(quote, gtQuantityToClose, gtClosePrice);
+		require(MpcCore.decrypt(gtPartyAAvailableBalance.ge(gtZero)), "PartyAFacet: PartyA will be insolvent");
+
+		if (MpcCore.decrypt(gtPartyBAvailableBalance.ge(gtZero))) {
+			_settleAndClose(settlementSig, updatedPrices, quote, gtQuantityToClose, gtClosePrice);
 		} else {
-			// Check if PartyB has enough reserve using encrypted comparison
 			gtInt256 gtWithReserve = gtPartyBAvailableBalance.checkedAdd(LibEncryption.toNonNegativeSigned(gtReserveAmount));
-			gtBool gtCanUseReserve = gtWithReserve.ge(gtZero);
-			if (MpcCore.decrypt(gtCanUseReserve)) {
-				// Calculate available amount using encrypted operations
-				// available = -partyBAvailableBalance (negate to get the deficit amount)
-				gtInt256 gtNegBalance = gtZero.checkedSub(gtPartyBAvailableBalance);
-				gtUint256 gtAvailableAmount = gtNegBalance.fromSigned();
-				gtUint256 gtNewReserveBalance = gtReserveAmount.checkedSub(gtAvailableAmount);
-				LibEncryption.storeReserveVault(accountLayout, quote.partyB, gtNewReserveBalance);
-				
-				// Update PartyB allocated balance with encrypted operations
-				gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
-				gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtAvailableAmount);
-				LibEncryption.storePartyBAllocatedBalance(accountLayout, quote.partyB, quote.partyA, gtNewBalance);
-				
-				// Emit encrypted event
-				ctUint256 memory ctAvailableAmount = MpcCore.offBoardToUser(gtAvailableAmount, LibAccount.getUserEncryptionAddress(quote.partyB));
-				emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, ctAvailableAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
-				if (updatedPrices.length > 0) {
-					LibSettlement.settleUpnl(settlementSig, updatedPrices, quote.partyA, true);
-				}
-				LibQuote.closeQuote(quote, gtQuantityToClose, gtClosePrice);
+			if (MpcCore.decrypt(gtWithReserve.ge(gtZero))) {
+				gtUint256 gtAvailableAmount = gtZero.checkedSub(gtPartyBAvailableBalance).fromSigned();
+				LibEncryption.storeReserveVault(accountLayout, quote.partyB, gtReserveAmount.checkedSub(gtAvailableAmount));
+				_creditPartyB(accountLayout, quote.partyB, quote.partyA, gtAvailableAmount);
+				_settleAndClose(settlementSig, updatedPrices, quote, gtQuantityToClose, gtClosePrice);
 			} else {
 				LibEncryption.storeReserveVault(accountLayout, quote.partyB, MpcCore.setPublic256(uint256(0)));
-				
-				// Update PartyB allocated balance with encrypted operations
-				gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
-				gtUint256 gtNewBalance = gtCurrentBalance.checkedAdd(gtReserveAmount);
-				LibEncryption.storePartyBAllocatedBalance(accountLayout, quote.partyB, quote.partyA, gtNewBalance);
-				
-				// Emit encrypted event
-				ctUint256 memory ctReserveAmount = MpcCore.offBoardToUser(gtReserveAmount, LibAccount.getUserEncryptionAddress(quote.partyB));
-				emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, ctReserveAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
+				_creditPartyB(accountLayout, quote.partyB, quote.partyA, gtReserveAmount);
 				isPartyBLiquidated = true;
-				// H-26: post-close available already unlocks this quote's cva+lf; align PartyB
-				// locked balances before liquidation reads LF (quote stays open for position liq).
+				// H-26: unlock this quote's cva+lf on PartyB locks before liquidation reads LF.
 				{
 					GarbledLockedValues memory gtQuoteLocked = quote.lockedValues.onBoard();
 					gtUint256 gtOpenAmount = LibQuote.quoteOpenAmount(quote);
-					gtUint256 gtUnlockCva = gtQuantityToClose.checkedMul(gtQuoteLocked.cva).div(gtOpenAmount);
-					gtUint256 gtUnlockLf = gtQuantityToClose.checkedMul(gtQuoteLocked.lf).div(gtOpenAmount);
 					GarbledLockedValues memory gtPartyBLocked = accountLayout.partyBLockedBalances[quote.partyB][quote.partyA].onBoard();
-					gtPartyBLocked.cva = gtPartyBLocked.cva.checkedSub(gtUnlockCva);
-					gtPartyBLocked.lf = gtPartyBLocked.lf.checkedSub(gtUnlockLf);
+					gtPartyBLocked.cva = gtPartyBLocked.cva.checkedSub(gtQuantityToClose.checkedMul(gtQuoteLocked.cva).div(gtOpenAmount));
+					gtPartyBLocked.lf = gtPartyBLocked.lf.checkedSub(gtQuantityToClose.checkedMul(gtQuoteLocked.lf).div(gtOpenAmount));
 					LibEncryption.storePartyBLockedBalance(accountLayout, quote.partyB, quote.partyA, gtPartyBLocked);
 				}
-				// Available was computed before reserve credit; use post-reserve remaining deficit.
 				LibLiquidation.liquidatePartyBFromAvailable(quote.partyB, quote.partyA, gtWithReserve, block.timestamp, quote.partyA);
 			}
 		}
-		// Get encrypted PartyB allocated balance for return (get fresh value)
 		gtPartyBAllocatedBalance = LockedValuesOps.safeOnboard(AccountStorage.layout().partyBAllocatedBalances[quote.partyB][quote.partyA].ciphertext);
+	}
+
+	function _forceClosePrice(
+		Quote storage quote,
+		HighLowPriceSig memory sig,
+		uint256 gapRatio,
+		uint256 penalty
+	) private returns (gtUint256 gtClosePrice) {
+		gtUint256 gtRequestedClosePrice = LockedValuesOps.safeOnboard(quote.requestedClosePrice.ciphertext);
+		gtUint256 gtGapRatio = MpcCore.setPublic256(gapRatio);
+		gtUint256 gtPenalty = MpcCore.setPublic256(penalty);
+		gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e18));
+		gtUint256 gtAveragePrice = MpcCore.setPublic256(sig.averagePrice);
+		gtUint256 gtGap = gtRequestedClosePrice.checkedMul(gtGapRatio).div(gtScaleFactor);
+		gtUint256 gtPenaltyAmount = gtRequestedClosePrice.checkedMul(gtPenalty).div(gtScaleFactor);
+
+		if (quote.positionType == PositionType.LONG) {
+			require(MpcCore.decrypt(MpcCore.setPublic256(sig.highest).ge(gtRequestedClosePrice.checkedAdd(gtGap))), "PartyAFacet: Requested close price not reached");
+			gtClosePrice = gtRequestedClosePrice.checkedAdd(gtPenaltyAmount);
+			gtClosePrice = MpcCore.mux(gtClosePrice.gt(gtAveragePrice), gtAveragePrice, gtClosePrice);
+		} else {
+			require(MpcCore.decrypt(gtRequestedClosePrice.checkedSub(gtGap).ge(MpcCore.setPublic256(sig.lowest))), "PartyAFacet: Requested close price not reached");
+			gtClosePrice = gtRequestedClosePrice.checkedSub(gtPenaltyAmount);
+			gtClosePrice = MpcCore.mux(gtClosePrice.gt(gtAveragePrice), gtClosePrice, gtAveragePrice);
+		}
+	}
+
+	function _settleAndClose(
+		SettlementSig memory settlementSig,
+		uint256[] memory updatedPrices,
+		Quote storage quote,
+		gtUint256 gtQuantityToClose,
+		gtUint256 gtClosePrice
+	) private {
+		if (updatedPrices.length > 0) {
+			LibSettlement.settleUpnl(settlementSig, updatedPrices, quote.partyA, true);
+		}
+		LibQuote.closeQuote(quote, gtQuantityToClose, gtClosePrice);
+	}
+
+	function _creditPartyB(AccountStorage.Layout storage accountLayout, address partyB, address partyA, gtUint256 gtAmount) private {
+		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
+		LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtCurrentBalance.checkedAdd(gtAmount));
+		ctUint256 memory ctAmount = MpcCore.offBoardToUser(gtAmount, LibAccount.getUserEncryptionAddress(partyB));
+		emit SharedEvents.BalanceChangePartyB(partyB, partyA, ctAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
 	}
 }

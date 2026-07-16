@@ -23,8 +23,6 @@ library LibMuonForceActions {
 				partyA,
 				AccountStorage.layout().partyBNonces[partyB][partyA],
 				AccountStorage.layout().partyANonces[partyA],
-				sig.upnlPartyB,
-				sig.upnlPartyA,
 				symbolId,
 				sig.currentPrice,
 				sig.startTime,

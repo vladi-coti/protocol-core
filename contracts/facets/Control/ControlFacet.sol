@@ -144,6 +144,14 @@ contract ControlFacet is Accessibility, Ownable, IControlFacet {
 		MAStorage.layout().pendingQuotesValidLength = pendingQuotesValidLength;
 	}
 
+	/// @notice Sets max open positions per PartyA. Sized from H-01 on-chain UPNL gas (force-close worst path).
+	/// @param maxPartyAOpenPositions Maximum concurrently open PartyA positions.
+	function setMaxPartyAOpenPositions(uint256 maxPartyAOpenPositions) external onlyRole(LibAccessibility.SETTER_ROLE) {
+		require(maxPartyAOpenPositions > 0, "ControlFacet: Zero max open positions");
+		emit SetMaxPartyAOpenPositions(MAStorage.layout().maxPartyAOpenPositions, maxPartyAOpenPositions);
+		MAStorage.layout().maxPartyAOpenPositions = maxPartyAOpenPositions;
+	}
+
 	/// @notice Sets the address which protocol fees for an specific affiliate are being transferred to in the system.
 	/// @param affiliate The address of affiliate.
 	/// @param feeCollector The address of fee collector.

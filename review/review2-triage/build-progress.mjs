@@ -239,10 +239,41 @@ function main() {
   );
 
   if (process.argv.includes("--open")) {
-    const opener =
-      process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
-    spawnSync(opener, [HTML_PATH], { stdio: "ignore", shell: process.platform === "win32" });
+    openInBrowser(HTML_PATH);
   }
+}
+
+function isWsl() {
+  if (process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP) return true;
+  try {
+    return fs.readFileSync("/proc/version", "utf8").toLowerCase().includes("microsoft");
+  } catch {
+    return false;
+  }
+}
+
+function openInBrowser(filePath) {
+  if (process.platform === "darwin") {
+    spawnSync("open", [filePath], { stdio: "ignore" });
+    return;
+  }
+  if (process.platform === "win32") {
+    spawnSync("cmd", ["/c", "start", "", filePath], { stdio: "ignore", shell: true });
+    return;
+  }
+  if (isWsl()) {
+    // Prefer wslview (wslu); fall back to Windows start via converted path.
+    const wslview = spawnSync("wslview", [filePath], { stdio: "ignore" });
+    if (wslview.status === 0) return;
+    const winPath = spawnSync("wslpath", ["-w", filePath], { encoding: "utf8" });
+    if (winPath.status === 0 && winPath.stdout.trim()) {
+      spawnSync("cmd.exe", ["/c", "start", "", winPath.stdout.trim()], { stdio: "ignore" });
+      return;
+    }
+    console.warn("WARN --open: WSL detected but could not open browser (install wslu or check wslpath)");
+    return;
+  }
+  spawnSync("xdg-open", [filePath], { stdio: "ignore" });
 }
 
 main();

@@ -33,11 +33,11 @@ export function shouldBehaveLikeAuditH04(): void {
 
 			const user = new User(context, context.signers.user)
 			await user.setup()
-			await user.setBalances(decimal(2000n), decimal(1000n), decimal(500n))
+			await user.setBalances(decimal(20000n), decimal(10000n), decimal(5000n))
 
 			const hedger = new Hedger(context, context.signers.hedger)
 			await hedger.setup()
-			await hedger.setBalances(decimal(4000n), decimal(4000n))
+			await hedger.setBalances(decimal(20000n), decimal(20000n))
 
 			// Warm-up + SHORT to close (same pattern as ForceClosePosition.behavior)
 			const long = await user.sendQuote()
@@ -110,15 +110,18 @@ export function shouldBehaveLikeAuditH04(): void {
 			const src = fs.readFileSync(srcPath, "utf8")
 			const start = src.indexOf("function forceClosePosition(")
 			expect(start).to.be.gte(0)
-			const body = src.slice(start, src.indexOf("\n\tfunction ", start + 1) === -1 ? src.length : src.indexOf("\n\tfunction ", start + 1))
+			const nextFn = src.indexOf("\n\tfunction ", start + 1)
+			const body = src.slice(start, nextFn === -1 ? src.length : nextFn)
 			const verifyAt = body.indexOf("LibMuonForceActions.verifyHighLowPrice")
-			const onboardAt = body.indexOf("requestedClosePrice.ciphertext")
+			const priceHelperAt = body.indexOf("_forceClosePrice(")
 			expect(verifyAt, "missing verifyHighLowPrice").to.be.gte(0)
-			expect(onboardAt, "missing requestedClosePrice onboard").to.be.gte(0)
+			expect(priceHelperAt, "missing _forceClosePrice call").to.be.gte(0)
 			expect(verifyAt).to.be.lessThan(
-				onboardAt,
+				priceHelperAt,
 				"H-04: Muon verify must precede private close-price onboard/decrypt",
 			)
+			expect(src).to.include("requestedClosePrice.ciphertext")
+			expect(src.indexOf("function _forceClosePrice(")).to.be.greaterThan(start)
 		})
 	})
 }

@@ -21,10 +21,12 @@ library LibMuonPartyB {
 				partyA,
 				AccountStorage.layout().partyBNonces[partyB][partyA],
 				AccountStorage.layout().partyANonces[partyA],
-				upnlSig.upnlPartyB,
-				upnlSig.upnlPartyA,
 				symbolId,
 				upnlSig.price,
+				upnlSig.partyAQuoteIds,
+				upnlSig.partyAPrices,
+				upnlSig.partyBQuoteIds,
+				upnlSig.partyBPrices,
 				upnlSig.timestamp,
 				LibMuon.getChainId()
 			)

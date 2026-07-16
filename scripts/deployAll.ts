@@ -23,8 +23,8 @@ async function main() {
 				? { LibAccountEncryption: libraries.LibAccountEncryption }
 				: facetName == "ForceCloseFacet" || facetName == "SettleAndForceCloseFacet"
 				? { ForceActionsFacetImpl: libraries.ForceActionsFacetImpl }
-				: facetName == "PartyBGroupActionsFacet"
-					? { PartyBGroupActionsFacetImpl: libraries.PartyBGroupActionsFacetImpl }
+				: facetName == "PartyBPositionActionsFacet" || facetName == "PartyBGroupActionsFacet"
+					? { PartyBPositionActionsFacetImpl: libraries.PartyBPositionActionsFacetImpl }
 					: undefined
 		const Facet = facetLibraries
 			? await (ethers as any).getContractFactory(facetName, { libraries: facetLibraries })

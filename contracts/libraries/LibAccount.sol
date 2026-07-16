@@ -53,96 +53,44 @@ library LibAccount {
 
 	/**
 	 * @notice Calculates the available balance for a quote for Party A.
-	 * @param upnl The unrealized profit and loss (unencrypted).
+	 * @param gtUpnl The unrealized profit and loss (encrypted).
 	 * @param partyA The address of Party A.
 	 * @return The available balance for a quote for Party A (encrypted).
 	 */
-	function partyAAvailableForQuote(int256 upnl, address partyA) internal returns (gtInt256) {
+	function partyAAvailableForQuote(gtInt256 gtUpnl, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		gtInt256 allocatedBalance = LibEncryption.toNonNegativeSigned(LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext));
-		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
 
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
 		GarbledLockedValues memory garbledPendingLockedBalances = accountLayout.pendingLockedBalances[partyA].onBoard();
 
 		gtInt256 totalLocked = LibEncryption.toNonNegativeSigned(garbledLockedBalances.totalForPartyA().checkedAdd(garbledPendingLockedBalances.totalForPartyA()));
+		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
 
-		if (upnl >= 0) {
-			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
-			return allocatedBalance.checkedAdd(gtUpnl).checkedSub(totalLocked);
-		} else {
-			// If upnl < 0: considering_mm = max(-upnl, partyAmm)
-			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
-			gtInt256 mm = LibEncryption.toNonNegativeSigned(garbledLockedBalances.partyAmm);
-			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
-			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
+		gtInt256 positiveAvailable = allocatedBalance.checkedAdd(gtUpnl).checkedSub(totalLocked);
 
-			gtInt256 cvaLfPendingTotal = LibEncryption.toNonNegativeSigned(
-				garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf).checkedAdd(garbledPendingLockedBalances.totalForPartyA())
-			);
-			return allocatedBalance.checkedSub(cvaLfPendingTotal).checkedSub(considering_mm);
-		}
-	}
+		gtInt256 negUpnl = gtZero.checkedSub(gtUpnl);
+		gtInt256 mm = LibEncryption.toNonNegativeSigned(garbledLockedBalances.partyAmm);
+		gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
+		gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
 
-	/**
-	 * @notice Calculates the available balance for Party A.
-	 * @param upnl The unrealized profit and loss (unencrypted).
-	 * @param partyA The address of Party A.
-	 * @return The available balance for Party A (encrypted).
-	 */
-	function partyAAvailableBalance(int256 upnl, address partyA) internal returns (gtInt256) {
-		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		gtInt256 allocatedBalance = LibEncryption.toNonNegativeSigned(LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext));
-		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
+		gtInt256 cvaLfPendingTotal = LibEncryption.toNonNegativeSigned(
+			garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf).checkedAdd(garbledPendingLockedBalances.totalForPartyA())
+		);
+		gtInt256 negativeAvailable = allocatedBalance.checkedSub(cvaLfPendingTotal).checkedSub(considering_mm);
 
-		GarbledLockedValues memory garbledLockedBalances = accountLayout.lockedBalances[partyA].onBoard();
-		gtInt256 totalLocked = LibEncryption.toNonNegativeSigned(garbledLockedBalances.totalForPartyA());
-
-		if (upnl >= 0) {
-			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
-			return allocatedBalance.checkedAdd(gtUpnl).checkedSub(totalLocked);
-		} else {
-			// If upnl < 0: considering_mm = max(-upnl, partyAmm)
-			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
-			gtInt256 mm = LibEncryption.toNonNegativeSigned(garbledLockedBalances.partyAmm);
-			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
-			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
-
-			gtInt256 cvaLf = LibEncryption.toNonNegativeSigned(garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf));
-			return allocatedBalance.checkedSub(cvaLf).checkedSub(considering_mm);
-		}
+		return MpcCore.mux(gtUpnl.ge(gtZero), positiveAvailable, negativeAvailable);
 	}
 
 	/**
 	 * @notice Calculates the available balance for liquidation for Party A.
-	 * @param upnl The unrealized profit and loss (unencrypted).
+	 * @param gtUpnl The unrealized profit and loss (encrypted).
 	 * @param partyA The address of Party A.
 	 * @return The available balance for liquidation for Party A (encrypted).
 	 */
-	function partyAAvailableBalanceForLiquidation(int256 upnl, address partyA) internal returns (gtInt256) {
+	function partyAAvailableBalanceForLiquidation(gtInt256 gtUpnl, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		gtInt256 allocatedBalance = LibEncryption.toNonNegativeSigned(LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext));
-		return _partyAAvailableBalanceForLiquidation(upnl, allocatedBalance, partyA);
-	}
-
-	/**
-	 * @notice Calculates the available balance for liquidation for Party A using an explicit allocated balance snapshot.
-	 * @param upnl The unrealized profit and loss (unencrypted).
-	 * @param allocatedBalance The allocated balance snapshot to use.
-	 * @param partyA The address of Party A.
-	 * @return The available balance for liquidation for Party A (encrypted).
-	 */
-	function partyAAvailableBalanceForLiquidation(int256 upnl, uint256 allocatedBalance, address partyA) internal returns (gtInt256) {
-		gtInt256 gtAllocatedBalance = LibEncryption.toNonNegativeSigned(MpcCore.setPublic256(allocatedBalance));
-		return _partyAAvailableBalanceForLiquidation(upnl, gtAllocatedBalance, partyA);
-	}
-
-	function _partyAAvailableBalanceForLiquidation(
-		int256 upnl,
-		gtInt256 allocatedBalance,
-		address partyA
-	) private returns (gtInt256) {
-		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
 
 		GarbledLockedValues memory garbledLockedBalances = AccountStorage.layout().lockedBalances[partyA].onBoard();
 		gtInt256 cvaLf = LibEncryption.toNonNegativeSigned(garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf));
@@ -153,81 +101,47 @@ library LibAccount {
 
 	/**
 	 * @notice Calculates the available balance for a quote for Party B.
-	 * @param upnl The unrealized profit and loss (unencrypted).
+	 * @param gtUpnl The unrealized profit and loss (encrypted).
 	 * @param partyB The address of Party B.
 	 * @param partyA The address of Party A.
 	 * @return The available balance for a quote for Party B (encrypted).
 	 */
-	function partyBAvailableForQuote(int256 upnl, address partyB, address partyA) internal returns (gtInt256) {
+	function partyBAvailableForQuote(gtInt256 gtUpnl, address partyB, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		gtInt256 allocatedBalance = LibEncryption.toNonNegativeSigned(LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext));
-		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
 
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
 		GarbledLockedValues memory garbledPendingLockedBalances = accountLayout.partyBPendingLockedBalances[partyB][partyA].onBoard();
 
 		gtInt256 totalLocked = LibEncryption.toNonNegativeSigned(garbledLockedBalances.totalForPartyB().checkedAdd(garbledPendingLockedBalances.totalForPartyB()));
+		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
+		gtInt256 positiveAvailable = allocatedBalance.checkedAdd(gtUpnl).checkedSub(totalLocked);
 
-		if (upnl >= 0) {
-			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
-			return allocatedBalance.checkedAdd(gtUpnl).checkedSub(totalLocked);
-		} else {
-			// If upnl < 0: considering_mm = max(-upnl, partyBmm)
-			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
-			gtInt256 mm = LibEncryption.toNonNegativeSigned(garbledLockedBalances.partyBmm);
-			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
-			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
+		gtInt256 negUpnl = gtZero.checkedSub(gtUpnl);
+		gtInt256 mm = LibEncryption.toNonNegativeSigned(garbledLockedBalances.partyBmm);
+		gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
+		gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
 
-			gtInt256 cvaLfPendingTotal = LibEncryption.toNonNegativeSigned(
-				garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf).checkedAdd(garbledPendingLockedBalances.totalForPartyB())
-			);
-			return allocatedBalance.checkedSub(cvaLfPendingTotal).checkedSub(considering_mm);
-		}
-	}
+		gtInt256 cvaLfPendingTotal = LibEncryption.toNonNegativeSigned(
+			garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf).checkedAdd(garbledPendingLockedBalances.totalForPartyB())
+		);
+		gtInt256 negativeAvailable = allocatedBalance.checkedSub(cvaLfPendingTotal).checkedSub(considering_mm);
 
-	/**
-	 * @notice Calculates the available balance for Party B.
-	 * @param upnl The unrealized profit and loss (unencrypted).
-	 * @param partyB The address of Party B.
-	 * @param partyA The address of Party A.
-	 * @return The available balance for Party B (encrypted).
-	 */
-	function partyBAvailableBalance(int256 upnl, address partyB, address partyA) internal returns (gtInt256) {
-		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
-		gtInt256 allocatedBalance = LibEncryption.toNonNegativeSigned(LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext));
-		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
-
-		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
-		gtInt256 totalLocked = LibEncryption.toNonNegativeSigned(garbledLockedBalances.totalForPartyB());
-
-		if (upnl >= 0) {
-			// If upnl >= 0: available = allocatedBalance + upnl - totalLocked
-			return allocatedBalance.checkedAdd(gtUpnl).checkedSub(totalLocked);
-		} else {
-			// If upnl < 0: considering_mm = max(-upnl, partyBmm)
-			gtInt256 negUpnl = MpcCore.setPublic256(-upnl);
-			gtInt256 mm = LibEncryption.toNonNegativeSigned(garbledLockedBalances.partyBmm);
-			gtBool negUpnlGreaterThanMm = negUpnl.gt(mm);
-			gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
-
-			gtInt256 cvaLf = LibEncryption.toNonNegativeSigned(garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf));
-			return allocatedBalance.checkedSub(cvaLf).checkedSub(considering_mm);
-		}
+		return MpcCore.mux(gtUpnl.ge(gtZero), positiveAvailable, negativeAvailable);
 	}
 
 	/**
 	 * @notice Calculates the available balance for liquidation for Party B.
-	 * @param upnl The unrealized profit and loss (unencrypted).
+	 * @param gtUpnl The unrealized profit and loss (encrypted).
 	 * @param partyB The address of Party B.
 	 * @param partyA The address of Party A.
 	 * @return The available balance for liquidation for Party B (encrypted).
 	 */
-	function partyBAvailableBalanceForLiquidation(int256 upnl, address partyB, address partyA) internal returns (gtInt256) {
+	function partyBAvailableBalanceForLiquidation(gtInt256 gtUpnl, address partyB, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		gtInt256 allocatedBalanceEncrypted = LibEncryption.toNonNegativeSigned(
 			LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext)
 		);
-		gtInt256 gtUpnl = MpcCore.setPublic256(upnl);
 
 		GarbledLockedValues memory garbledLockedBalances = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
 		gtInt256 cvaLf = LibEncryption.toNonNegativeSigned(garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf));

@@ -27,7 +27,9 @@ contract SettleAndForceCloseFacet is Accessibility, Pausable, IPartiesEvents, Fo
 		uint256 quoteId,
 		HighLowPriceSig memory highLowPriceSig,
 		SettlementSig memory settleSig,
-		uint256[] memory updatedPrices
+		uint256[] memory updatedPrices,
+		QuotePriceSig memory partyAPriceSig,
+		QuotePriceSig memory partyBPriceSig
 	) external notLiquidated(quoteId) whenNotPartyAActionsPaused {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
@@ -38,7 +40,9 @@ contract SettleAndForceCloseFacet is Accessibility, Pausable, IPartiesEvents, Fo
 			quoteId,
 			highLowPriceSig,
 			settleSig,
-			updatedPrices
+			updatedPrices,
+			partyAPriceSig,
+			partyBPriceSig
 		);
 		address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
 

@@ -103,7 +103,8 @@ export class Hedger {
 				this.context.accountFacet.connect(this.signer).allocateForPartyB(unDecimal(notional * BigInt(allocateCoefficient)), partyA)
 			)
 		}
-		await runTx(this.context.partyBQuoteActionsFacet.connect(this.signer).lockQuote(id, await getDummySingleUpnlSig(upnl)))
+		const quote = await this.context.viewFacet.getQuote(id)
+		await runTx(this.context.partyBQuoteActionsFacet.connect(this.signer).lockQuote(id, await this.buildSinglePriceSig(quote.partyA, await this.getAddress())))
 
 		logger.info(`Hedger::LockQuote: ${id}`)
 	}
@@ -126,15 +127,18 @@ export class Hedger {
 				this.context.accountFacet.connect(this.signer).allocateForPartyB(unDecimal(notional * BigInt(allocateCoefficient)), partyA)
 			)
 		}
+		const quote = await this.context.viewFacet.getQuote(id)
 		const {encryptedParams, upnlSig} = await this.buildOpenPositionCalldataArgs(
 			openRequest,
 			this.context.partyBGroupActionsFacet.interface.getFunction("lockAndOpenQuote").selector,
+			id,
+			quote.partyA,
 		)
 		await runTx(
 			this.context.partyBGroupActionsFacet.connect(this.signer).lockAndOpenQuote(
 				id,
 				encryptedParams,
-				await getDummySingleUpnlSig(BigInt(openRequest.upnlPartyA)),
+				await this.buildSinglePriceSig(quote.partyA),
 				upnlSig,
 			)
 		)
@@ -143,6 +147,8 @@ export class Hedger {
 	public async buildOpenPositionCalldataArgs(
 		request: OpenRequest,
 		selector: string = this.context.partyBPositionActionsFacet.interface.getFunction("openPosition").selector,
+		quoteId?: BigNumberish,
+		partyA?: string,
 	): Promise<{
 		encryptedParams: PrivateOpenPositionParamsStruct
 		upnlSig: PairUpnlAndPriceSigStruct
@@ -152,12 +158,17 @@ export class Hedger {
 		const encryptedFilledAmount = await this.signer.encryptUint256(BigInt(request.filledAmount), contractAddress, selector)
 		const encryptedOpenedPrice = await this.signer.encryptUint256(BigInt(request.openPrice), contractAddress, selector)
 
+		const upnlSig = await getDummyPairUpnlAndPriceSig(BigInt(request.price), BigInt(request.upnlPartyA), BigInt(request.upnlPartyB))
+		if (quoteId !== undefined && partyA !== undefined) {
+			await this.populatePairPriceSig(upnlSig as any, partyA, BigInt(request.price), BigInt(quoteId.toString()))
+		}
+
 		return {
 			encryptedParams: {
 				encryptedFilledAmount,
 				encryptedOpenedPrice,
 			},
-			upnlSig: await getDummyPairUpnlAndPriceSig(BigInt(request.price), BigInt(request.upnlPartyA), BigInt(request.upnlPartyB)),
+			upnlSig,
 		}
 	}
 
@@ -180,7 +191,7 @@ export class Hedger {
 			})
 		)
 
-		const {encryptedParams, upnlSig} = await this.buildOpenPositionCalldataArgs(request)
+		const {encryptedParams, upnlSig} = await this.buildOpenPositionCalldataArgs(request, undefined, id, partyA)
 		
 		const tx = await runTx(
 			this.context.partyBPositionActionsFacet
@@ -271,6 +282,7 @@ export class Hedger {
 			})
 		)
 		const {encryptedParams, upnlSig} = await this.buildFillCloseRequestCalldataArgs(request)
+		await this.populatePairPriceSig(upnlSig as any, quote.partyA, BigInt(request.price))
 		
 		const tx = await this.context.partyBCloseActionsFacet
 				.connect(this.signer)
@@ -319,9 +331,45 @@ export class Hedger {
 		await runTx(
 			this.context.recoveryActionsFacet
 				.connect(this.signer)
-				.emergencyClosePosition(id, await getDummyPairUpnlAndPriceSig(BigInt(request.price), BigInt(request.upnlPartyA), BigInt(request.upnlPartyB)))
+				.emergencyClosePosition(id, await this.buildPairPriceSig(quote.partyA, BigInt(request.price)))
 		)
 		logger.info(`Hedger::EmergencyClosePosition: ${id}`)
+	}
+
+	private async openedMarkPrices(positions: QuoteStructOutput[]): Promise<bigint[]> {
+		const partyAWallet = this.context.signers.user
+		return Promise.all(positions.map(async quote => decryptUint256(this.context, quote.openedPrice.userCiphertext, partyAWallet)))
+	}
+
+	private async buildSinglePriceSig(partyA: string, partyB?: string): Promise<SingleUpnlSigStruct> {
+		const positions = partyB
+			? await this.context.viewFacet.getPartyBOpenPositions(partyB, partyA, 0, 100)
+			: await this.context.viewFacet.getPartyAOpenPositions(partyA, 0, 100)
+		const sig = await getDummySingleUpnlSig()
+		;(sig as any).quoteIds = positions.map((quote: any) => BigInt(quote.id))
+		;(sig as any).prices = await this.openedMarkPrices(positions)
+		return sig
+	}
+
+	private async buildPairPriceSig(partyA: string, price: bigint): Promise<PairUpnlAndPriceSigStruct> {
+		const sig = await getDummyPairUpnlAndPriceSig(price)
+		await this.populatePairPriceSig(sig as any, partyA, price)
+		return sig
+	}
+
+	private async populatePairPriceSig(sig: any, partyA: string, price: bigint, extraQuoteId?: bigint) {
+		const partyAPositions = await this.context.viewFacet.getPartyAOpenPositions(partyA, 0, 100)
+		const partyBPositions = await this.context.viewFacet.getPartyBOpenPositions(await this.getAddress(), partyA, 0, 100)
+		sig.partyAQuoteIds = partyAPositions.map((quote: any) => BigInt(quote.id))
+		sig.partyAPrices = await this.openedMarkPrices(partyAPositions)
+		sig.partyBQuoteIds = partyBPositions.map((quote: any) => BigInt(quote.id))
+		sig.partyBPrices = await this.openedMarkPrices(partyBPositions)
+		if (extraQuoteId !== undefined) {
+			sig.partyAQuoteIds.push(extraQuoteId)
+			sig.partyAPrices.push(price)
+			sig.partyBQuoteIds.push(extraQuoteId)
+			sig.partyBPrices.push(price)
+		}
 	}
 
 	public async settleUpnl(partyA: string, updatedPrices: bigint[], sig: Promise<SettlementSigStructOutput> | SettlementSigStructOutput = getDummySettlementSig()) {

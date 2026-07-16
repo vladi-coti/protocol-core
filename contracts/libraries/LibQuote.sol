@@ -89,6 +89,10 @@ library LibQuote {
 	function addToOpenPositions(uint256 quoteId) internal {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
+		require(
+			quoteLayout.partyAOpenPositions[quote.partyA].length < MAStorage.layout().maxPartyAOpenPositions,
+			"LibQuote: Max open positions reached"
+		);
 
 		quoteLayout.partyAOpenPositions[quote.partyA].push(quote.id);
 		quoteLayout.partyBOpenPositions[quote.partyB][quote.partyA].push(quote.id);

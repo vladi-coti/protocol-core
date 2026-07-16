@@ -29,8 +29,8 @@ struct ObserverSettlementState {
 struct LiquidationDetail {
 	bytes liquidationId;
 	LiquidationType liquidationType;
-	int256 upnl;
-	int256 totalUnrealizedLoss;
+	utInt256 upnl;
+	utInt256 totalUnrealizedLoss;
 	uint256 deficit;
 	uint256 liquidationFee;
 	uint256 timestamp;

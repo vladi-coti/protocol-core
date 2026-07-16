@@ -49,6 +49,7 @@ interface IControlEvents {
 	event SetLiquidatorShare(uint256 oldLiquidatorShare, uint256 newLiquidatorShare);
 	event SetForceCloseGapRatio(uint256 symbolId, uint256 oldForceCloseGapRatio, uint256 newForceCloseGapRatio);
 	event SetPendingQuotesValidLength(uint256 oldPendingQuotesValidLength, uint256 newPendingQuotesValidLength);
+	event SetMaxPartyAOpenPositions(uint256 oldMaxPartyAOpenPositions, uint256 newMaxPartyAOpenPositions);
 	event SetDeallocateDebounceTime(uint256 oldDeallocateDebounceTime, uint256 newDeallocateDebounceTime);
 	event SetInvalidBridgedAmountsPool(address oldInvalidBridgedAmountsPool, address newInvalidBridgedAmountsPool);
 	event PauseGlobal();

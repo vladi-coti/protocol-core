@@ -10,6 +10,7 @@ import "../storages/AccountStorage.sol";
 import "./LibQuote.sol";
 import "./LibAccount.sol";
 import "./LibEncryption.sol";
+import "./LibOnChainUpnl.sol";
 
 library LibSettlement {
 	using MpcCore for gtUint256;
@@ -30,7 +31,8 @@ library LibSettlement {
 		require(settleSig.quotesSettlementsData.length > 0 && settleSig.quotesSettlementsData.length == updatedPrices.length, "LibSettlement: Invalid length");
 		
 		// Check PartyA solvency using encrypted balance calculation
-		gtInt256 gtPartyAAvailable = LibAccount.partyAAvailableBalanceForLiquidation(settleSig.upnlPartyA, partyA);
+		gtInt256 gtPartyAUpnl = LibOnChainUpnl.partyAUpnlFromQuotePrices(partyA, settleSig.partyAPriceSig);
+		gtInt256 gtPartyAAvailable = LibAccount.partyAAvailableBalanceForLiquidation(gtPartyAUpnl, partyA);
 		gtInt256 gtZeroInt = MpcCore.setPublic256(int256(0));
 		require(MpcCore.decrypt(gtPartyAAvailable.ge(gtZeroInt)), "LibSettlement: PartyA is insolvent");
 
@@ -40,11 +42,13 @@ library LibSettlement {
 		);
 		accountLayout.partyANonces[partyA] += 1;
 
-		gtInt256[] memory gtSettleAmounts = new gtInt256[](settleSig.upnlPartyBs.length);
-		address[] memory partyBs = new address[](settleSig.upnlPartyBs.length);
-		newPartyBsAllocatedBalances = new utUint256[](settleSig.upnlPartyBs.length);
+		gtInt256[] memory gtSettleAmounts = new gtInt256[](settleSig.partyBPriceSigs.length);
+		address[] memory partyBs = new address[](settleSig.partyBPriceSigs.length);
+		newPartyBsAllocatedBalances = new utUint256[](settleSig.partyBPriceSigs.length);
 		for (uint8 i = 0; i < gtSettleAmounts.length; i++) {
 			gtSettleAmounts[i] = gtZeroInt;
+			require(settleSig.partyBPriceSigs[i].quoteIds.length > 0, "LibSettlement: Empty partyB prices");
+			partyBs[i] = quoteLayout.quotes[settleSig.partyBPriceSigs[i].quoteIds[0]].partyB;
 		}
 
 		for (uint8 i = 0; i < settleSig.quotesSettlementsData.length; i++) {
@@ -57,12 +61,7 @@ library LibSettlement {
 					quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING,
 				"LibSettlement: Invalid state"
 			);
-			require(data.partyBUpnlIndex <= settleSig.upnlPartyBs.length, "LibSettlement: Invalid partyBUpnlIndex in signature");
-			require(
-				partyBs[data.partyBUpnlIndex] == address(0) || partyBs[data.partyBUpnlIndex] == quote.partyB,
-				"LibSettlement: Invalid upnlPartyBs list"
-			);
-			partyBs[data.partyBUpnlIndex] = quote.partyB;
+			uint256 partyBIndex = _partyBIndex(partyBs, quote.partyB);
 
 			gtUint256 gtOpenedPrice = LockedValuesOps.safeOnboard(quote.openedPrice.ciphertext);
 			gtUint256 gtCurrentPrice = MpcCore.setPublic256(data.currentPrice);
@@ -88,7 +87,7 @@ library LibSettlement {
 			} else {
 				gtSignedImpact = MpcCore.mux(gtUpdatedGtOpened, gtImpact, gtZeroInt.checkedSub(gtImpact));
 			}
-			gtSettleAmounts[data.partyBUpnlIndex] = gtSettleAmounts[data.partyBUpnlIndex].checkedAdd(gtSignedImpact);
+			gtSettleAmounts[partyBIndex] = gtSettleAmounts[partyBIndex].checkedAdd(gtSignedImpact);
 
 			LibEncryption.storeQuoteOpenedPrice(quoteLayout, quote, gtUpdatedPrice);
 		}
@@ -98,7 +97,8 @@ library LibSettlement {
 			address partyB = partyBs[i];
 			
 			// Check PartyB solvency using encrypted balance calculation
-			gtInt256 gtPartyBAvailable = LibAccount.partyBAvailableBalanceForLiquidation(settleSig.upnlPartyBs[i], partyB, partyA);
+			gtInt256 gtPartyBUpnl = LibOnChainUpnl.partyBUpnlFromQuotePrices(partyB, partyA, settleSig.partyBPriceSigs[i]);
+			gtInt256 gtPartyBAvailable = LibAccount.partyBAvailableBalanceForLiquidation(gtPartyBUpnl, partyB, partyA);
 			require(MpcCore.decrypt(gtPartyBAvailable.ge(gtZeroInt)), "LibSettlement: PartyB should be solvent");
 			
 			require(!MAStorage.layout().partyBLiquidationStatus[partyB][partyA], "LibSettlement: PartyB is in liquidation process");
@@ -164,5 +164,14 @@ library LibSettlement {
 			ctUint256 memory partyAAmount = MpcCore.offBoardToUser(gtAmount, partyAEncryptionAddress);
 			emit SharedEvents.BalanceChangePartyA(partyA, partyAAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
 		}
+	}
+
+	function _partyBIndex(address[] memory partyBs, address partyB) private pure returns (uint256) {
+		for (uint256 i = 0; i < partyBs.length; i++) {
+			if (partyBs[i] == partyB) {
+				return i;
+			}
+		}
+		revert("LibSettlement: Missing partyB price sig");
 	}
 }

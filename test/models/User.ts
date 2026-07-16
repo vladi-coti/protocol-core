@@ -10,7 +10,7 @@ import {RunContext} from "./RunContext"
 import {CloseRequest, limitCloseRequestBuilder} from "./requestModels/CloseRequest"
 import {limitQuoteRequestBuilder, QuoteRequest} from "./requestModels/QuoteRequest"
 import {runTx} from "../utils/TxUtils"
-import {getDummyLiquidationSig} from "../utils/SignatureUtils"
+import {getDummyLiquidationSig, getDummyPriceSig} from "../utils/SignatureUtils"
 import {LiquidationSigStruct} from "../../src/types/contracts/facets/liquidation/LiquidationFacet"
 import {PrivateQuoteParamsStruct, QuoteBasicParamsStruct, QuoteStructOutput, SettlementSigStruct, SendQuoteForPartyBEvent, SingleUpnlAndPriceSigStruct} from "../../src/types/contracts/interfaces/ISymmio"
 import {HighLowPriceSigStruct} from "../../src/types/contracts/facets/ForceActions/ForceActionsFacet"
@@ -137,8 +137,16 @@ export class User {
 			encryptedPartyBmm: encryptedPartyBmm,
 		};
 
+		const upnlSig = await request.upnlSig
+		const positions = await this.context.viewFacet.getPartyAOpenPositions(await this.getAddress(), 0, 100)
+		;(upnlSig as any).quoteIds = positions.map((quote: any) => BigInt(quote.id))
+		// Mark ≈ opened so on-chain UPNL stays ~0 unless the caller overrides prices.
+		;(upnlSig as any).prices = await Promise.all(
+			positions.map(async (quote: any) => this.decryptUint256(quote.openedPrice.userCiphertext)),
+		)
+
 		return [
-			basicParams, encryptedParams, await request.upnlSig
+			basicParams, encryptedParams, upnlSig
 		]
 	}
 
@@ -328,7 +336,11 @@ export class User {
 				userUpnl: await this.getUpnl(),
 			}),
 		)
-		await runTx(this.context.forceCloseFacet.connect(this.signer).forceClosePosition(id, signature))
+		const quote = await this.context.viewFacet.getQuote(id)
+		const mark = await getPrice()
+		const partyAPriceSig = await this.buildPartyAPriceSig(quote.partyA, mark)
+		const partyBPriceSig = await this.buildPartyBPriceSig(quote.partyB, quote.partyA, mark)
+		await runTx(this.context.forceCloseFacet.connect(this.signer).forceClosePosition(id, signature, partyAPriceSig, partyBPriceSig))
 		logger.info(`User::::ForceClosePosition: ${id}`)
 	}
 
@@ -342,8 +354,36 @@ export class User {
 				userUpnl: await this.getUpnl(),
 			}),
 		)
-		await runTx(this.context.forceCloseFacet.connect(this.signer).settleAndForceClosePosition(id, highLowPriceSigStruct, settleSig, updatedPrices))
+		const quote = await this.context.viewFacet.getQuote(id)
+		const mark = await getPrice()
+		const partyAPriceSig = await this.buildPartyAPriceSig(quote.partyA, mark)
+		const partyBPriceSig = await this.buildPartyBPriceSig(quote.partyB, quote.partyA, mark)
+		await runTx(this.context.forceCloseFacet.connect(this.signer).settleAndForceClosePosition(id, highLowPriceSigStruct, settleSig, updatedPrices, partyAPriceSig, partyBPriceSig))
 		logger.info(`User::::SettleAndForceClosePosition: ${id}`)
+	}
+
+	private async buildPartyAPriceSig(partyA: string, markPrice?: bigint) {
+		const positions = await this.context.viewFacet.getPartyAOpenPositions(partyA, 0, 100)
+		const prices =
+			markPrice !== undefined
+				? positions.map(() => markPrice)
+				: await Promise.all(positions.map(async (quote: any) => this.decryptUint256(quote.openedPrice.userCiphertext)))
+		return getDummyPriceSig(
+			positions.map((quote: any) => BigInt(quote.id)),
+			prices,
+		)
+	}
+
+	private async buildPartyBPriceSig(partyB: string, partyA: string, markPrice?: bigint) {
+		const positions = await this.context.viewFacet.getPartyBOpenPositions(partyB, partyA, 0, 100)
+		const prices =
+			markPrice !== undefined
+				? positions.map(() => markPrice)
+				: await Promise.all(positions.map(async (quote: any) => this.decryptUint256(quote.openedPrice.userCiphertext)))
+		return getDummyPriceSig(
+			positions.map((quote: any) => BigInt(quote.id)),
+			prices,
+		)
 	}
 
 	public async requestToCancelCloseRequest(id: BigNumberish) {

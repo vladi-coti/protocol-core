@@ -22,11 +22,11 @@ library LibLiquidation {
 	 * @notice Liquidates Party B.
 	 * @param partyB The address of Party B.
 	 * @param partyA The address of Party A.
-	 * @param upnlPartyB The unrealized profit and loss of Party B (unencrypted).
+	 * @param gtUpnlPartyB The unrealized profit and loss of Party B (encrypted).
 	 * @param timestamp The timestamp of the liquidation.
 	 */
-	function liquidatePartyB(address partyB, address partyA, int256 upnlPartyB, uint256 timestamp) internal {
-		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlPartyB, partyB, partyA);
+	function liquidatePartyB(address partyB, address partyA, gtInt256 gtUpnlPartyB, uint256 timestamp) internal {
+		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(gtUpnlPartyB, partyB, partyA);
 		_liquidatePartyBFromAvailable(partyB, partyA, gtAvailableBalance, timestamp, msg.sender);
 	}
 

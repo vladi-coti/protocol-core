@@ -21,7 +21,8 @@ library LibMuonAccount {
 				address(this),
 				partyA,
 				AccountStorage.layout().partyANonces[partyA],
-				upnlSig.upnl,
+				upnlSig.quoteIds,
+				upnlSig.prices,
 				upnlSig.timestamp,
 				LibMuon.getChainId()
 			)

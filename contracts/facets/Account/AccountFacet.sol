@@ -99,6 +99,23 @@ contract AccountFacet is Accessibility, Pausable, IAccountEvents {
 		);
 	}
 
+	/// @notice Prototype deallocation path for H-01 option C: Muon signs prices only, UPNL is computed on-chain.
+	/// @param amount The precise amount of collateral to be deallocated, specified in 18 decimals.
+	/// @param priceSig The Muon signature for quote prices covering all open positions.
+	function deallocateWithQuotePrices(uint256 amount, QuotePriceSig memory priceSig) external whenNotAccountingPaused notLiquidatedPartyA(msg.sender) {
+		AccountFacetImpl.deallocateWithQuotePrices(amount, priceSig);
+		
+		ctUint256 memory ctBalance = AccountStorage.layout().allocatedBalances[msg.sender].userCiphertext;
+		
+		emit DeallocatePartyA(msg.sender, amount, ctBalance);
+		emit SharedEvents.BalanceChangePartyA(msg.sender, ctBalance, SharedEvents.BalanceChangeType.DEALLOCATE);
+		emit SharedEvents.ObserverBalanceChangePartyA(
+			msg.sender,
+			AccountStorage.layout().observerAllocatedBalances[msg.sender],
+			SharedEvents.BalanceChangeType.DEALLOCATE
+		);
+	}
+
 	/// @notice Transfers the sender's deposited balance to the user allocated balance.
 	/// @dev The sender and the recipient user cannot be partyB.
 	/// @dev PartyA should not be in the liquidation process.

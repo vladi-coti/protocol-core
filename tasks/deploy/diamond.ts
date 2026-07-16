@@ -93,8 +93,8 @@ task("deploy:diamond", "Deploys the Diamond contract")
 					? { LibAccountEncryption: deployedLibraries.LibAccountEncryption }
 					: facetName == "ForceCloseFacet" || facetName == "SettleAndForceCloseFacet"
 					? { ForceActionsFacetImpl: deployedLibraries.ForceActionsFacetImpl }
-					: facetName == "PartyBGroupActionsFacet"
-						? { PartyBGroupActionsFacetImpl: deployedLibraries.PartyBGroupActionsFacetImpl }
+					: facetName == "PartyBPositionActionsFacet" || facetName == "PartyBGroupActionsFacet"
+						? { PartyBPositionActionsFacetImpl: deployedLibraries.PartyBPositionActionsFacetImpl }
 						: undefined
 			const FacetFactory = facetLibraries
 				? await (ethers as any).getContractFactory(facetName, { libraries: facetLibraries })

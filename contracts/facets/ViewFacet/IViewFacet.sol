@@ -204,6 +204,8 @@ interface IViewFacet {
 
 	function pendingQuotesValidLength() external view returns (uint256);
 
+	function maxPartyAOpenPositions() external view returns (uint256);
+
 	function forceCloseGapRatio(uint256 symbolId) external view returns (uint256);
 
 	function forceClosePricePenalty() external view returns (uint256);

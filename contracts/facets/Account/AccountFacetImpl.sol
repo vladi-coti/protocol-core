@@ -11,9 +11,11 @@ import "../../storages/GlobalAppStorage.sol";
 import "../../storages/MAStorage.sol";
 import "../../storages/MuonStorage.sol";
 import "../../libraries/muon/LibMuonAccount.sol";
+import "../../libraries/muon/LibMuonLiquidation.sol";
 import "../../libraries/LibAccount.sol";
 import "../../libraries/LibEncryption.sol";
 import "../../libraries/LibAccountEncryption.sol";
+import "../../libraries/LibOnChainUpnl.sol";
 
 library AccountFacetImpl {
 	using SafeERC20 for IERC20;
@@ -79,13 +81,40 @@ library AccountFacetImpl {
 		require(MpcCore.decrypt(gtSufficientBalance), "AccountFacet: Insufficient allocated Balance");
 		
 		LibMuonAccount.verifyPartyAUpnl(upnlSig, msg.sender);
-		gtInt256 gtAvailableBalance = LibAccount.partyAAvailableForQuote(upnlSig.upnl, msg.sender);
+		gtInt256 gtComputedUpnl = LibOnChainUpnl.partyAUpnlFromQuotePrices(msg.sender, LibOnChainUpnl.priceSigFromSingle(upnlSig));
+		gtInt256 gtAvailableBalance = LibAccount.partyAAvailableForQuote(gtComputedUpnl, msg.sender);
 		gtBool gtAvailableBalanceNonNegative = LibAccount.isNonNegative(gtAvailableBalance);
 		require(MpcCore.decrypt(gtAvailableBalanceNonNegative), "AccountFacet: Available balance is lower than zero");
 		gtBool gtAvailableBalanceCoversAmount = LibAccount.isAtLeastAmount(gtAvailableBalance, gtAmount);
 		require(MpcCore.decrypt(gtAvailableBalanceCoversAmount), "AccountFacet: partyA will be liquidatable");
 
 		// Update encrypted balance
+		gtUint256 gtNewBalance = gtCurrentBalance.checkedSub(gtAmount);
+		_storePartyAAllocatedBalance(accountLayout, msg.sender, gtNewBalance);
+		accountLayout.balances[msg.sender] += amount;
+		accountLayout.withdrawCooldown[msg.sender] = block.timestamp;
+	}
+
+	function deallocateWithQuotePrices(uint256 amount, QuotePriceSig memory priceSig) internal {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		require(
+			block.timestamp >= accountLayout.withdrawCooldown[msg.sender] + MAStorage.layout().deallocateDebounceTime,
+			"AccountFacet: Too many deallocate in a short window"
+		);
+
+		gtUint256 gtCurrentBalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[msg.sender].ciphertext);
+		gtUint256 gtAmount = MpcCore.setPublic256(amount);
+		gtBool gtSufficientBalance = gtCurrentBalance.ge(gtAmount);
+		require(MpcCore.decrypt(gtSufficientBalance), "AccountFacet: Insufficient allocated Balance");
+
+		LibMuonLiquidation.verifyQuotePrices(priceSig);
+		gtInt256 gtComputedUpnl = LibOnChainUpnl.partyAUpnlFromQuotePrices(msg.sender, priceSig);
+		gtInt256 gtAvailableBalance = LibAccount.partyAAvailableForQuote(gtComputedUpnl, msg.sender);
+		gtBool gtAvailableBalanceNonNegative = LibAccount.isNonNegative(gtAvailableBalance);
+		require(MpcCore.decrypt(gtAvailableBalanceNonNegative), "AccountFacet: Available balance is lower than zero");
+		gtBool gtAvailableBalanceCoversAmount = LibAccount.isAtLeastAmount(gtAvailableBalance, gtAmount);
+		require(MpcCore.decrypt(gtAvailableBalanceCoversAmount), "AccountFacet: partyA will be liquidatable");
+
 		gtUint256 gtNewBalance = gtCurrentBalance.checkedSub(gtAmount);
 		_storePartyAAllocatedBalance(accountLayout, msg.sender, gtNewBalance);
 		accountLayout.balances[msg.sender] += amount;
@@ -105,7 +134,8 @@ library AccountFacetImpl {
 		LibAccount.initializePartyB(msg.sender, recipient);
 		
 		LibMuonAccount.verifyPartyBUpnl(upnlSig, msg.sender, origin);
-		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, origin);
+		gtInt256 gtComputedUpnl = LibOnChainUpnl.partyBUpnlFromQuotePrices(msg.sender, origin, LibOnChainUpnl.priceSigFromSingle(upnlSig));
+		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(gtComputedUpnl, msg.sender, origin);
 		gtUint256 gtAmount = MpcCore.setPublic256(amount);
 		gtBool gtAvailableBalanceNonNegative = LibAccount.isNonNegative(gtAvailableBalance);
 		require(MpcCore.decrypt(gtAvailableBalanceNonNegative), "PartyBFacet: Available balance is lower than zero");
@@ -180,7 +210,8 @@ library AccountFacetImpl {
 		require(MpcCore.decrypt(gtSufficientBalance), "AccountFacet: Insufficient allocated balance");
 		
 		LibMuonAccount.verifyPartyBUpnl(upnlSig, msg.sender, partyA);
-		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(upnlSig.upnl, msg.sender, partyA);
+		gtInt256 gtComputedUpnl = LibOnChainUpnl.partyBUpnlFromQuotePrices(msg.sender, partyA, LibOnChainUpnl.priceSigFromSingle(upnlSig));
+		gtInt256 gtAvailableBalance = LibAccount.partyBAvailableForQuote(gtComputedUpnl, msg.sender, partyA);
 		gtBool gtAvailableBalanceNonNegative = LibAccount.isNonNegative(gtAvailableBalance);
 		require(MpcCore.decrypt(gtAvailableBalanceNonNegative), "AccountFacet: Available balance is lower than zero");
 		gtBool gtAvailableBalanceCoversAmount = LibAccount.isAtLeastAmount(gtAvailableBalance, gtAmount);

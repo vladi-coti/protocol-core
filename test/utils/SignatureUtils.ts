@@ -18,7 +18,8 @@ export async function getDummySingleUpnlSig(upnl: bigint = 0n): Promise<SingleUp
 	return {
 		reqId: "0x",
 		timestamp: await getBlockTimestamp(60n),
-		upnl: upnl,
+		quoteIds: [],
+		prices: [],
 		gatewaySignature: ethers.ZeroAddress,
 		sigs: {
 			signature: "0",
@@ -41,10 +42,7 @@ export async function getDummyLiquidationSig(
 		timestamp: await getBlockTimestamp(60n),
 		liquidationBlockNumber: 1,
 		liquidationTimestamp: await getBlockTimestamp(60n),
-		liquidationAllocatedBalance: allocatedBalance,
 		liquidationId: liquidationId,
-		upnl: upnl,
-		totalUnrealizedLoss: totalUnrealizedLoss,
 		prices: prices,
 		symbolIds: symbolIds,
 		gatewaySignature: ethers.ZeroAddress,
@@ -60,7 +58,6 @@ export async function getDummySingleUpnlAndPriceSig(price: bigint = 1n, upnl: bi
 	return {
 		reqId: "0x",
 		timestamp: await getBlockTimestamp(60n),
-		upnl: upnl,
 		gatewaySignature: ethers.ZeroAddress,
 		sigs: {
 			signature: "0",
@@ -68,6 +65,8 @@ export async function getDummySingleUpnlAndPriceSig(price: bigint = 1n, upnl: bi
 			nonce: ethers.ZeroAddress,
 		},
 		price: price,
+		quoteIds: [],
+		prices: [],
 	}
 }
 
@@ -79,8 +78,6 @@ export async function getDummyPairUpnlAndPriceSig(
 	return {
 		reqId: "0x",
 		timestamp: await getBlockTimestamp(60n),
-		upnlPartyA: upnlPartyA,
-		upnlPartyB: upnlPartyB,
 		gatewaySignature: ethers.ZeroAddress,
 		sigs: {
 			signature: "0",
@@ -88,6 +85,10 @@ export async function getDummyPairUpnlAndPriceSig(
 			nonce: ethers.ZeroAddress,
 		},
 		price: price,
+		partyAQuoteIds: [],
+		partyAPrices: [],
+		partyBQuoteIds: [],
+		partyBPrices: [],
 	}
 }
 
@@ -98,8 +99,10 @@ export async function getDummyPairUpnlSig(
 	return {
 		reqId: "0x",
 		timestamp: BigInt(await getBlockTimestamp(60n)),
-		upnlPartyA: upnlPartyA,
-		upnlPartyB: upnlPartyB,
+		partyAQuoteIds: [],
+		partyAPrices: [],
+		partyBQuoteIds: [],
+		partyBPrices: [],
 		gatewaySignature: ethers.ZeroAddress,
 		sigs: {
 			signature: 0n,
@@ -117,9 +120,9 @@ export async function getDummySettlementSig(
 	return {
 		reqId: "0x",
 		timestamp: BigInt(await getBlockTimestamp(60n)),
-		upnlPartyA: upnlPartyA,
-		upnlPartyBs: upnlPartyBs,
 		quotesSettlementsData: quotesSettlementsData,
+		partyAPriceSig: await getDummyPriceSig(),
+		partyBPriceSigs: [],
 		gatewaySignature: ethers.ZeroAddress,
 		sigs: {
 			signature: 0n,
@@ -150,8 +153,6 @@ export async function getDummyHighLowPriceSig(
 		startTime: startTime,
 		endTime: endTime,
 		symbolId: symbolId,
-		upnlPartyB: upnlPartyB,
-		upnlPartyA: upnlPartyA,
 		gatewaySignature: ethers.ZeroAddress,
 		sigs: {
 			signature: "0",

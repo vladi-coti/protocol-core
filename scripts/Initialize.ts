@@ -78,6 +78,7 @@ export async function initialize(): Promise<RunContext> {
 	for (const sym of symbolsMock.symbols) await addSymbolAsync(context.controlFacet, context.signers.admin, sym)
 
 	await runTx(context.controlFacet.connect(context.signers.admin).setPendingQuotesValidLength(100))
+	await runTx(context.controlFacet.connect(context.signers.admin).setMaxPartyAOpenPositions(8))
 	await runTx(context.controlFacet.connect(context.signers.admin).setLiquidatorShare(decimal(1n, 17)))
 	await runTx(context.controlFacet.connect(context.signers.admin).setLiquidationTimeout(100))
 	await runTx(context.controlFacet.connect(context.signers.admin).setDeallocateCooldown(120))

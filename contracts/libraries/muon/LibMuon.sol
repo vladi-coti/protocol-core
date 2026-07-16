@@ -48,7 +48,8 @@ library LibMuon {
 				partyB,
 				partyA,
 				AccountStorage.layout().partyBNonces[partyB][partyA],
-				upnlSig.upnl,
+				upnlSig.quoteIds,
+				upnlSig.prices,
 				upnlSig.timestamp,
 				getChainId()
 			)

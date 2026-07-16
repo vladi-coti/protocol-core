@@ -8,6 +8,7 @@ import "../../libraries/muon/LibMuonFundingRate.sol";
 import "../../libraries/LibAccount.sol";
 import "../../libraries/LibQuote.sol";
 import "../../libraries/LibEncryption.sol";
+import "../../libraries/LibOnChainUpnl.sol";
 import "../../storages/QuoteStorage.sol";
 import "../../storages/AccountStorage.sol";
 import "../../storages/SymbolStorage.sol";
@@ -24,8 +25,10 @@ library FundingRateFacetImpl {
 		require(quoteIds.length == rates.length && quoteIds.length > 0, "ChargeFundingFacet: Length not match");
 		
 		// Get encrypted available balances
-		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(upnlSig.upnlPartyB, msg.sender, partyA);
-		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(upnlSig.upnlPartyA, partyA);
+		gtInt256 gtPartyBUpnl = LibOnChainUpnl.partyBUpnlFromQuotePrices(msg.sender, partyA, LibOnChainUpnl.partyBPriceSigFromPair(upnlSig));
+		gtInt256 gtPartyAUpnl = LibOnChainUpnl.partyAUpnlFromQuotePrices(partyA, LibOnChainUpnl.partyAPriceSigFromPair(upnlSig));
+		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(gtPartyBUpnl, msg.sender, partyA);
+		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(gtPartyAUpnl, partyA);
 		uint256 epochDuration;
 		uint256 windowTime;
 		for (uint256 i = 0; i < quoteIds.length; i++) {
