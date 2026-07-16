@@ -120,8 +120,8 @@ Unblocked, highest priority — pick **one** per session:
 
 ## Decisions so far
 
-- [Validate C-01 unsigned→signed cast](tickets/logic-P0-C-01.md) — **partial/valid**; sendQuote high-bit bypass not reproduced; added `LibEncryption.toNonNegativeSigned` + `test/audit/C01.test.ts` at cited sites.
-- [Validate H-02 unchecked signed MPC math](tickets/logic-P0-H-02.md) — **valid**; `gtInt256.checkedAdd/checkedSub` at cited LibAccount/LibSettlement/LibQuote/LibSolvency paths (+ follow-up sweep of remaining signed add/sub); `test/audit/H02.test.ts` passed on testnet.
+- [Validate C-01 unsigned→signed cast](tickets/logic-P0-C-01.md) — **hardened**; `toNonNegativeSigned` at cited sites + remaining `.toSigned()` swept (`LibQuote`/`LibSettlement`/funding/force/liquidation); static tripwire in `test/audit/C01.test.ts`; sim green.
+- [Validate H-02 unchecked signed MPC math](tickets/logic-P0-H-02.md) — **valid**; `gtInt256.checkedAdd/checkedSub` repo-wide (only locked-value struct helpers remain); static tripwire in `test/audit/H02.test.ts`; sim green.
 - [Validate H-38 zero-CVA LATE divide-by-zero](tickets/logic-P0-H-38.md) — **valid**; LATE settlement skips `/ totalCva` when total CVA is 0; `test/audit/H38.test.ts` green on testnet.
 - [Validate H-12 settleAndForceClose wrong PartyA](tickets/logic-P0-H-12.md) — **valid**; settle against `quote.partyA` not `msg.sender`; `test/audit/H12.test.ts` green on sim (+ testnet trust sample).
 - [Validate H-14 force-close stale PartyB deficit](tickets/logic-P0-H-14.md) — **valid**; liquidate with post-reserve `gtWithReserve`; `test/audit/H14.test.ts` green on sim.
@@ -134,7 +134,7 @@ Unblocked, highest priority — pick **one** per session:
 ## Not yet specified
 
 - **Implement-fix tickets** — one per validated finding; created when validation closes with verdict `valid` or `partial`. Skills: `tdd` → `implement`.
-- **Cross-finding dedup** — C-01 and H-02 may share a single bounds-checking fix; decide during P0 validation whether to merge implementation tickets.
+- **Cross-finding dedup** — C-01 / H-02 hardening landed together (checked signed ops + guarded unsigned→signed casts); no separate implement tickets needed.
 - **Review1 overlap** — several review2 findings may already be partially addressed (e.g. H-05 vs report5#3, H-16 vs report1#4). Validation tickets must check current code, not assume greenfield.
 ## Out of scope
 

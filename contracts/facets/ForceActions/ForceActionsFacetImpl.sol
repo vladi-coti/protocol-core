@@ -185,7 +185,7 @@ library ForceActionsFacetImpl {
 			LibQuote.closeQuote(quote, gtQuantityToClose, gtClosePrice);
 		} else {
 			// Check if PartyB has enough reserve using encrypted comparison
-			gtInt256 gtWithReserve = gtPartyBAvailableBalance.checkedAdd(gtReserveAmount.toSigned());
+			gtInt256 gtWithReserve = gtPartyBAvailableBalance.checkedAdd(LibEncryption.toNonNegativeSigned(gtReserveAmount));
 			gtBool gtCanUseReserve = gtWithReserve.ge(gtZero);
 			if (MpcCore.decrypt(gtCanUseReserve)) {
 				// Calculate available amount using encrypted operations

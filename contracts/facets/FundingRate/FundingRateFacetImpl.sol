@@ -74,7 +74,7 @@ library FundingRateFacetImpl {
 				LibEncryption.storeQuoteOpenedPrice(quoteLayout, quote, gtOpenedPrice);
 				
 				// Calculate impact on balances
-				gtInt256 gtImpact = gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(gtScaleFactor).toSigned();
+				gtInt256 gtImpact = LibEncryption.toNonNegativeSigned(gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(gtScaleFactor));
 				gtPartyAAvailableBalance = gtPartyAAvailableBalance.checkedSub(gtImpact);
 				gtPartyBAvailableBalance = gtPartyBAvailableBalance.checkedAdd(gtImpact);
 			} else {
@@ -93,7 +93,7 @@ library FundingRateFacetImpl {
 				LibEncryption.storeQuoteOpenedPrice(quoteLayout, quote, gtOpenedPrice);
 				
 				// Calculate impact on balances
-				gtInt256 gtImpact = gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(gtScaleFactor).toSigned();
+				gtInt256 gtImpact = LibEncryption.toNonNegativeSigned(gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(gtScaleFactor));
 				gtPartyAAvailableBalance = gtPartyAAvailableBalance.checkedAdd(gtImpact);
 				gtPartyBAvailableBalance = gtPartyBAvailableBalance.checkedSub(gtImpact);
 			}

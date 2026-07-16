@@ -78,7 +78,9 @@ library LibSettlement {
 
 			gtUint256 gtQuoteOpenAmount = LibQuote.quoteOpenAmount(quote);
 			gtUint256 gtPriceDiff = MpcCore.max(gtUpdatedPrice, gtOpenedPrice).checkedSub(MpcCore.min(gtUpdatedPrice, gtOpenedPrice));
-			gtInt256 gtImpact = gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(MpcCore.setPublic256(uint256(1e18))).toSigned();
+			gtInt256 gtImpact = LibEncryption.toNonNegativeSigned(
+				gtQuoteOpenAmount.checkedMul(gtPriceDiff).div(MpcCore.setPublic256(uint256(1e18)))
+			);
 			gtInt256 gtSignedImpact;
 
 			if (quote.positionType == PositionType.LONG) {

@@ -92,7 +92,9 @@ library LiquidationFacetImpl {
         if (MpcCore.decrypt(gtSettleAmount.lt(gtZero))) {
             gtContribution = gtSettleAmount;
         } else {
-            gtInt256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext).toSigned();
+            gtInt256 gtPartyBBalance = LibEncryption.toNonNegativeSigned(
+                LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext)
+            );
             gtContribution = MpcCore.decrypt(gtPartyBBalance.ge(gtSettleAmount)) ? gtSettleAmount : gtPartyBBalance;
         }
         gtInt256 gtCurrentAccumulated = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][address(0)].actualAmount.ciphertext);
@@ -291,7 +293,8 @@ library LiquidationFacetImpl {
                 gtUint256 gtNewCva = gtCurrentCva.checkedAdd(gtQuoteCva);
                 _storeSettlementCva(accountLayout, partyA, quote.partyB, gtNewCva, partyAEncryptionAddress, partyBEncryptionAddress);
 
-                gtInt256 gtAmountDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAmount.toSigned());
+                gtInt256 gtSignedAmount = LibEncryption.toNonNegativeSigned(gtAmount);
+                gtInt256 gtAmountDelta = _signedPnlDelta(gtHasMadeProfit, gtSignedAmount, gtSignedAmount);
                 gtInt256 gtCurrentActual = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
                 gtInt256 gtNewActual = gtCurrentActual.checkedAdd(gtAmountDelta);
                 _storeSettlementActual(accountLayout, partyA, quote.partyB, gtNewActual, partyAEncryptionAddress, partyBEncryptionAddress);
@@ -308,7 +311,8 @@ library LiquidationFacetImpl {
                 gtUint256 gtNewCva = gtCurrentCva.checkedAdd(gtAdjustedCva);
                 _storeSettlementCva(accountLayout, partyA, quote.partyB, gtNewCva, partyAEncryptionAddress, partyBEncryptionAddress);
                 
-                gtInt256 gtAmountDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAmount.toSigned());
+                gtInt256 gtSignedAmount = LibEncryption.toNonNegativeSigned(gtAmount);
+                gtInt256 gtAmountDelta = _signedPnlDelta(gtHasMadeProfit, gtSignedAmount, gtSignedAmount);
                 gtInt256 gtCurrentActual = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
                 gtInt256 gtNewActual = gtCurrentActual.checkedAdd(gtAmountDelta);
                 _storeSettlementActual(accountLayout, partyA, quote.partyB, gtNewActual, partyAEncryptionAddress, partyBEncryptionAddress);
@@ -316,9 +320,12 @@ library LiquidationFacetImpl {
             } else if (accountLayout.liquidationDetails[partyA].liquidationType == LiquidationType.OVERDUE) {
                 require(accountLayout.liquidationDetails[partyA].totalUnrealizedLoss < 0, "LiquidationFacet: Invalid unrealized loss");
                 gtUint256 gtTotalUnrealizedLoss = MpcCore.setPublic256(uint256(-accountLayout.liquidationDetails[partyA].totalUnrealizedLoss));
-                gtInt256 gtAdjustedAmount = gtAmount.checkedSub(gtAmount.checkedMul(gtDeficit).div(gtTotalUnrealizedLoss)).toSigned();
-                gtInt256 gtActualDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAdjustedAmount);
-                gtInt256 gtExpectedDelta = _signedPnlDelta(gtHasMadeProfit, gtAmount.toSigned(), gtAmount.toSigned());
+                gtInt256 gtSignedAmount = LibEncryption.toNonNegativeSigned(gtAmount);
+                gtInt256 gtAdjustedAmount = LibEncryption.toNonNegativeSigned(
+                    gtAmount.checkedSub(gtAmount.checkedMul(gtDeficit).div(gtTotalUnrealizedLoss))
+                );
+                gtInt256 gtActualDelta = _signedPnlDelta(gtHasMadeProfit, gtSignedAmount, gtAdjustedAmount);
+                gtInt256 gtExpectedDelta = _signedPnlDelta(gtHasMadeProfit, gtSignedAmount, gtSignedAmount);
 
                 gtInt256 gtCurrentActual = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][quote.partyB].actualAmount.ciphertext);
                 gtInt256 gtNewActual = gtCurrentActual.checkedAdd(gtActualDelta);
@@ -381,7 +388,7 @@ library LiquidationFacetImpl {
         for (uint256 i = 0; i < partyBs.length; i++) {
             address partyB = partyBs[i];
             address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
-            gtInt256 gtAmount = MpcCore.setPublic256(uint256(amounts[i])).toSigned();
+            gtInt256 gtAmount = MpcCore.setPublic256(amounts[i]);
             _storeSettlementActual(accountLayout, partyA, partyB, gtAmount, partyAEncryptionAddress, partyBEncryptionAddress);
         }
         return accountLayout.liquidationDetails[partyA].liquidationId;
@@ -452,7 +459,7 @@ library LiquidationFacetImpl {
                     ctUint256 memory ctSettleAmount = MpcCore.offBoardToUser(gtPositiveSettleAmount, partyBEncryptionAddress);
                     emit SharedEvents.BalanceChangePartyB(partyB, partyA, ctSettleAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
                 } else {
-                    settleAmounts[i] = gtCurrentBalance3.toSigned();
+                    settleAmounts[i] = LibEncryption.toNonNegativeSigned(gtCurrentBalance3);
                     LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtZero.fromSigned());
                     
                     // Emit encrypted event

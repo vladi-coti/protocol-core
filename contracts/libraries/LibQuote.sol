@@ -228,7 +228,7 @@ library LibQuote {
 		// Calculate PNL with encrypted direction and update balances without branching on profit/loss.
 		(gtBool gtHasMadeProfit, gtUint256 gtPnl) = getValueOfQuoteForPartyA(gtClosedPrice, gtFilledAmount, quote);
 		gtInt256 gtZeroInt = MpcCore.setPublic256(int256(0));
-		gtInt256 gtSignedPnl = gtPnl.toSigned();
+		gtInt256 gtSignedPnl = LibEncryption.toNonNegativeSigned(gtPnl);
 		gtInt256 gtPartyADelta = MpcCore.mux(gtHasMadeProfit, gtZeroInt.checkedSub(gtSignedPnl), gtSignedPnl);
 		gtInt256 gtPartyBDelta = MpcCore.mux(gtHasMadeProfit, gtSignedPnl, gtZeroInt.checkedSub(gtSignedPnl));
 

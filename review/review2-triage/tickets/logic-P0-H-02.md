@@ -43,16 +43,17 @@ Checked signed ops or strict bounds before unchecked math
 
 **Verdict: `valid`.** COTI `gtInt256.add/sub` wraps; cited accounting paths used unchecked ops.
 
-**Fix disposition: `implement`**
+**Fix disposition: `implement` (done)**
 
 - Reinstalled `@coti-io/coti-contracts#feat/signed` (native `MpcCore.checkedAdd/Sub(gtInt256)`).
 - Cited paths: `LibAccount`, `LibSettlement`, `LibQuote`, `LibSolvency` — `.add/.sub` → `.checkedAdd/.checkedSub`.
-- Follow-up sweep: remaining `gtInt256` unchecked ops in FundingRate / Liquidation / ForceActions / LibLiquidation / DeferredLiquidation.
-- Regression: `test/audit/H02.test.ts` — sendQuote unaffordable quote still reverts (passed on COTI testnet).
+- Follow-up: no unchecked `gtInt256` add/sub remains; only `GarbledLockedValues` struct `.add/.sub` helpers remain (allowed).
+- Paired with C-01 cast sweep (unsigned magnitudes → `toNonNegativeSigned` before signed math).
+- Regression: `test/audit/H02.test.ts` — unaffordable sendQuote + static tripwire that signed MPC arithmetic uses checked helpers.
 
 **Evidence**
 
 ```bash
-npx hardhat test test/audit/H02.test.ts --grep "H-02"
-# 1 passing (~6m)
+TEST_MODE=static npx hardhat test test/audit/H02.test.ts --network localSimCoti
+# 2 passing
 ```

@@ -1,4 +1,6 @@
 import { expect } from "chai"
+import * as fs from "fs"
+import * as path from "path"
 
 import { initializeFixture } from "../Initialize.fixture"
 import { RunContext } from "../models/RunContext"
@@ -9,6 +11,14 @@ import { loadFixtureCompatible } from "../utils/testHelpers"
 
 const TWO_255 = 1n << 255n
 const TWO_254 = 1n << 254n
+
+function solidityFiles(dir: string): string[] {
+	return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+		const fullPath = path.join(dir, entry.name)
+		if (entry.isDirectory()) return solidityFiles(fullPath)
+		return entry.isFile() && entry.name.endsWith(".sol") ? [fullPath] : []
+	})
+}
 
 /**
  * C-01 validation: unsigned encrypted values cast via toSigned() without proving value < 2^255.
@@ -79,5 +89,18 @@ export function shouldBehaveLikeAuditC01(): void {
 					.build(),
 			),
 		).to.be.reverted
+	})
+
+	it("C-01: contracts must not use raw gtUint256.toSigned casts", function () {
+		const contractsRoot = path.join(__dirname, "../../contracts")
+		const offenders = solidityFiles(contractsRoot).flatMap((file) => {
+			const relative = path.relative(contractsRoot, file)
+			return fs
+				.readFileSync(file, "utf8")
+				.split("\n")
+				.flatMap((line, index) => (line.includes(".toSigned()") ? [`${relative}:${index + 1}: ${line.trim()}`] : []))
+		})
+
+		expect(offenders).to.deep.equal([])
 	})
 }

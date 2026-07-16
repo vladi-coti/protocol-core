@@ -41,33 +41,18 @@ Enforce signed-range bounds before every unsigned-to-signed encrypted conversion
 
 ## Answer
 
-**Verdict: `partial` (valid code flaw; sendQuote bypass not reproduced on testnet)**
+**Verdict: `valid` (hardened).** SendQuote high-bit bypass not reproduced; unsigned→signed casts guarded repo-wide.
 
 **Evidence**
 
-Command:
-
 ```bash
-TEST_MODE=static npx hardhat test test/audit/C01.test.ts --grep "C-01"
+TEST_MODE=static npx hardhat test test/audit/C01.test.ts --network localSimCoti
+# 4 passing (control + high-bit + report3-style + static no-raw-.toSigned tripwire)
 ```
 
-Result (post-fix run pending; pre-fix 2026-07-09):
+**Fix disposition: `implement` (done)**
 
-- ✔ Control: honestly unaffordable quote reverts (`PartyAFacet: insufficient available balance` on COTI testnet via receipt-status matcher)
-- ✔ `totalRequired == 2^255` locked values: tx **reverts** (does not open quote with 1200 allocated)
-- ✔ report3-style `cva=2^254, partyAmm=2^254`: tx **reverts**
-
-**Code review**
-
-- `MpcCore.toSigned(gtUint256)` is a bit reinterpret with **no** `< 2^255` guard at cited sites.
-- `checkedAdd` on `totalForPartyA` blocks constructing `2^255` sums without overflow revert, which **mitigates** the classic sendQuote bypass from review1/report3#5 but does **not** fix casts on storage values corrupted by unchecked arithmetic (see H-02 / review1 report3#2).
-
-**Fix disposition: `implement` (defense in depth at cited sites)**
-
-- Added `LibEncryption.toNonNegativeSigned(gtUint256)` — requires encrypted `value < 2^255` before cast.
-- Wired at cited paths: `PartyAFacetImpl.sendQuote`, all `LibAccount` unsigned→signed casts, all `LibSolvency` unsigned→signed casts.
-- Regression: `test/audit/C01.behavior.ts` + `test/audit/C01.test.ts`.
-
-**Remaining fog**
-
-- Other files still call `.toSigned()` on `gtUint256` (e.g. `LibQuote`, `LibSettlement`, liquidation). Track under H-02 / follow-up hardening ticket.
+- `LibEncryption.toNonNegativeSigned(gtUint256)` — requires encrypted `value < 2^255` before cast.
+- Cited paths: `PartyAFacetImpl.sendQuote`, all `LibAccount` / `LibSolvency` unsigned→signed casts.
+- Follow-up sweep: remaining raw `.toSigned()` removed from `LibQuote`, `LibSettlement`, `FundingRateFacetImpl`, `ForceActionsFacetImpl`, `LiquidationFacetImpl` (PnL / impact / reserve / allocated magnitudes). Dispute amounts use direct `MpcCore.setPublic256(int256)`.
+- Regression: `test/audit/C01.test.ts` — behavioral cases + contracts must not use raw `.toSigned()`.
