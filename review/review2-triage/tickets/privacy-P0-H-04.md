@@ -4,10 +4,12 @@ labels: [group:privacy-leak, wayfinder:research]
 priority: P0
 finding: H-04
 severity: High
-status: open
+status: closed
 blocks: —
 blocked_by: —
 report: ../report.md
+verdict: valid
+disposition: implement
 ---
 
 ## Question
@@ -32,13 +34,28 @@ Verify Muon sig before decrypting price predicates
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `valid`
+- [x] Fix disposition: `implement`
+- [x] If valid: write implement brief (minimal fix, affected files, regression test name)
 
 ## Answer
 
-*(unresolved)*
+**Valid.** `forceClosePosition` onboarded/decrypted `requestedClosePrice` gap predicates and branched on revert *before* `LibMuonForceActions.verifyHighLowPrice`. Junk Muon + probing `lowest`/`highest` yields `"Requested close price not reached"` vs success past that check → oracle on encrypted close threshold.
+
+**Evidence (sim, Muon audit-off)**
+
+```bash
+TEST_MODE=static npx hardhat test test/audit/H04.test.ts --grep 'H-04' --network localSimCoti
+```
+
+- Behavioral: too-high `lowest` on SHORT → early revert; valid `lowest` → close succeeds (same junk sig).
+- Source-order red→green: `verifyHighLowPrice` must precede `requestedClosePrice.ciphertext` onboard.
+
+**Fix:** call `verifyHighLowPrice` (+ settlement verify when used) immediately after public requires, before private price onboard/decrypt.
+
+**Regression:** `test/audit/H04.test.ts` / `H04.behavior.ts`
+
+Note: with audit Muon disabled, verify is a no-op so the behavioral price oracle still exists in test mode; production Muon-on makes unauthenticated probes fail at verify first.

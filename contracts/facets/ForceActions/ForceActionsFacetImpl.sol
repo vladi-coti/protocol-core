@@ -85,7 +85,13 @@ library ForceActionsFacetImpl {
 		require(sig.startTime >= quote.statusModifyTimestamp + maLayout.forceCloseFirstCooldown, "PartyAFacet: Cooldown not reached");
 		require(sig.endTime <= block.timestamp - maLayout.forceCloseSecondCooldown, "PartyAFacet: Cooldown not reached");
 		require(sig.averagePrice <= sig.highest && sig.averagePrice >= sig.lowest, "PartyAFacet: Invalid average price");
-		
+
+		// H-04: authenticate Muon prices before any onboard/decrypt of private close predicates.
+		LibMuonForceActions.verifyHighLowPrice(sig, quote.partyB, quote.partyA, quote.symbolId);
+		if (updatedPrices.length > 0) {
+			LibMuonSettlement.verifySettlement(settlementSig, quote.partyA);
+		}
+
 		// Get encrypted requestedClosePrice
 		gtUint256 gtRequestedClosePrice = LockedValuesOps.safeOnboard(quote.requestedClosePrice.ciphertext);
 		
@@ -136,10 +142,6 @@ library ForceActionsFacetImpl {
 		if (MpcCore.decrypt(gtClosePriceEqAverage))
 			require(sig.endTime - sig.startTime >= maLayout.forceCloseMinSigPeriod, "PartyAFacet: Invalid signature period");
 
-		LibMuonForceActions.verifyHighLowPrice(sig, quote.partyB, quote.partyA, quote.symbolId);
-		if (updatedPrices.length > 0) {
-			LibMuonSettlement.verifySettlement(settlementSig, quote.partyA);
-		}
 		accountLayout.partyANonces[quote.partyA] += 1;
 		accountLayout.partyBNonces[quote.partyB][quote.partyA] += 1;
 		gtUint256 gtReserveAmount = LibAccount.initializeReserveVault(quote.partyB);
