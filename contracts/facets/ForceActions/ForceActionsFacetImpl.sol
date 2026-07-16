@@ -10,6 +10,7 @@ import "../../libraries/LibSettlement.sol";
 import "../../libraries/LibLiquidation.sol";
 import "../../libraries/LibSolvency.sol";
 import "../../libraries/LibEncryption.sol";
+import "../../libraries/LibQuote.sol";
 import "../../storages/QuoteStorage.sol";
 
 library ForceActionsFacetImpl {
@@ -216,6 +217,18 @@ library ForceActionsFacetImpl {
 				ctUint256 memory ctReserveAmount = MpcCore.offBoardToUser(gtReserveAmount, LibAccount.getUserEncryptionAddress(quote.partyB));
 				emit SharedEvents.BalanceChangePartyB(quote.partyB, quote.partyA, ctReserveAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
 				isPartyBLiquidated = true;
+				// H-26: post-close available already unlocks this quote's cva+lf; align PartyB
+				// locked balances before liquidation reads LF (quote stays open for position liq).
+				{
+					GarbledLockedValues memory gtQuoteLocked = quote.lockedValues.onBoard();
+					gtUint256 gtOpenAmount = LibQuote.quoteOpenAmount(quote);
+					gtUint256 gtUnlockCva = gtQuantityToClose.checkedMul(gtQuoteLocked.cva).div(gtOpenAmount);
+					gtUint256 gtUnlockLf = gtQuantityToClose.checkedMul(gtQuoteLocked.lf).div(gtOpenAmount);
+					GarbledLockedValues memory gtPartyBLocked = accountLayout.partyBLockedBalances[quote.partyB][quote.partyA].onBoard();
+					gtPartyBLocked.cva = gtPartyBLocked.cva.checkedSub(gtUnlockCva);
+					gtPartyBLocked.lf = gtPartyBLocked.lf.checkedSub(gtUnlockLf);
+					LibEncryption.storePartyBLockedBalance(accountLayout, quote.partyB, quote.partyA, gtPartyBLocked);
+				}
 				// Available was computed before reserve credit; use post-reserve remaining deficit.
 				LibLiquidation.liquidatePartyBFromAvailable(quote.partyB, quote.partyA, gtWithReserve, block.timestamp);
 			}

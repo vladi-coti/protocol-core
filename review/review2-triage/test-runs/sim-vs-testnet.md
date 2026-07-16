@@ -14,3 +14,4 @@ python3 utils/update_sig_checks.py 1
 | H-14 partial-reserve force-close liquidate | PASS | PASS | Fix: pass `gtWithReserve` into `liquidatePartyBFromAvailable`. Agree on both. |
 | H-15 remainingLf > alloc (+UPNL) liquidate | PASS | PASS | Cap `remainingLf` via `MpcCore.min(..., partyBAllocated)`. Agree on both. |
 | H-16 deferred type uses signed alloc snapshot | PASS | PASS | `deferredSetSymbolsPrice` + reimbursement use `liquidationAllocatedBalance`. |
+| H-26 force-close LF unlock before PartyB liq | PASS | PASS | Unlock closed-quote cva+lf on PartyB locks before liquidatePartyBFromAvailable |
