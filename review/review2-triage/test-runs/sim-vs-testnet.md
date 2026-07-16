@@ -19,3 +19,4 @@ python3 utils/update_sig_checks.py 1
 | H-26 force-close LF unlock before PartyB liq | PASS | PASS | Unlock closed-quote cva+lf on PartyB locks before liquidatePartyBFromAvailable |
 | H-08 allocate/internalTransfer free-balance before limit | PASS | PASS | Public balance require before encrypted allocated-limit decrypt |
 | H-04 force-close Muon before price decrypt | PASS | PASS | verifyHighLowPrice before requestedClosePrice onboard; testnet has force-close cooldown |
+| H-32 emergency close insolvency vs liquidation | PASS | PASS | design-choice: solvency gate intentional; liq still works in PartyB emergency |
