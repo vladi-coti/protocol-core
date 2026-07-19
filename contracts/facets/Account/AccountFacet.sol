@@ -84,7 +84,7 @@ contract AccountFacet is Accessibility, Pausable, IAccountEvents {
 	/// @notice Allows Party A to deallocate a specified amount of collateral.
 	/// @param amount The precise amount of collateral to be deallocated, specified in 18 decimals.
 	/// @param upnlSig The Muon signature for SingleUpnlSig.
-	function deallocate(uint256 amount, SingleUpnlSig memory upnlSig) external whenNotAccountingPaused notLiquidatedPartyA(msg.sender) {
+	function deallocate(uint256 amount, SingleUpnlSig memory upnlSig) external whenNotAccountingPaused notSuspended(msg.sender) notLiquidatedPartyA(msg.sender) {
 		AccountFacetImpl.deallocate(amount, upnlSig);
 		
 		// Get encrypted balance for event emission
@@ -102,7 +102,7 @@ contract AccountFacet is Accessibility, Pausable, IAccountEvents {
 	/// @notice Prototype deallocation path for H-01 option C: Muon signs prices only, UPNL is computed on-chain.
 	/// @param amount The precise amount of collateral to be deallocated, specified in 18 decimals.
 	/// @param priceSig The Muon signature for quote prices covering all open positions.
-	function deallocateWithQuotePrices(uint256 amount, QuotePriceSig memory priceSig) external whenNotAccountingPaused notLiquidatedPartyA(msg.sender) {
+	function deallocateWithQuotePrices(uint256 amount, QuotePriceSig memory priceSig) external whenNotAccountingPaused notSuspended(msg.sender) notLiquidatedPartyA(msg.sender) {
 		AccountFacetImpl.deallocateWithQuotePrices(amount, priceSig);
 		
 		ctUint256 memory ctBalance = AccountStorage.layout().allocatedBalances[msg.sender].userCiphertext;

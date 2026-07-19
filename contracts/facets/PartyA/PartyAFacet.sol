@@ -158,7 +158,7 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 			Conversely, if the position has been opened, the user is unable to issue this request.
 	 * @param quoteId The ID of the quote to be canceled.
 	 */
-	function requestToCancelQuote(uint256 quoteId) external whenNotPartyAActionsPaused onlyPartyAOfQuote(quoteId) notLiquidated(quoteId) {
+	function requestToCancelQuote(uint256 quoteId) external whenNotPartyAActionsPaused notSuspended(msg.sender) onlyPartyAOfQuote(quoteId) notLiquidated(quoteId) {
 		QuoteStatus result = PartyAFacetImpl.requestToCancelQuote(quoteId);
 		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
 
@@ -185,7 +185,7 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 		itUint256 calldata encryptedQuantityToClose,
 		OrderType orderType,
 		uint256 deadline
-	) external whenNotPartyAActionsPaused onlyPartyAOfQuote(quoteId) notLiquidated(quoteId) {
+	) external whenNotPartyAActionsPaused notSuspended(msg.sender) onlyPartyAOfQuote(quoteId) notLiquidated(quoteId) {
 		gtUint256 gtClosePrice = MpcCore.validateCiphertext(encryptedClosePrice);
 		gtUint256 gtQuantityToClose = MpcCore.validateCiphertext(encryptedQuantityToClose);
 		
@@ -239,7 +239,7 @@ contract PartyAFacet is Accessibility, Pausable, IPartyAFacet {
 	 * @notice Requests to cancel a pending position closure request.
 	 * @param quoteId The ID of the quote associated with the position.
 	 */
-	function requestToCancelCloseRequest(uint256 quoteId) external whenNotPartyAActionsPaused onlyPartyAOfQuote(quoteId) notLiquidated(quoteId) {
+	function requestToCancelCloseRequest(uint256 quoteId) external whenNotPartyAActionsPaused notSuspended(msg.sender) onlyPartyAOfQuote(quoteId) notLiquidated(quoteId) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		Quote storage quote = quoteLayout.quotes[quoteId];
 		QuoteStatus result = PartyAFacetImpl.requestToCancelCloseRequest(quoteId);
