@@ -142,4 +142,132 @@ library LibAccountEncryption {
 		gtUint256 gtCva = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][partyB].cva.ciphertext);
 		accountLayout.partyBSettlementStates[partyA][partyB].cva = MpcCore.offBoardToUser(gtCva, newEncryptionAddress);
 	}
+
+	/**
+	 * @notice Re-offboard PartyA observer ciphertext from primary user storage for the current trustedObserverAddress.
+	 * @dev Flip-first rotation catch-up. Header runs when quoteStart == 0. Pages quoteIdsOf[partyA][start:start+limit]
+	 *      and migrates active quotes only; PartyB ledgers for counterparties in that page are included.
+	 */
+	function migrateObserverForPartyA(address partyA, uint256 quoteStart, uint256 quoteLimit) external {
+		require(partyA != address(0), "ControlFacet: Zero address");
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+
+		if (quoteStart == 0) {
+			_migrateObserverPartyAHeader(accountLayout, partyA);
+		}
+
+		uint256[] storage ids = quoteLayout.quoteIdsOf[partyA];
+		uint256 end = quoteStart + quoteLimit;
+		if (end > ids.length) {
+			end = ids.length;
+		}
+		for (uint256 i = quoteStart; i < end; i++) {
+			Quote storage q = quoteLayout.quotes[ids[i]];
+			if (q.partyA != partyA || !_isActiveQuoteStatus(q.quoteStatus)) {
+				continue;
+			}
+			_migrateObserverQuote(q, quoteLayout.observerQuoteValues[ids[i]]);
+			if (q.partyB != address(0)) {
+				_migrateObserverPartyBForPartyA(accountLayout, partyA, q.partyB);
+			}
+		}
+	}
+
+	/**
+	 * @notice Re-offboard PartyB-only observer slots (reserve vault, fee collector) for the current observer.
+	 */
+	function migrateObserverForPartyBs(address[] calldata partyBs) external {
+		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
+		for (uint256 i = 0; i < partyBs.length; i++) {
+			address partyB = partyBs[i];
+			require(partyB != address(0), "ControlFacet: Zero address");
+			gtUint256 gtValue = LibAccount.initializeReserveVault(partyB);
+			accountLayout.observerEncryptedReserveVault[partyB] = LibEncryption.offBoardToObserver(gtValue);
+			gtValue = LibAccount.initializeFeeCollectorBalance(partyB);
+			accountLayout.observerEncryptedFeeCollectorBalances[partyB] = LibEncryption.offBoardToObserver(gtValue);
+		}
+	}
+
+	function _isActiveQuoteStatus(QuoteStatus status) private pure returns (bool) {
+		return
+			status == QuoteStatus.PENDING ||
+			status == QuoteStatus.LOCKED ||
+			status == QuoteStatus.CANCEL_PENDING ||
+			status == QuoteStatus.OPENED ||
+			status == QuoteStatus.CLOSE_PENDING ||
+			status == QuoteStatus.CANCEL_CLOSE_PENDING ||
+			status == QuoteStatus.LIQUIDATED_PENDING;
+	}
+
+	function _migrateObserverPartyAHeader(AccountStorage.Layout storage accountLayout, address partyA) private {
+		gtUint256 gtValue = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
+		accountLayout.observerAllocatedBalances[partyA] = LibEncryption.offBoardToObserver(gtValue);
+
+		GarbledLockedValues memory gtLocked = accountLayout.lockedBalances[partyA].onBoard();
+		accountLayout.observerLockedBalances[partyA] = LibEncryption.offBoardLockedToObserver(gtLocked);
+		gtLocked = accountLayout.pendingLockedBalances[partyA].onBoard();
+		accountLayout.observerPendingLockedBalances[partyA] = LibEncryption.offBoardLockedToObserver(gtLocked);
+
+		gtValue = LibAccount.initializePartyAReimbursement(partyA);
+		accountLayout.observerEncryptedPartyAReimbursement[partyA] = LibEncryption.offBoardToObserver(gtValue);
+		gtValue = LibAccount.initializeFeeCollectorBalance(partyA);
+		accountLayout.observerEncryptedFeeCollectorBalances[partyA] = LibEncryption.offBoardToObserver(gtValue);
+		gtValue = LibAccount.initializeReserveVault(partyA);
+		accountLayout.observerEncryptedReserveVault[partyA] = LibEncryption.offBoardToObserver(gtValue);
+		gtValue = LockedValuesOps.safeOnboard(accountLayout.encryptedLiquidationDeficit[partyA].ciphertext);
+		accountLayout.observerEncryptedLiquidationDeficit[partyA] = LibEncryption.offBoardToObserver(gtValue);
+		gtValue = LockedValuesOps.safeOnboard(accountLayout.encryptedLiquidationFee[partyA].ciphertext);
+		accountLayout.observerEncryptedLiquidationFee[partyA] = LibEncryption.offBoardToObserver(gtValue);
+
+		_migrateObserverSettlement(accountLayout, partyA, address(0));
+	}
+
+	function _migrateObserverPartyBForPartyA(AccountStorage.Layout storage accountLayout, address partyA, address partyB) private {
+		gtUint256 gtValue = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
+		accountLayout.observerPartyBAllocatedBalances[partyB][partyA] = LibEncryption.offBoardToObserver(gtValue);
+
+		GarbledLockedValues memory gtLocked = accountLayout.partyBLockedBalances[partyB][partyA].onBoard();
+		accountLayout.observerPartyBLockedBalances[partyB][partyA] = LibEncryption.offBoardLockedToObserver(gtLocked);
+		gtLocked = accountLayout.partyBPendingLockedBalances[partyB][partyA].onBoard();
+		accountLayout.observerPartyBPendingLockedBalances[partyB][partyA] = LibEncryption.offBoardLockedToObserver(gtLocked);
+
+		_migrateObserverSettlement(accountLayout, partyA, partyB);
+	}
+
+	function _migrateObserverSettlement(AccountStorage.Layout storage accountLayout, address partyA, address partyB) private {
+		gtInt256 gtActual = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][partyB].actualAmount.ciphertext);
+		accountLayout.observerSettlementStates[partyA][partyB].actualAmount = LibEncryption.offBoardToObserver(gtActual);
+		gtInt256 gtExpected = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][partyB].expectedAmount.ciphertext);
+		accountLayout.observerSettlementStates[partyA][partyB].expectedAmount = LibEncryption.offBoardToObserver(gtExpected);
+		gtUint256 gtCva = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][partyB].cva.ciphertext);
+		accountLayout.observerSettlementStates[partyA][partyB].cva = LibEncryption.offBoardToObserver(gtCva);
+	}
+
+	function _migrateObserverQuote(Quote storage q, ObserverQuoteValues storage observerValues) private {
+		gtUint256 gtValue = LockedValuesOps.safeOnboard(q.openedPrice.ciphertext);
+		observerValues.openedPrice = LibEncryption.offBoardToObserver(gtValue);
+		gtValue = LockedValuesOps.safeOnboard(q.initialOpenedPrice.ciphertext);
+		observerValues.initialOpenedPrice = LibEncryption.offBoardToObserver(gtValue);
+		gtValue = LockedValuesOps.safeOnboard(q.requestedOpenPrice.ciphertext);
+		observerValues.requestedOpenPrice = LibEncryption.offBoardToObserver(gtValue);
+		gtValue = LockedValuesOps.safeOnboard(q.marketPrice.ciphertext);
+		observerValues.marketPrice = LibEncryption.offBoardToObserver(gtValue);
+		gtValue = LockedValuesOps.safeOnboard(q.quantity.ciphertext);
+		observerValues.quantity = LibEncryption.offBoardToObserver(gtValue);
+		gtValue = LockedValuesOps.safeOnboard(q.closedAmount.ciphertext);
+		observerValues.closedAmount = LibEncryption.offBoardToObserver(gtValue);
+		gtValue = LockedValuesOps.safeOnboard(q.avgClosedPrice.ciphertext);
+		observerValues.avgClosedPrice = LibEncryption.offBoardToObserver(gtValue);
+		gtValue = LockedValuesOps.safeOnboard(q.requestedClosePrice.ciphertext);
+		observerValues.requestedClosePrice = LibEncryption.offBoardToObserver(gtValue);
+		gtValue = LockedValuesOps.safeOnboard(q.quantityToClose.ciphertext);
+		observerValues.quantityToClose = LibEncryption.offBoardToObserver(gtValue);
+		gtValue = LockedValuesOps.safeOnboard(q.tradingFee.ciphertext);
+		observerValues.tradingFee = LibEncryption.offBoardToObserver(gtValue);
+		GarbledLockedValues memory gtLocked = q.initialLockedValues.onBoard();
+		observerValues.initialLockedValues = LibEncryption.offBoardLockedToObserver(gtLocked);
+		gtLocked = q.lockedValues.onBoard();
+		observerValues.lockedValues = LibEncryption.offBoardLockedToObserver(gtLocked);
+	}
 }

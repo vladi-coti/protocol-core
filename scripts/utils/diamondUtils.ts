@@ -18,7 +18,7 @@ interface DiamondCutConfig {
 }
 
 function getSelectorOnlyLibraries(facetName: string) {
-	if (facetName == "AccountFacet") {
+	if (facetName == "AccountFacet" || facetName == "ControlFacet") {
 		return { LibAccountEncryption: ethers.ZeroAddress }
 	}
 	if (facetName == "ForceCloseFacet" || facetName == "SettleAndForceCloseFacet") {

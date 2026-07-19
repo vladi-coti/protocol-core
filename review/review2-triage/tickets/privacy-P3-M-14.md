@@ -4,8 +4,9 @@ labels: [group:privacy-leak, wayfinder:research]
 priority: P3
 finding: M-14
 severity: Medium
-status: open
-blocks: design-M-13-observer-rotation
+status: closed
+disposition: wontfix
+blocks: —
 blocked_by: design-M-13-observer-rotation
 report: ../report.md
 ---
@@ -32,13 +33,31 @@ Emit observer events for all encrypted balance mutations
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `valid`
+- [x] Fix disposition: `wontfix` (design-choice)
+- [x] If valid: write implement brief (minimal fix, affected files, regression test name)
 
 ## Answer
 
-*(unresolved)*
+**Verdict: `valid`. Disposition: `wontfix` (design-choice — require polling).**
+
+Claim confirmed:
+- `ObserverBalanceChangePartyA/B` only emitted from `AccountFacet` allocate/deallocate (9 emit sites).
+- PnL/fee/liquidation paths emit user `BalanceChange*` only (`LibQuote`, `LibSettlement`, `LiquidationFacetImpl`, etc.) — 37 user emits vs 9 observer.
+- Observer **storage** still updates via `LibEncryption.storePartyAAllocatedBalance` / PartyB helpers on those paths.
+
+So event-only observer indexers miss material mutations; view/polling observers do not.
+
+Auditor offered two fixes: emit everywhere **or** require polling. Align with M-13 (observer views + migration): **polling / view reads are the source of truth**. Full dual-event emission on every PnL/liq path is gas-expensive theater unless product commits to an event-sourced observer indexer.
+
+**Regression (documents gap, stays green under wontfix):** `test/audit/M14.test.ts` — static emit-site check + fillClose: user PnL events present, no ObserverBalanceChange, observer allocated storage still moves.
+
+```bash
+npx hardhat test --network localSimCoti test/audit/M14.test.ts
+# sim: 2/2 PASS
+```
+
+If product later wants event-sourced observers, reopen as implement: mirror every `BalanceChange*` with `ObserverBalanceChange*` using `observerAllocatedBalances` / PartyB observer slots (same pattern as AccountFacet).

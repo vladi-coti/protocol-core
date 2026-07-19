@@ -19,7 +19,7 @@ async function main() {
 
 	for (const facetName of FacetNames) {
 		const facetLibraries =
-			facetName == "AccountFacet"
+			facetName == "AccountFacet" || facetName == "ControlFacet"
 				? { LibAccountEncryption: libraries.LibAccountEncryption }
 				: facetName == "ForceCloseFacet" || facetName == "SettleAndForceCloseFacet"
 				? { ForceActionsFacetImpl: libraries.ForceActionsFacetImpl }

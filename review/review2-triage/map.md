@@ -102,10 +102,9 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 
 Unblocked, highest priority — pick **one** per session:
 
-1. [Decide observer rotation model](tickets/design-M-13-observer-rotation.md) *(parallel — proxy/indexer)*
-2. [Validate M-02 stale liquidation price reuse](tickets/logic-P2-M-02.md) *(logic P2)*
-3. [Validate H-05 PartyA liquidation plaintext snapshots](tickets/privacy-P2-H-05.md) *(privacy P2)*
-4. [Validate M-22 COTI dependency pinning](tickets/design-M-22-coti-dependencies.md) *(design P1)*
+1. [Validate M-02 stale liquidation price reuse](tickets/logic-P2-M-02.md) *(logic P2)*
+2. [Validate H-05 PartyA liquidation plaintext snapshots](tickets/privacy-P2-H-05.md) *(privacy P2)*
+3. [Validate M-22 COTI dependency pinning](tickets/design-M-22-coti-dependencies.md) *(design P1)*
 
 ## Early privacy / architecture decisions (grill soon)
 
@@ -113,7 +112,7 @@ Unblocked, highest priority — pick **one** per session:
 | --- | --- |
 | [H-01 Muon UPNL model](tickets/privacy-P1-H-01.md) | almost all Muon-backed APIs; H-05, M-47, settlement/force UPNL surfaces — **closed (path C)** |
 | [H-13 free collateral / deltas](tickets/design-H-13-free-collateral-privacy.md) | H-06, H-27 — **closed (intentionally public until private tokens)** |
-| [M-13 observer rotation](tickets/design-M-13-observer-rotation.md) | M-14, M-44; proxy + graph |
+| [M-13 observer rotation](tickets/design-M-13-observer-rotation.md) | M-14, M-44; proxy + graph — **closed (flip-first + admin batched migrate landed)** |
 | [M-49 quote metadata](tickets/design-M-49-quote-metadata-privacy.md) | M-49 |
 | [M-16 liquidation type](tickets/design-M-16-liquidation-type-disclosure.md) | M-16 privacy |
 | [M-22 COTI dep pins](tickets/design-M-22-coti-dependencies.md) | all client builds / mainnet repro |
@@ -139,6 +138,9 @@ Unblocked, highest priority — pick **one** per session:
 - [Validate H-27 account movement plaintext calldata](tickets/privacy-P1-H-27.md) — **design-choice / wontfix**; follows H-13.
 - [Validate H-07 reserve/fee event plaintext amounts](tickets/privacy-P1-H-07.md) — **design-choice / wontfix**; free-balance deltas already reveal movements under H-13.
 - [Validate H-11 settlement event plaintext opened prices](tickets/privacy-P1-H-11.md) — **valid**; strip `updatedPrices` from `SettleUpnl`; `test/audit/H11.test.ts` green on sim.
+- [Validate M-14 missing observer balance events](tickets/privacy-P3-M-14.md) — **valid / wontfix**; ObserverBalanceChange only on allocate/deallocate; PnL/fee paths update observer storage but skip events — require view polling (aligns M-13). `test/audit/M14.test.ts` sim green.
+- [Validate M-44 stale observer ciphertext after cleanup](tickets/privacy-P3-M-44.md) — **valid / implement (done)**; `liquidatePendingPositionsPartyA` now uses `storePartyBPendingLockedBalance`. `test/audit/M44.test.ts` sim green.
+- [Decide/implement observer rotation model](tickets/design-M-13-observer-rotation.md) — **valid / implement (done)**; flip-first + `migrateObserverForPartyA` / `migrateObserverForPartyBs` admin catch-up. `test/audit/M13.test.ts` sim green.
 
 ## Not yet specified
 

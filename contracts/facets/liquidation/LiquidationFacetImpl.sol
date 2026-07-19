@@ -195,14 +195,13 @@ library LiquidationFacetImpl {
         address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
         for (uint256 index = 0; index < quoteLayout.partyAPendingQuotes[partyA].length; index++) {
             Quote storage quote = quoteLayout.quotes[quoteLayout.partyAPendingQuotes[partyA][index]];
-            address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(quote.partyB);
             if (
                 (quote.quoteStatus == QuoteStatus.LOCKED || quote.quoteStatus == QuoteStatus.CANCEL_PENDING) &&
                 quoteLayout.partyBPendingQuotes[quote.partyB][partyA].length > 0
             ) {
                 delete quoteLayout.partyBPendingQuotes[quote.partyB][partyA];
                 GarbledLockedValues memory gtZeroLockedB = LockedValuesOps.makeZero();
-                accountLayout.partyBPendingLockedBalances[quote.partyB][partyA] = gtZeroLockedB.offBoard(partyBEncryptionAddress);
+                LibEncryption.storePartyBPendingLockedBalance(accountLayout, quote.partyB, partyA, gtZeroLockedB);
             }
             gtUint256 gtFee = LibQuote.getTradingFee(quote.id);
             gtUint256 gtCurrentReimbursement = LibAccount.initializePartyAReimbursement(partyA);

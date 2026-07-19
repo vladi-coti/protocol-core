@@ -127,4 +127,8 @@ interface IControlFacet is IControlEvents {
 	function removeBridge(address bridge) external;
 
 	function setTrustedObserverAddress(address trustedObserverAddress) external;
+
+	function migrateObserverForPartyA(address partyA, uint256 quoteStart, uint256 quoteLimit) external;
+
+	function migrateObserverForPartyBs(address[] calldata partyBs) external;
 }

@@ -15,6 +15,7 @@ import "../../storages/AccountStorage.sol";
 import "./IControlFacet.sol";
 import "../../libraries/LibDiamond.sol";
 import "../../libraries/LibAccount.sol";
+import "../../libraries/LibAccountEncryption.sol";
 import "../../storages/BridgeStorage.sol";
 
 contract ControlFacet is Accessibility, Ownable, IControlFacet {
@@ -539,5 +540,22 @@ contract ControlFacet is Accessibility, Ownable, IControlFacet {
 		address oldTrustedEncryptionAddress = accountLayout.trustedObserverAddress;
 		accountLayout.trustedObserverAddress = trustedObserverAddress;
 		emit SetTrustedObserverAddress(oldTrustedEncryptionAddress, trustedObserverAddress);
+	}
+
+	/// @notice Re-encrypt PartyA observer ciphertext to the current trustedObserverAddress (flip-first catch-up).
+	/// @param partyA PartyA account to migrate.
+	/// @param quoteStart Index into quoteIdsOf[partyA] (header migrates when start == 0).
+	/// @param quoteLimit Max quotes to scan in this page.
+	function migrateObserverForPartyA(
+		address partyA,
+		uint256 quoteStart,
+		uint256 quoteLimit
+	) external onlyRole(LibAccessibility.DEFAULT_ADMIN_ROLE) {
+		LibAccountEncryption.migrateObserverForPartyA(partyA, quoteStart, quoteLimit);
+	}
+
+	/// @notice Re-encrypt PartyB-only observer slots (reserve vault, fee collector) for the current observer.
+	function migrateObserverForPartyBs(address[] calldata partyBs) external onlyRole(LibAccessibility.DEFAULT_ADMIN_ROLE) {
+		LibAccountEncryption.migrateObserverForPartyBs(partyBs);
 	}
 }

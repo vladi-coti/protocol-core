@@ -26,3 +26,6 @@ python3 utils/update_sig_checks.py 1
 | H-01 force-close 10-open-position gas sample | PASS | FAIL | Sim full migration: forceClose 10 positions ~65.59M gas. COTI testnet 10-position force-close failed, receipt `gasUsed=116,282,373`; cap must be materially below 10 or flow needs batching. |
 | H-01 force-close 8-open-position gas sample | PASS | PASS | Testnet force-close ~114.4M gas (under 120M block); openPosition@8 ~98M. Production cap `maxPartyAOpenPositions=8`. |
 | H-11 SettleUpnl strips updatedPrices | PASS | PASS | Event ABI drop; calldata residual intentional |
+| M-14 ObserverBalanceChange only allocate/dealloc | PASS | — | sim PASS; dual pending — wontfix/polling model |
+| M-44 PartyB pending observer stale after liq cleanup | PASS | — | sim PASS after storePartyBPendingLockedBalance fix |
+| M-13 flip+migrateObserverForPartyA | PASS | PASS | admin batched observer catch-up after address flip |

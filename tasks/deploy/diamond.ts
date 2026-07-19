@@ -89,7 +89,7 @@ task("deploy:diamond", "Deploys the Diamond contract")
 		console.log("Deploying facets: ", FacetNames)
 		for (const facetName of FacetNames) {
 			const facetLibraries =
-				facetName == "AccountFacet"
+				facetName == "AccountFacet" || facetName == "ControlFacet"
 					? { LibAccountEncryption: deployedLibraries.LibAccountEncryption }
 					: facetName == "ForceCloseFacet" || facetName == "SettleAndForceCloseFacet"
 					? { ForceActionsFacetImpl: deployedLibraries.ForceActionsFacetImpl }
