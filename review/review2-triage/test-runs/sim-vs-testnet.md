@@ -30,3 +30,5 @@ python3 utils/update_sig_checks.py 1
 | M-44 PartyB pending observer stale after liq cleanup | PASS | — | sim PASS after storePartyBPendingLockedBalance fix |
 | M-13 flip+migrateObserverForPartyA | PASS | PASS | admin batched observer catch-up after address flip |
 | M-02 stale price reuse / liquidationId bind | PASS | PASS | fixture setMuonConfig(3600); live timestamp reuse after fix |
+| H-05 liq detail UPNL already encrypted | PASS | PASS | invalid/wontfix; utInt256 offBoardToUser |
+| M-03 dispute accumulator CVA cap | PASS | PASS | positive-leg payable=alloc+settlementCva |

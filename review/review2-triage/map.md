@@ -102,9 +102,9 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 
 Unblocked, highest priority — pick **one** per session:
 
-1. [Validate M-03 dispute accumulator ignores CVA](tickets/logic-P2-M-03.md) *(logic P2)*
+1. [Validate M-10 suspension gaps](tickets/logic-P2-M-10.md) *(logic P2)*
 2. [Pin M-22 COTI deps after signed merge](tickets/design-M-22-coti-dependencies.md) *(policy set; open until pin)*
-3. [Validate M-10 suspension gaps](tickets/logic-P2-M-10.md) *(logic P2)*
+3. [Validate M-11 global pause skips internal transfer](tickets/logic-P2-M-11.md) *(logic P2)*
 
 ## Early privacy / architecture decisions (grill soon)
 
@@ -143,6 +143,7 @@ Unblocked, highest priority — pick **one** per session:
 - [Decide/implement observer rotation model](tickets/design-M-13-observer-rotation.md) — **valid / implement (done)**; flip-first + `migrateObserverForPartyA` / `migrateObserverForPartyBs` admin catch-up. `test/audit/M13.test.ts` sim green.
 - [Validate M-02 stale liquidation price reuse](tickets/logic-P2-M-02.md) — **valid / implement (done)**; bind `symbolsPrices` to `keccak256(liquidationId)`; same-timestamp skip-`setSymbolsPrice` now reverts. `test/audit/M02.test.ts` sim green.
 - [Validate H-05 PartyA liquidation plaintext snapshots](tickets/privacy-P2-H-05.md) — **invalid / wontfix**; `upnl`/`totalUnrealizedLoss` already `utInt256` + `offBoardToUser`; husks → M-47. `test/audit/H05.test.ts` sim green.
+- [Validate M-03 dispute accumulator ignores CVA](tickets/logic-P2-M-03.md) — **valid / implement (done)**; positive-leg cap uses `allocated+settlementCva` like settle. `test/audit/M03.test.ts` sim green.
 
 ## Not yet specified
 

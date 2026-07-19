@@ -4,7 +4,8 @@ labels: [group:logic-security, wayfinder:research]
 priority: P2
 finding: M-03
 severity: Medium
-status: open
+status: closed
+disposition: implement
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -32,13 +33,24 @@ Include CVA in accumulator formula
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `valid`
+- [x] Fix disposition: `implement` (done)
+- [x] If valid: write implement brief (minimal fix, affected files, regression test name)
 
 ## Answer
 
-*(unresolved)*
+**Verdict: `valid`. Disposition: `implement` (done).**
+
+`_updateLiquidationAccumulator` capped positive PartyB `expectedAmount` at `partyBAllocated` only. `settlePartyALiquidation` adds `settlementStates.cva` to PartyB **before** applying PnL, so payable capacity is `allocated + cva`. When `allocated < expected <= allocated+cva`, the accumulator under-counts the winning leg → `accumulated != upnl` → false `disputed`, blocking settle even though settle would pay in full.
+
+**Fix:** positive-leg cap uses `gtPayable = allocated + settlementCva` (same order as settle).
+
+**Regression:** `test/audit/M03.test.ts` — static CVA-in-cap check + two-hedger live (loss vs win PartyB, profit in `(alloc, alloc+cva]` → not disputed).
+
+```bash
+npx hardhat test --network localSimCoti test/audit/M03.test.ts --grep 'M-03'
+# sim: 2/2 PASS (red before fix: disputed==true; green after: disputed==false)
+```

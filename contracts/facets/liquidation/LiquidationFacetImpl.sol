@@ -93,10 +93,15 @@ library LiquidationFacetImpl {
         if (MpcCore.decrypt(gtSettleAmount.lt(gtZero))) {
             gtContribution = gtSettleAmount;
         } else {
+            // Match settlePartyALiquidation: CVA is released to PartyB before PnL is applied.
             gtInt256 gtPartyBBalance = LibEncryption.toNonNegativeSigned(
                 LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext)
             );
-            gtContribution = MpcCore.decrypt(gtPartyBBalance.ge(gtSettleAmount)) ? gtSettleAmount : gtPartyBBalance;
+            gtInt256 gtCva = LibEncryption.toNonNegativeSigned(
+                LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][partyB].cva.ciphertext)
+            );
+            gtInt256 gtPayable = gtPartyBBalance.checkedAdd(gtCva);
+            gtContribution = MpcCore.decrypt(gtPayable.ge(gtSettleAmount)) ? gtSettleAmount : gtPayable;
         }
         gtInt256 gtCurrentAccumulated = LockedValuesOps.safeOnboard(accountLayout.settlementStates[partyA][address(0)].actualAmount.ciphertext);
         gtInt256 gtNewAccumulated = gtCurrentAccumulated.checkedAdd(gtContribution);
