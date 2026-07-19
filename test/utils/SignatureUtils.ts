@@ -14,12 +14,13 @@ import {
 	SettlementSigStructOutput
 } from "../../src/types/contracts/facets/Settlement/ISettlementFacet"
 
-export async function getDummySingleUpnlSig(upnl: bigint = 0n): Promise<SingleUpnlSigStruct> {
+export async function getDummySingleUpnlSig(upnl: bigint = 0n, quoteIds: bigint[] = [], prices: bigint[] = []): Promise<SingleUpnlSigStruct> {
+	void upnl
 	return {
 		reqId: "0x",
 		timestamp: await getBlockTimestamp(60n),
-		quoteIds: [],
-		prices: [],
+		quoteIds: quoteIds,
+		prices: prices,
 		gatewaySignature: ethers.ZeroAddress,
 		sigs: {
 			signature: "0",
@@ -37,11 +38,14 @@ export async function getDummyLiquidationSig(
 	totalUnrealizedLoss: bigint,
 	allocatedBalance: bigint,
 ): Promise<DeferredLiquidationSigStruct> {
+	void upnl
+	void totalUnrealizedLoss
 	return {
 		reqId: "0x",
 		timestamp: await getBlockTimestamp(60n),
 		liquidationBlockNumber: 1,
 		liquidationTimestamp: await getBlockTimestamp(60n),
+		liquidationAllocatedBalance: allocatedBalance,
 		liquidationId: liquidationId,
 		prices: prices,
 		symbolIds: symbolIds,

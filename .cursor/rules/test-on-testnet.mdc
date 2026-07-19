@@ -48,3 +48,37 @@ python3 utils/update_sig_checks.py 1
 ```
 
 Until that table shows stable agreement, do not assume sim replaces testnet. Disagreement / OOG / empty-revert on testnet only → still trust testnet for that path. This check is local triage tooling, not a mainnet readiness signal.
+
+## COTI `MpcCore.mux` convention (reversed vs ternary intuition)
+
+COTI `MpcCore.mux(bit, a, b)` selects **`b` when `bit` is true**, **`a` when false** — i.e. `bit ? b : a`, **not** `bit ? a : b`.
+
+Official COTI tests assert this (`Mux256.test.ts`: expected `bit ? b : a`). Writing arms as if it were a normal ternary is a recurring bug class (wrong available balance, wrong PnL sign, wrong loss bucket).
+
+**Correct pattern — max(negUpnl, mm):**
+
+```solidity
+// want: negUpnl > mm ? negUpnl : mm
+gtInt256 considering_mm = MpcCore.mux(negUpnlGreaterThanMm, mm, negUpnl);
+// bit true  -> b = negUpnl
+// bit false -> a = mm
+```
+
+**Correct pattern — pick positive UPNL available path:**
+
+```solidity
+// want: upnl >= 0 ? positiveAvailable : negativeAvailable
+return MpcCore.mux(gtUpnl.ge(gtZero), negativeAvailable, positiveAvailable);
+// bit true  -> b = positiveAvailable
+// bit false -> a = negativeAvailable
+```
+
+**Wrong (implements min / swapped arms):**
+
+```solidity
+// BAD: when negUpnlGreaterThanMm is true this returns mm
+MpcCore.mux(negUpnlGreaterThanMm, negUpnl, mm);
+```
+
+When reviewing or writing garbled control flow, always expand to `bit ? b : a` before trusting the arms.
+

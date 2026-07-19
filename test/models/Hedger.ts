@@ -353,7 +353,13 @@ export class Hedger {
 
 	private async buildPairPriceSig(partyA: string, price: bigint): Promise<PairUpnlAndPriceSigStruct> {
 		const sig = await getDummyPairUpnlAndPriceSig(price)
-		await this.populatePairPriceSig(sig as any, partyA, price)
+		const partyAPositions = await this.context.viewFacet.getPartyAOpenPositions(partyA, 0, 100)
+		const partyBPositions = await this.context.viewFacet.getPartyBOpenPositions(await this.getAddress(), partyA, 0, 100)
+		// Apply the mark to the full open book (emergency / solvency paths); do not use entry prices.
+		sig.partyAQuoteIds = partyAPositions.map((quote: any) => BigInt(quote.id))
+		sig.partyAPrices = partyAPositions.map(() => price)
+		sig.partyBQuoteIds = partyBPositions.map((quote: any) => BigInt(quote.id))
+		sig.partyBPrices = partyBPositions.map(() => price)
 		return sig
 	}
 

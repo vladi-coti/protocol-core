@@ -80,7 +80,10 @@ contract LiquidationFacet is Pausable, Accessibility, ILiquidationFacet {
 		);
 		ctInt256 memory ctUpnl = MpcCore.offBoardToUser(gtUpnl, encryptionAddress);
 		ctInt256 memory ctTotalUnrealizedLoss = MpcCore.offBoardToUser(gtTotalUnrealizedLoss, encryptionAddress);
-		ctUint256 memory ctLiquidationAllocatedBalance = accountLayout.allocatedBalances[partyA].userCiphertext;
+		ctUint256 memory ctLiquidationAllocatedBalance = MpcCore.offBoardToUser(
+			MpcCore.setPublic256(liquidationSig.liquidationAllocatedBalance),
+			encryptionAddress
+		);
 
 		emit DeferredLiquidatePartyA(
 			msg.sender,

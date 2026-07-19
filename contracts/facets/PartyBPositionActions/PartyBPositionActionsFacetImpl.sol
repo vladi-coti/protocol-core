@@ -37,18 +37,10 @@ library PartyBPositionActionsFacetImpl {
 		accountLayout.partyBNonces[quote.partyB][quote.partyA] += 1;
 
 		currentId = LibPartyBPositionsActions.openPosition(quoteId, gtFilledAmount, gtOpenedPrice);
+		// UPNL after open already includes this position at mark — no entry/mark delta.
 		gtInt256 gtPartyBUpnl = LibOnChainUpnl.partyBUpnlFromQuotePrices(quote.partyB, quote.partyA, LibOnChainUpnl.partyBPriceSigFromPairAndPrice(upnlSig));
 		gtInt256 gtPartyAUpnl = LibOnChainUpnl.partyAUpnlFromQuotePrices(quote.partyA, LibOnChainUpnl.partyAPriceSigFromPairAndPrice(upnlSig));
-		LibSolvency.isSolventAfterOpenPosition(
-			quoteId,
-			gtFilledAmount,
-			gtOpenedPrice,
-			upnlSig.price,
-			gtPartyBUpnl,
-			gtPartyAUpnl,
-			quote.partyB,
-			quote.partyA
-		);
+		LibSolvency.isSolventAfterOpenPosition(gtPartyBUpnl, gtPartyAUpnl, quote.partyB, quote.partyA);
 	}
 
 	function fillCloseRequest(uint256 quoteId, gtUint256 gtFilledAmount, gtUint256 gtClosedPrice, PairUpnlAndPriceSig memory upnlSig) internal {

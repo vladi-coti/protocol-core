@@ -100,7 +100,8 @@ library LibOnChainUpnl {
 			(gtBool gtHasMadeProfit, gtUint256 gtPnl) = LibQuote.getValueOfQuoteForPartyA(gtPrice, gtOpenAmount, quote);
 
 			gtInt256 gtSignedPnl = LibEncryption.toNonNegativeSigned(gtPnl);
-			gtInt256 gtDelta = MpcCore.mux(gtHasMadeProfit, gtSignedPnl, gtZero.checkedSub(gtSignedPnl));
+			// COTI mux(bit,a,b)=bit?b:a — profit => +pnl, loss => -pnl
+			gtInt256 gtDelta = MpcCore.mux(gtHasMadeProfit, gtZero.checkedSub(gtSignedPnl), gtSignedPnl);
 			gtUpnl = gtUpnl.checkedAdd(gtDelta);
 		}
 	}
@@ -123,7 +124,8 @@ library LibOnChainUpnl {
 			(gtBool gtPartyAHasMadeProfit, gtUint256 gtPnl) = LibQuote.getValueOfQuoteForPartyA(gtPrice, gtOpenAmount, quote);
 
 			gtInt256 gtSignedPnl = LibEncryption.toNonNegativeSigned(gtPnl);
-			gtInt256 gtDelta = MpcCore.mux(gtPartyAHasMadeProfit, gtZero.checkedSub(gtSignedPnl), gtSignedPnl);
+			// PartyB is opposite PartyA: COTI mux(bit,a,b)=bit?b:a — A-profit => B -pnl
+			gtInt256 gtDelta = MpcCore.mux(gtPartyAHasMadeProfit, gtSignedPnl, gtZero.checkedSub(gtSignedPnl));
 			gtUpnl = gtUpnl.checkedAdd(gtDelta);
 		}
 	}
@@ -149,9 +151,14 @@ library LibOnChainUpnl {
 
 			gtInt256 gtSignedPnl = LibEncryption.toNonNegativeSigned(gtPnl);
 			gtInt256 gtNegativePnl = gtZero.checkedSub(gtSignedPnl);
-			gtInt256 gtDelta = MpcCore.mux(gtHasMadeProfit, gtSignedPnl, gtNegativePnl);
+			// COTI mux(bit,a,b)=bit?b:a — profit => +pnl / keep loss; loss => -pnl / accumulate signed loss
+			gtInt256 gtDelta = MpcCore.mux(gtHasMadeProfit, gtNegativePnl, gtSignedPnl);
 			gtUpnl = gtUpnl.checkedAdd(gtDelta);
-			gtTotalUnrealizedLoss = MpcCore.mux(gtHasMadeProfit, gtTotalUnrealizedLoss, gtTotalUnrealizedLoss.checkedAdd(gtNegativePnl));
+			gtTotalUnrealizedLoss = MpcCore.mux(
+				gtHasMadeProfit,
+				gtTotalUnrealizedLoss.checkedAdd(gtNegativePnl),
+				gtTotalUnrealizedLoss
+			);
 		}
 	}
 

@@ -17,11 +17,10 @@ library LibSolvency {
 	using LockedValuesOps for LockedValues;
 	using LockedValuesOps for GarbledLockedValues;
 
+	/// @dev Callers MUST pass UPNLs computed AFTER the position is in open storage.
+	/// The just-opened position's mark-to-market PnL is already in `gtUpnlParty*`; do not
+	/// re-apply an entry-vs-mark delta (that double-counts when mark != open price).
 	function isSolventAfterOpenPosition(
-		uint256 quoteId,
-		gtUint256 gtFilledAmount,
-		gtUint256 gtOpenedPrice,
-		uint256 marketPrice,
 		gtInt256 gtUpnlPartyB,
 		gtInt256 gtUpnlPartyA,
 		address partyB,
@@ -29,38 +28,6 @@ library LibSolvency {
 	) internal returns (bool) {
 		gtInt256 gtPartyBAvailableBalance = LibAccount.partyBAvailableBalanceForLiquidation(gtUpnlPartyB, partyB, partyA);
 		gtInt256 gtPartyAAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(gtUpnlPartyA, partyA);
-
-		Quote storage quote = QuoteStorage.layout().quotes[quoteId];
-
-		gtUint256 gtMarketPrice = MpcCore.setPublic256(marketPrice);
-		gtUint256 gtScaleFactor = MpcCore.setPublic256(uint256(1e18));
-		gtBool gtOpenedPriceGteMarket = gtOpenedPrice.ge(gtMarketPrice);
-		gtUint256 gtPriceDiff = MpcCore.max(gtOpenedPrice, gtMarketPrice).checkedSub(MpcCore.min(gtOpenedPrice, gtMarketPrice));
-		gtInt256 gtDiff = LibEncryption.toNonNegativeSigned(gtFilledAmount.checkedMul(gtPriceDiff).div(gtScaleFactor));
-
-		if (quote.positionType == PositionType.LONG) {
-			gtPartyAAvailableBalance = MpcCore.mux(
-				gtOpenedPriceGteMarket,
-				gtPartyAAvailableBalance.checkedAdd(gtDiff),
-				gtPartyAAvailableBalance.checkedSub(gtDiff)
-			);
-			gtPartyBAvailableBalance = MpcCore.mux(
-				gtOpenedPriceGteMarket,
-				gtPartyBAvailableBalance.checkedSub(gtDiff),
-				gtPartyBAvailableBalance.checkedAdd(gtDiff)
-			);
-		} else {
-			gtPartyAAvailableBalance = MpcCore.mux(
-				gtOpenedPriceGteMarket,
-				gtPartyAAvailableBalance.checkedSub(gtDiff),
-				gtPartyAAvailableBalance.checkedAdd(gtDiff)
-			);
-			gtPartyBAvailableBalance = MpcCore.mux(
-				gtOpenedPriceGteMarket,
-				gtPartyBAvailableBalance.checkedAdd(gtDiff),
-				gtPartyBAvailableBalance.checkedSub(gtDiff)
-			);
-		}
 
 		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
 		require(MpcCore.decrypt(gtPartyBAvailableBalance.ge(gtZero).and(gtPartyAAvailableBalance.ge(gtZero))), "LibSolvency: Available balance is lower than zero");

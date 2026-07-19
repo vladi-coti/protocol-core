@@ -337,9 +337,10 @@ export class User {
 			}),
 		)
 		const quote = await this.context.viewFacet.getQuote(id)
-		const mark = await getPrice()
-		const partyAPriceSig = await this.buildPartyAPriceSig(quote.partyA, mark)
-		const partyBPriceSig = await this.buildPartyBPriceSig(quote.partyB, quote.partyA, mark)
+		// Pre-H01 force-close used signed UPNL≈0; mark open book at entry so on-chain UPNL≈0.
+		// Close simulation still uses highLow.currentPrice as market (separate from UPNL marks).
+		const partyAPriceSig = await this.buildPartyAPriceSig(quote.partyA)
+		const partyBPriceSig = await this.buildPartyBPriceSig(quote.partyB, quote.partyA)
 		await runTx(this.context.forceCloseFacet.connect(this.signer).forceClosePosition(id, signature, partyAPriceSig, partyBPriceSig))
 		logger.info(`User::::ForceClosePosition: ${id}`)
 	}
@@ -355,9 +356,8 @@ export class User {
 			}),
 		)
 		const quote = await this.context.viewFacet.getQuote(id)
-		const mark = await getPrice()
-		const partyAPriceSig = await this.buildPartyAPriceSig(quote.partyA, mark)
-		const partyBPriceSig = await this.buildPartyBPriceSig(quote.partyB, quote.partyA, mark)
+		const partyAPriceSig = await this.buildPartyAPriceSig(quote.partyA)
+		const partyBPriceSig = await this.buildPartyBPriceSig(quote.partyB, quote.partyA)
 		await runTx(this.context.forceCloseFacet.connect(this.signer).settleAndForceClosePosition(id, highLowPriceSigStruct, settleSig, updatedPrices, partyAPriceSig, partyBPriceSig))
 		logger.info(`User::::SettleAndForceClosePosition: ${id}`)
 	}
@@ -367,7 +367,11 @@ export class User {
 		const prices =
 			markPrice !== undefined
 				? positions.map(() => markPrice)
-				: await Promise.all(positions.map(async (quote: any) => this.decryptUint256(quote.openedPrice.userCiphertext)))
+				: await Promise.all(
+						positions.map(async (quote: any) =>
+							this.context.manager.getUser(partyA).decryptUint256(quote.openedPrice.userCiphertext),
+						),
+					)
 		return getDummyPriceSig(
 			positions.map((quote: any) => BigInt(quote.id)),
 			prices,
@@ -379,7 +383,11 @@ export class User {
 		const prices =
 			markPrice !== undefined
 				? positions.map(() => markPrice)
-				: await Promise.all(positions.map(async (quote: any) => this.decryptUint256(quote.openedPrice.userCiphertext)))
+				: await Promise.all(
+						positions.map(async (quote: any) =>
+							this.context.manager.getUser(partyA).decryptUint256(quote.openedPrice.userCiphertext),
+						),
+					)
 		return getDummyPriceSig(
 			positions.map((quote: any) => BigInt(quote.id)),
 			prices,

@@ -79,7 +79,8 @@ library LibAccount {
 		);
 		gtInt256 negativeAvailable = allocatedBalance.checkedSub(cvaLfPendingTotal).checkedSub(considering_mm);
 
-		return MpcCore.mux(gtUpnl.ge(gtZero), positiveAvailable, negativeAvailable);
+		// COTI mux(bit,a,b)=bit?b:a — upnl>=0 => positiveAvailable, else negativeAvailable
+		return MpcCore.mux(gtUpnl.ge(gtZero), negativeAvailable, positiveAvailable);
 	}
 
 	/**
@@ -91,6 +92,20 @@ library LibAccount {
 	function partyAAvailableBalanceForLiquidation(gtInt256 gtUpnl, address partyA) internal returns (gtInt256) {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 		gtInt256 allocatedBalance = LibEncryption.toNonNegativeSigned(LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext));
+
+		GarbledLockedValues memory garbledLockedBalances = AccountStorage.layout().lockedBalances[partyA].onBoard();
+		gtInt256 cvaLf = LibEncryption.toNonNegativeSigned(garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf));
+
+		gtInt256 freeBalance = allocatedBalance.checkedSub(cvaLf);
+		return freeBalance.checkedAdd(gtUpnl);
+	}
+
+	/**
+	 * @notice Available balance for Party A liquidation using a signed allocated snapshot (deferred path).
+	 * @dev H-16: MUST use the Muon-signed snapshot, not current allocated, for prove + type class.
+	 */
+	function partyAAvailableBalanceForLiquidation(gtInt256 gtUpnl, uint256 allocatedSnapshot, address partyA) internal returns (gtInt256) {
+		gtInt256 allocatedBalance = LibEncryption.toNonNegativeSigned(MpcCore.setPublic256(allocatedSnapshot));
 
 		GarbledLockedValues memory garbledLockedBalances = AccountStorage.layout().lockedBalances[partyA].onBoard();
 		gtInt256 cvaLf = LibEncryption.toNonNegativeSigned(garbledLockedBalances.cva.checkedAdd(garbledLockedBalances.lf));
@@ -127,7 +142,8 @@ library LibAccount {
 		);
 		gtInt256 negativeAvailable = allocatedBalance.checkedSub(cvaLfPendingTotal).checkedSub(considering_mm);
 
-		return MpcCore.mux(gtUpnl.ge(gtZero), positiveAvailable, negativeAvailable);
+		// COTI mux(bit,a,b)=bit?b:a — upnl>=0 => positiveAvailable, else negativeAvailable
+		return MpcCore.mux(gtUpnl.ge(gtZero), negativeAvailable, positiveAvailable);
 	}
 
 	/**

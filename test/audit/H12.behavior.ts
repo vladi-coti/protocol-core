@@ -11,7 +11,7 @@ import { limitCloseRequestBuilder } from "../models/requestModels/CloseRequest"
 import { limitOpenRequestBuilder } from "../models/requestModels/OpenRequest"
 import { limitQuoteRequestBuilder } from "../models/requestModels/QuoteRequest"
 import { decimal, getBlockTimestamp, getQuoteQuantity } from "../utils/Common"
-import { getDummyHighLowPriceSig, getDummySettlementSig } from "../utils/SignatureUtils"
+import { getDummyHighLowPriceSig, getDummyPriceSig, getDummySettlementSig } from "../utils/SignatureUtils"
 import { loadFixtureCompatible, timeCompatible } from "../utils/testHelpers"
 import { runTx } from "../utils/TxUtils"
 import { QuoteSettlementDataStructOutput } from "../../src/types/contracts/facets/Settlement/ISettlementFacet"
@@ -38,7 +38,14 @@ export function shouldBehaveLikeAuditH12(): void {
 
 			hedger = new Hedger(context, context.signers.hedger)
 			await hedger.setup()
-			await hedger.setBalances(decimal(300n), decimal(300n))
+			// Pre-H01 injected +150 PartyB UPNL for settlement solvency; with on-chain UPNL≈0
+			// the hedger needs enough allocated to clear alloc - cva - lf after both opens.
+			await hedger.setBalances(decimal(5000n), decimal(5000n))
+			await runTx(
+				context.accountFacet
+					.connect(context.signers.hedger)
+					.allocateForPartyB(decimal(2000n), await user.getAddress()),
+			)
 
 			const long = await user.sendQuote()
 			quoteLongId = long.quoteId
@@ -91,8 +98,26 @@ export function shouldBehaveLikeAuditH12(): void {
 			return [startTime, endTime] as const
 		}
 
+		async function bookPriceSigs(mark: bigint) {
+			const partyA = await user.getAddress()
+			const partyB = await hedger.getAddress()
+			const partyAPositions = await context.viewFacet.getPartyAOpenPositions(partyA, 0, 100)
+			const partyBPositions = await context.viewFacet.getPartyBOpenPositions(partyB, partyA, 0, 100)
+			return {
+				partyAPriceSig: await getDummyPriceSig(
+					partyAPositions.map((q: any) => BigInt(q.id)),
+					partyAPositions.map(() => mark),
+				),
+				partyBPriceSig: await getDummyPriceSig(
+					partyBPositions.map((q: any) => BigInt(q.id)),
+					partyBPositions.map(() => mark),
+				),
+			}
+		}
+
 		it("H-12: PartyA settleAndForceClose succeeds (control)", async function () {
 			const [startTime, endTime] = await prepareSigTimes()
+			const mark = decimal(1n) // entry — UPNL≈0 like pre-H01 dummy signed upnl
 			const highLowSig = await getDummyHighLowPriceSig(
 				startTime,
 				endTime,
@@ -111,18 +136,21 @@ export function shouldBehaveLikeAuditH12(): void {
 					partyBUpnlIndex: 0n,
 				} as QuoteSettlementDataStructOutput,
 			])
+			const { partyAPriceSig, partyBPriceSig } = await bookPriceSigs(mark)
+			;(settlementSig as any).partyAPriceSig = partyAPriceSig
+			;(settlementSig as any).partyBPriceSigs = [partyBPriceSig]
 
-			// Control: PartyA can settle+force-close (same fixture as SettleAndForceClosePosition.behavior).
 			await runTx(
 				context.forceCloseFacet
 					.connect(context.signers.user)
-					.settleAndForceClosePosition(quoteLongId, highLowSig, settlementSig, [decimal(5n)]),
+					.settleAndForceClosePosition(quoteLongId, highLowSig, settlementSig, [decimal(5n)], partyAPriceSig, partyBPriceSig),
 			)
 			expect((await context.viewFacet.getQuote(quoteLongId)).quoteStatus).to.equal(QuoteStatus.CLOSED)
 		})
 
 		it("H-12: third-party caller settles against quote.partyA", async function () {
 			const [startTime, endTime] = await prepareSigTimes()
+			const mark = decimal(1n)
 			const highLowSig = await getDummyHighLowPriceSig(
 				startTime,
 				endTime,
@@ -141,12 +169,14 @@ export function shouldBehaveLikeAuditH12(): void {
 					partyBUpnlIndex: 0n,
 				} as QuoteSettlementDataStructOutput,
 			])
+			const { partyAPriceSig, partyBPriceSig } = await bookPriceSigs(mark)
+			;(settlementSig as any).partyAPriceSig = partyAPriceSig
+			;(settlementSig as any).partyBPriceSigs = [partyBPriceSig]
 
-			// After fix: settleUpnl uses quote.partyA, so any caller can settle+force-close.
 			await runTx(
 				context.forceCloseFacet
 					.connect(context.signers.user2)
-					.settleAndForceClosePosition(quoteLongId, highLowSig, settlementSig, [decimal(5n)]),
+					.settleAndForceClosePosition(quoteLongId, highLowSig, settlementSig, [decimal(5n)], partyAPriceSig, partyBPriceSig),
 			)
 
 			expect((await context.viewFacet.getQuote(quoteLongId)).quoteStatus).to.equal(QuoteStatus.CLOSED)

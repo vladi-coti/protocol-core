@@ -51,6 +51,7 @@ library LibMuonLiquidation {
 				liquidationSig.timestamp,
 				liquidationSig.liquidationBlockNumber,
 				liquidationSig.liquidationTimestamp,
+				liquidationSig.liquidationAllocatedBalance,
 				LibMuon.getChainId()
 			)
 		);

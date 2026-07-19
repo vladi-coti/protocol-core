@@ -73,6 +73,9 @@ struct DeferredLiquidationSig {
 	uint256 timestamp; // Timestamp when the liquidation signature was created
 	uint256 liquidationBlockNumber; // Block number at which the user became insolvent
 	uint256 liquidationTimestamp; // Timestamp when the user became insolvent
+	/// @dev Public snapshot of PartyA allocated at insolvency. Kept after H-01 (UPNL is on-chain);
+	/// classification / solvency for deferred must use this, not a post-sign top-up.
+	uint256 liquidationAllocatedBalance;
 	bytes liquidationId; // Unique identifier for the liquidation event
 	uint256[] symbolIds; // List of symbol IDs involved in the liquidation
 	uint256[] prices; // Corresponding prices of the symbols involved in the liquidation

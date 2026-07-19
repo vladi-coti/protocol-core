@@ -40,7 +40,12 @@ library DeferredLiquidationFacetImpl {
 		LibMuonLiquidation.verifyDeferredLiquidationSig(liquidationSig, partyA);
 
 		(gtInt256 gtUpnl, gtInt256 gtTotalUnrealizedLoss) = LibOnChainUpnl.partyAUpnlAndLossFromSymbolPrices(partyA, liquidationSig.symbolIds, liquidationSig.prices);
-		gtInt256 gtLiquidationAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(gtUpnl, partyA);
+		// H-16: insolvency from signed allocated snapshot + on-chain UPNL (not current allocated).
+		gtInt256 gtLiquidationAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(
+			gtUpnl,
+			liquidationSig.liquidationAllocatedBalance,
+			partyA
+		);
 		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
 		require(MpcCore.decrypt(gtLiquidationAvailableBalance.lt(gtZero)), "LiquidationFacet: PartyA is solvent");
 
@@ -95,7 +100,12 @@ library DeferredLiquidationFacetImpl {
 		}
 
 		(gtInt256 gtUpnl, gtInt256 gtTotalUnrealizedLoss) = LibOnChainUpnl.partyAUpnlAndLossFromSymbolPrices(partyA, liquidationSig.symbolIds, liquidationSig.prices);
-		gtInt256 gtAvailableBalance2 = LibAccount.partyAAvailableBalanceForLiquidation(gtUpnl, partyA);
+		// H-16: type classification must use the same allocated snapshot as the prove step.
+		gtInt256 gtAvailableBalance2 = LibAccount.partyAAvailableBalanceForLiquidation(
+			gtUpnl,
+			liquidationSig.liquidationAllocatedBalance,
+			partyA
+		);
 		detail.totalUnrealizedLoss = LibEncryption.offBoardToUser(gtTotalUnrealizedLoss, LibAccount.getUserEncryptionAddress(partyA));
 		if (detail.liquidationType == LiquidationType.NONE) {
 			gtUint256 gtLf = LockedValuesOps.safeOnboard(accountLayout.lockedBalances[partyA].lf.ciphertext);

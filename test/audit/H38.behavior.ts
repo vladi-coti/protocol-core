@@ -72,9 +72,11 @@ export function shouldBehaveLikeAuditH38(): void {
 			const lf = balanceInfo.lockedLf
 			expect(lf).to.be.gt(0n)
 
-			// available = allocated - cva - lf + upnl; want deficitMagnitude == lf ⇒ upnl == -allocated
+			// available = allocated - lf + upnl; LATE with cva=0 wants deficit == lf ⇒ upnl == -allocated.
+			// SHORT @1 qty≈100: upnl = -(mark-1)*qty ⇒ mark = 1 + allocated/qty.
+			const qty = decimal(100n)
+			const price = decimal(1n) + (balanceInfo.allocatedBalances * decimal(1n)) / qty
 			const upnl = -balanceInfo.allocatedBalances
-			const price = decimal(1n)
 			const sign = await getDummyLiquidationSig("0x10", upnl, [1n], [price], upnl, balanceInfo.allocatedBalances)
 
 			await runTx(context.liquidationFacet.connect(context.signers.liquidator).liquidatePartyA(partyA, sign))

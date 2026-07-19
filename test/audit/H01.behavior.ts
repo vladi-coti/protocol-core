@@ -5,7 +5,7 @@ import * as fs from "fs"
 import * as path from "path"
 
 import { initializeFixture } from "../Initialize.fixture"
-import { PositionType } from "../models/Enums"
+import { PositionType, QuoteStatus } from "../models/Enums"
 import { Hedger } from "../models/Hedger"
 import { RunContext } from "../models/RunContext"
 import { User } from "../models/User"
@@ -117,6 +117,179 @@ async function prepareForceClose(context: RunContext, user: User, quoteId: bigin
 }
 
 export function shouldBehaveLikeAuditH01(): void {
+	describe("LibOnChainUpnl correctness", function () {
+		it("H-01: open with mark != entry is not double-counted", async function () {
+			const context: RunContext = await loadFixtureCompatible(initializeFixture)
+			await runTx(context.controlFacet.connect(context.signers.admin as any).setDeallocateDebounceTime(0))
+
+			const user = new User(context, context.signers.user)
+			await user.setup()
+			// cva+lf=150; allocated 1700 => free=1550. Single-count loss 990 is solvent; double-count 1980 reverts.
+			await user.setBalances(decimal(4000n), decimal(4000n), decimal(1700n))
+
+			const hedger = new Hedger(context, context.signers.hedger)
+			await hedger.setup()
+			await hedger.setBalances(decimal(50000n), decimal(50000n))
+
+			const entry = decimal(100n)
+			const mark = decimal(1n)
+			const qty = decimal(10n)
+			const quote = await user.sendQuote(
+				limitQuoteRequestBuilder()
+					.partyBWhiteList([context.signers.hedger.address])
+					.affiliate(context.multiAccount)
+					.symbolId(1)
+					.positionType(PositionType.LONG)
+					.quantity(qty)
+					.price(entry)
+					.cva(decimal(100n))
+					.partyAmm(decimal(100n))
+					.partyBmm(decimal(100n))
+					.lf(decimal(50n))
+					.upnlSig(getDummySingleUpnlAndPriceSig(entry, 0n))
+					.build(),
+			)
+			await runTx(
+				context.accountFacet.connect(context.signers.hedger as any).allocateForPartyB(decimal(20000n), await user.getAddress()),
+			)
+			await hedger.lockQuote(quote, 0n, null)
+			await hedger.openPosition(quote, limitOpenRequestBuilder().filledAmount(qty).openPrice(entry).price(mark).build())
+			expect((await context.viewFacet.getQuote(quote.quoteId)).quoteStatus).to.equal(QuoteStatus.OPENED)
+		})
+
+		it("H-01: liquidation stores totalUnrealizedLoss as negative signed loss", async function () {
+			const context: RunContext = await loadFixtureCompatible(initializeFixture)
+			await runTx(context.controlFacet.connect(context.signers.admin as any).setDeallocateDebounceTime(0))
+
+			const user = new User(context, context.signers.user)
+			await user.setup()
+			await user.setBalances(decimal(4000n), decimal(4000n), decimal(1000n))
+
+			const hedger = new Hedger(context, context.signers.hedger)
+			await hedger.setup()
+			await hedger.setBalances(decimal(50000n), decimal(50000n))
+
+			const liquidator = new User(context, context.signers.liquidator)
+			await liquidator.setup()
+
+			const entry = decimal(100n)
+			const qty = decimal(10n)
+			const quote = await user.sendQuote(
+				limitQuoteRequestBuilder()
+					.partyBWhiteList([context.signers.hedger.address])
+					.affiliate(context.multiAccount)
+					.symbolId(1)
+					.positionType(PositionType.LONG)
+					.quantity(qty)
+					.price(entry)
+					.cva(decimal(100n))
+					.partyAmm(decimal(100n))
+					.partyBmm(decimal(100n))
+					.lf(decimal(50n))
+					.upnlSig(getDummySingleUpnlAndPriceSig(entry, 0n))
+					.build(),
+			)
+			await runTx(
+				context.accountFacet.connect(context.signers.hedger as any).allocateForPartyB(decimal(20000n), await user.getAddress()),
+			)
+			await hedger.lockQuote(quote, 0n, null)
+			await hedger.openPosition(quote, limitOpenRequestBuilder().filledAmount(qty).openPrice(entry).price(entry).build())
+
+			await user.liquidateAndSetSymbolPrices([1n], [decimal(1n)])
+
+			const state = await user.getLiquidatedStateOfPartyA()
+			const loss = await (context.signers.user as any).decryptInt256(state.totalUnrealizedLoss.userCiphertext)
+			expect(loss).to.be.lt(0n, `totalUnrealizedLoss must be negative signed, got ${loss}`)
+			expect(loss).to.equal(-(decimal(990n)))
+		})
+
+		it("H-01: deallocate solvency uses on-chain UPNL sign (LONG loss blocks over-deallocate)", async function () {
+			const context: RunContext = await loadFixtureCompatible(initializeFixture)
+			await runTx(context.controlFacet.connect(context.signers.admin as any).setDeallocateDebounceTime(0))
+
+			const user = new User(context, context.signers.user)
+			await user.setup()
+			await user.setBalances(decimal(4000n), decimal(4000n), decimal(2000n))
+
+			const hedger = new Hedger(context, context.signers.hedger)
+			await hedger.setup()
+			await hedger.setBalances(decimal(50000n), decimal(50000n))
+
+			const entry = decimal(100n)
+			const mark = decimal(1n)
+			const qty = decimal(10n)
+			const quote = await user.sendQuote(
+				limitQuoteRequestBuilder()
+					.partyBWhiteList([context.signers.hedger.address])
+					.affiliate(context.multiAccount)
+					.symbolId(1)
+					.positionType(PositionType.LONG)
+					.quantity(qty)
+					.price(entry)
+					.cva(decimal(100n))
+					.partyAmm(decimal(100n))
+					.partyBmm(decimal(100n))
+					.lf(decimal(50n))
+					.upnlSig(getDummySingleUpnlAndPriceSig(entry, 0n))
+					.build(),
+			)
+			await runTx(
+				context.accountFacet.connect(context.signers.hedger as any).allocateForPartyB(decimal(20000n), await user.getAddress()),
+			)
+			await hedger.lockQuote(quote, 0n, null)
+			await hedger.openPosition(quote, limitOpenRequestBuilder().filledAmount(qty).openPrice(entry).price(entry).build())
+
+			// LONG @100, mark 1 => UPNL -990. With inverted signs this would look like +990 and pass.
+			const priceSig = await getDummyPriceSig([quote.quoteId], [mark])
+			await expect(
+				context.accountFacet.connect(context.signers.user as any).deallocateWithQuotePrices(decimal(1200n), priceSig),
+			).to.be.reverted
+		})
+
+		it("H-01: SHORT loss sign — over-deallocate reverts (covers SHORT + partyB arm)", async function () {
+			const context: RunContext = await loadFixtureCompatible(initializeFixture)
+			await runTx(context.controlFacet.connect(context.signers.admin as any).setDeallocateDebounceTime(0))
+
+			const user = new User(context, context.signers.user)
+			await user.setup()
+			await user.setBalances(decimal(4000n), decimal(4000n), decimal(2000n))
+
+			const hedger = new Hedger(context, context.signers.hedger)
+			await hedger.setup()
+			await hedger.setBalances(decimal(50000n), decimal(50000n))
+
+			const entry = decimal(100n)
+			const mark = decimal(200n)
+			const qty = decimal(10n)
+			const quote = await user.sendQuote(
+				limitQuoteRequestBuilder()
+					.partyBWhiteList([context.signers.hedger.address])
+					.affiliate(context.multiAccount)
+					.symbolId(1)
+					.positionType(PositionType.SHORT)
+					.quantity(qty)
+					.price(entry)
+					.cva(decimal(100n))
+					.partyAmm(decimal(100n))
+					.partyBmm(decimal(100n))
+					.lf(decimal(50n))
+					.upnlSig(getDummySingleUpnlAndPriceSig(entry, 0n))
+					.build(),
+			)
+			await runTx(
+				context.accountFacet.connect(context.signers.hedger as any).allocateForPartyB(decimal(20000n), await user.getAddress()),
+			)
+			await hedger.lockQuote(quote, 0n, null)
+			await hedger.openPosition(quote, limitOpenRequestBuilder().filledAmount(qty).openPrice(entry).price(entry).build())
+
+			// SHORT @100, mark 200 => partyA UPNL -1000 (loss). Inverted sign would read +1000 and allow.
+			const priceSig = await getDummyPriceSig([quote.quoteId], [mark])
+			await expect(
+				context.accountFacet.connect(context.signers.user as any).deallocateWithQuotePrices(decimal(1200n), priceSig),
+			).to.be.reverted
+		})
+	})
+
 	describe("Muon UPNL plaintext calldata", function () {
 		it("H-01: state-changing Muon calldata structs do not expose UPNL/risk fields", async function () {
 			const sig = await getDummySingleUpnlSig(-123456789n)
