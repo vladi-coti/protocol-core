@@ -102,17 +102,17 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 
 Unblocked, highest priority — pick **one** per session:
 
-1. [Decide Muon UPNL privacy — price-only + on-chain UPNL?](tickets/privacy-P1-H-01.md) *(parallel track — ABI-wide — **hard choice**)*
-2. [Decide free collateral privacy model](tickets/design-H-13-free-collateral-privacy.md) *(parallel track)*
-3. [Decide observer rotation model](tickets/design-M-13-observer-rotation.md) *(parallel — proxy/indexer)*
-4. [Validate H-06 allocation event plaintext deltas](tickets/privacy-P1-H-06.md) *(privacy P1 — gated by H-13)*
+1. [Validate H-11 settlement event plaintext opened prices](tickets/privacy-P1-H-11.md) *(privacy P1)*
+2. [Decide observer rotation model](tickets/design-M-13-observer-rotation.md) *(parallel — proxy/indexer)*
+3. [Validate M-02 stale liquidation price reuse](tickets/logic-P2-M-02.md) *(logic P2)*
+4. [Validate H-05 PartyA liquidation plaintext snapshots](tickets/privacy-P2-H-05.md) *(privacy P2)*
 
 ## Early privacy / architecture decisions (grill soon)
 
 | Decision ticket | Gates |
 | --- | --- |
-| [H-01 Muon UPNL model](tickets/privacy-P1-H-01.md) | almost all Muon-backed APIs; H-05, M-47, settlement/force UPNL surfaces |
-| [H-13 free collateral / deltas](tickets/design-H-13-free-collateral-privacy.md) | H-06, H-27; aegas/solver account APIs |
+| [H-01 Muon UPNL model](tickets/privacy-P1-H-01.md) | almost all Muon-backed APIs; H-05, M-47, settlement/force UPNL surfaces — **closed (path C)** |
+| [H-13 free collateral / deltas](tickets/design-H-13-free-collateral-privacy.md) | H-06, H-27 — **closed (intentionally public until private tokens)** |
 | [M-13 observer rotation](tickets/design-M-13-observer-rotation.md) | M-14, M-44; proxy + graph |
 | [M-49 quote metadata](tickets/design-M-49-quote-metadata-privacy.md) | M-49 |
 | [M-16 liquidation type](tickets/design-M-16-liquidation-type-disclosure.md) | M-16 privacy |
@@ -134,6 +134,10 @@ Unblocked, highest priority — pick **one** per session:
 - [Validate H-33 fee distributor encrypted accrual mismatch](tickets/logic-P1-H-33.md) — **valid**; `claimAllFeeCollectorBalance` + distributor claims before withdraw; `test/audit/H33.test.ts` dual PASS.
 - [Validate H-34 expired close request force-closeable](tickets/logic-P1-H-34.md) — **valid**; require `block.timestamp <= quote.deadline` on force close; `test/audit/H34.test.ts` dual PASS.
 - [Validate H-35 permissionless liquidation reward capture](tickets/logic-P1-H-35.md) — **valid**; force-close liq tip → `quote.partyA` not `msg.sender`; `test/audit/H35.test.ts` dual PASS.
+- [Decide free collateral privacy model](tickets/design-H-13-free-collateral-privacy.md) — **design-choice / wontfix**; free/bridge remain public until private tokens; H-06/H-27 follow.
+- [Validate H-06 allocation event plaintext deltas](tickets/privacy-P1-H-06.md) — **design-choice / wontfix**; follows H-13 (public free balance already reveals allocate size).
+- [Validate H-27 account movement plaintext calldata](tickets/privacy-P1-H-27.md) — **design-choice / wontfix**; follows H-13.
+- [Validate H-07 reserve/fee event plaintext amounts](tickets/privacy-P1-H-07.md) — **design-choice / wontfix**; free-balance deltas already reveal movements under H-13.
 
 ## Not yet specified
 
@@ -143,4 +147,4 @@ Unblocked, highest priority — pick **one** per session:
 ## Out of scope
 
 - Giving Muon network participants observer/proxy decrypt (rejected under H-01 preferred path).
-- Full encrypted account movement calldata without product sign-off (gated by [H-13](tickets/design-H-13-free-collateral-privacy.md)).
+- Private free-collateral / bridge / allocate amounts without private tokens (accepted public under [H-13](tickets/design-H-13-free-collateral-privacy.md); revisit later).

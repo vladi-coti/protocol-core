@@ -4,8 +4,9 @@ labels: [group:design-product, wayfinder:grilling]
 priority: P0
 finding: H-13
 severity: High
-status: open
-blocks: —
+status: closed
+disposition: wontfix
+blocks: privacy-P1-H-06, privacy-P1-H-27
 blocked_by: —
 report: ../report.md
 ---
@@ -32,13 +33,21 @@ Encrypt ledger OR document as intentionally public
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1 — N/A (product decision)
+- [x] Run test; record command + output — N/A
+- [x] Verdict: `design-choice`
+- [x] Fix disposition: `wontfix`
+- [x] If valid: write implement brief — N/A (accepted as public)
 
 ## Answer
 
-*(unresolved)*
+**Verdict: `design-choice`. Disposition: `wontfix`.**
+
+Free collateral / bridge ledgers (`AccountStorage.balances`, `balanceOf`, deposit/withdraw amounts) remain **intentionally public** for the current product scope.
+
+**Why:** real privacy for deposited amounts requires **private tokens with encrypted balances** (or equivalent deposit obfuscation). Plain ERC-20 `Transfer` to/from the diamond already publishes deposit/withdraw size; encrypting only the internal `balances` map without that is theater. Private tokens are **out of scope now** (maybe later).
+
+**Privacy boundary (current):** protect trading-risk state (allocated / locked / positions / on-chain UPNL). Unallocated free collateral and bridge movements are public by design until a private-token / private-deposit path exists.
+
+**Downstream:** H-06 / H-27 allocate/deallocate amounts are largely reconstructible from public free-balance deltas — accepted under the same decision (see those tickets).

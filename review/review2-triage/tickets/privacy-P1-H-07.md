@@ -4,7 +4,8 @@ labels: [group:privacy-leak, wayfinder:research]
 priority: P1
 finding: H-07
 severity: High
-status: open
+status: closed
+disposition: wontfix
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -32,13 +33,19 @@ Encrypted event fields or classify as public
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1 — N/A (follows H-13 product boundary)
+- [x] Run test; record command + output — N/A
+- [x] Verdict: `design-choice`
+- [x] Fix disposition: `wontfix`
+- [x] If valid: write implement brief — N/A
 
 ## Answer
 
-*(unresolved)*
+**Verdict: `design-choice`. Disposition: `wontfix`.**
+
+Confirmed leak shape: `DepositToReserveVault` / `WithdrawFromReserveVault` / `ClaimFeeCollectorBalance` emit plaintext `amount` while reserve/fee **storage** is encrypted.
+
+Under [H-13](design-H-13-free-collateral-privacy.md), free collateral is intentionally public. Deposit/withdraw/claim all move against that public free ledger, so the movement size is already recoverable from free-balance deltas without reading the event. Encrypting only the event field is theater for the current (non–private-token) stack.
+
+Revisit if private tokens / private free balances land later.
