@@ -33,3 +33,4 @@ python3 utils/update_sig_checks.py 1
 | H-05 liq detail UPNL already encrypted | PASS | PASS | invalid/wontfix; utInt256 offBoardToUser |
 | M-03 dispute accumulator CVA cap | PASS | PASS | positive-leg payable=alloc+settlementCva |
 | M-10 suspension gates deallocate/cancel/close | PASS | PASS | notSuspended on cited PartyA/account paths |
+| M-11 pauseGlobal blocks internalTransfer | PASS | PASS | whenNotInternalTransferPaused checks globalPaused |

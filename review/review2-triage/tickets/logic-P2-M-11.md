@@ -4,7 +4,8 @@ labels: [group:logic-security, wayfinder:research]
 priority: P2
 finding: M-11
 severity: Medium
-status: open
+status: closed
+disposition: implement
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -32,13 +33,24 @@ Include globalPaused in internal-transfer modifier
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `valid`
+- [x] Fix disposition: `implement` (done)
+- [x] If valid: write implement brief (minimal fix, affected files, regression test name)
 
 ## Answer
 
-*(unresolved)*
+**Verdict: `valid`. Disposition: `implement` (done).**
+
+`whenNotInternalTransferPaused` checked `internalTransferPaused` + `accountingPaused` but **not** `globalPaused`, unlike every other pause modifier. `pauseGlobal()` alone left `internalTransfer` open.
+
+**Fix:** require `!globalPaused` in `whenNotInternalTransferPaused` (`contracts/utils/Pausable.sol`).
+
+**Regression:** `test/audit/M11.test.ts`
+
+```bash
+npx hardhat test --network localSimCoti test/audit/M11.test.ts --grep 'M-11'
+# sim: 2/2 PASS
+```
