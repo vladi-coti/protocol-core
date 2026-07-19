@@ -102,8 +102,8 @@ contract ControlFacet is Accessibility, Ownable, IControlFacet {
 	}
 
 	/// @notice Sets the configuration parameters for Muon.
-	/// @param upnlValidTime The validity duration for upnl.
-	/// @param priceValidTime The validity duration for price.
+	/// @param upnlValidTime Legacy slot; unused for freshness after H-01 path C (kept for ABI/storage layout).
+	/// @param priceValidTime Muon price-signature validity window (sole freshness knob).
 	function setMuonConfig(uint256 upnlValidTime, uint256 priceValidTime) external onlyRole(LibAccessibility.MUON_SETTER_ROLE) {
 		emit SetMuonConfig(upnlValidTime, priceValidTime);
 		MuonStorage.Layout storage muonLayout = MuonStorage.layout();

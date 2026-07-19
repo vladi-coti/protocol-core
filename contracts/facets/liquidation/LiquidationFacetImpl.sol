@@ -125,7 +125,7 @@ library LiquidationFacetImpl {
         AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 
         LibMuonLiquidation.verifyLiquidationSig(liquidationSig, partyA);
-        require(block.timestamp <= liquidationSig.timestamp + MuonStorage.layout().upnlValidTime, "LiquidationFacet: Expired signature");
+        require(block.timestamp <= liquidationSig.timestamp + MuonStorage.layout().priceValidTime, "LiquidationFacet: Expired price signature");
         (gtInt256 gtUpnl, gtInt256 gtTotalUnrealizedLoss) = LibOnChainUpnl.partyAUpnlAndLossFromSymbolPrices(partyA, liquidationSig.symbolIds, liquidationSig.prices);
         gtInt256 gtAvailableBalance = LibAccount.partyAAvailableBalanceForLiquidation(gtUpnl, partyA);
         gtBool isInsolvent = MpcCore.lt(gtAvailableBalance, MpcCore.setPublic256(int256(0)));

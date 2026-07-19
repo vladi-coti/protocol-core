@@ -38,6 +38,7 @@ library DeferredLiquidationFacetImpl {
 		AccountStorage.Layout storage accountLayout = AccountStorage.layout();
 
 		LibMuonLiquidation.verifyDeferredLiquidationSig(liquidationSig, partyA);
+		require(block.timestamp <= liquidationSig.timestamp + MuonStorage.layout().priceValidTime, "LiquidationFacet: Expired price signature");
 
 		(gtInt256 gtUpnl, gtInt256 gtTotalUnrealizedLoss) = LibOnChainUpnl.partyAUpnlAndLossFromSymbolPrices(partyA, liquidationSig.symbolIds, liquidationSig.prices);
 		// H-16: insolvency from signed allocated snapshot + on-chain UPNL (not current allocated).

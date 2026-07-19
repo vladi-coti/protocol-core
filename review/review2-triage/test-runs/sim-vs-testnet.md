@@ -34,3 +34,4 @@ python3 utils/update_sig_checks.py 1
 | M-03 dispute accumulator CVA cap | PASS | PASS | positive-leg payable=alloc+settlementCva |
 | M-10 suspension gates deallocate/cancel/close | PASS | PASS | notSuspended on cited PartyA/account paths |
 | M-11 pauseGlobal blocks internalTransfer | PASS | PASS | whenNotInternalTransferPaused checks globalPaused |
+| M-15 priceValidTime sole freshness knob | PASS | PASS | H-01 path C; upnlValidTime unused husk |

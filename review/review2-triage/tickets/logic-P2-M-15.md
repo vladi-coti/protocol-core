@@ -4,7 +4,8 @@ labels: [group:logic-security, wayfinder:research]
 priority: P2
 finding: M-15
 severity: Medium
-status: open
+status: closed
+disposition: implement
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -32,13 +33,23 @@ Enforce priceValidTime everywhere or remove setting
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `valid`
+- [x] Fix disposition: `implement` (done)
+- [x] If valid: write implement brief (minimal fix, affected files, regression test name)
 
 ## Answer
 
-*(unresolved)*
+**Verdict: `valid`. Disposition: `implement` (done).**
+
+`priceValidTime` was stored but never read; paths used `upnlValidTime` (or none). Under H-01 path C, Muon only signs prices — dual windows on one timestamp is nonsense.
+
+**Fix:** sole freshness knob is `priceValidTime` on Muon verify + liquidate/deferred liquidate. `upnlValidTime` kept in storage/`setMuonConfig` ABI but unused for acceptance.
+
+**Regression:** `test/audit/M15.test.ts`
+
+```bash
+npx hardhat test --network localSimCoti test/audit/M15.test.ts --grep 'M-15'
+```

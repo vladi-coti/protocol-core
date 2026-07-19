@@ -60,7 +60,7 @@ export function shouldBehaveLikeAuditM02(): void {
 			await hedger.openPosition(open1)
 
 			const price1 = decimal(8n)
-			// Fixture leaves upnlValidTime=0 → expiry is block.timestamp <= sig.timestamp.
+			// Fixture leaves priceValidTime=0 → expiry is block.timestamp <= sig.timestamp.
 			// Default dummy sigs are only +60s; pin far ahead so reuse still works on slow testnet.
 			const reusedTimestamp = await getBlockTimestamp(3600n)
 			const firstUpnl = await user.getUpnl(async () => price1)

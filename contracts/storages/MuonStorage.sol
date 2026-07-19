@@ -135,8 +135,8 @@ library MuonStorage {
 	bytes32 internal constant MUON_STORAGE_SLOT = keccak256("diamond.standard.storage.muon");
 
 	struct Layout {
-		uint256 upnlValidTime;
-		uint256 priceValidTime;
+		uint256 upnlValidTime; // UNUSED for freshness (H-01 path C); kept for storage layout / setMuonConfig ABI
+		uint256 priceValidTime; // sole Muon signature freshness window
 		uint256 priceQuantityValidTime; // UNUSED: Should be deleted later
 		uint256 muonAppId;
 		PublicKey muonPublicKey;

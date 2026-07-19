@@ -12,7 +12,7 @@ library LibMuonSettlement {
 	function verifySettlement(SettlementSig memory settleSig, address partyA) internal view {
 		MuonStorage.Layout storage muonLayout = MuonStorage.layout();
 		// == SignatureCheck( ==
-		require(block.timestamp <= settleSig.timestamp + muonLayout.upnlValidTime, "LibMuon: Expired signature");
+		require(block.timestamp <= settleSig.timestamp + muonLayout.priceValidTime, "LibMuon: Expired price signature");
 		// == ) ==
 		bytes memory encodedData;
 		bytes memory encodedPartyBPrices;

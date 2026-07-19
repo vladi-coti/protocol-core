@@ -61,6 +61,9 @@ library LibMuonLiquidation {
 	function verifyQuotePrices(QuotePriceSig memory priceSig) internal view {
 		MuonStorage.Layout storage muonLayout = MuonStorage.layout();
 		require(priceSig.prices.length == priceSig.quoteIds.length, "LibMuon: Invalid length");
+		// == SignatureCheck( ==
+		require(block.timestamp <= priceSig.timestamp + muonLayout.priceValidTime, "LibMuon: Expired price signature");
+		// == ) ==
 		bytes32 hash = keccak256(
 			abi.encodePacked(
 				muonLayout.muonAppId,

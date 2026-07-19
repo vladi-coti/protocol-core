@@ -14,7 +14,7 @@ import { loadFixtureCompatible, timeCompatible } from "./utils/testHelpers"
 
 function muonSignatureChecksDisabled(): boolean {
 	const source = readFileSync("contracts/libraries/muon/LibMuonAccount.sol", "utf8")
-	return source.includes("// \t\trequire(block.timestamp <= upnlSig.timestamp + muonLayout.upnlValidTime")
+	return source.includes("// \t\trequire(block.timestamp <= upnlSig.timestamp + muonLayout.priceValidTime")
 }
 
 export function shouldBehaveLikeAccountFacet(): void {

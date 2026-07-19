@@ -12,7 +12,7 @@ library LibMuonForceActions {
 	function verifyHighLowPrice(HighLowPriceSig memory sig, address partyB, address partyA, uint256 symbolId) internal view {
 		MuonStorage.Layout storage muonLayout = MuonStorage.layout();
 		// == SignatureCheck( ==
-		require(block.timestamp <= sig.timestamp + muonLayout.upnlValidTime, "LibMuon: Expired signature");
+		require(block.timestamp <= sig.timestamp + muonLayout.priceValidTime, "LibMuon: Expired price signature");
 		// == ) ==
 		bytes32 hash = keccak256(
 			abi.encodePacked(

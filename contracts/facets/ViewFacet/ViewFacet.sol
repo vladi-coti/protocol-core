@@ -1056,8 +1056,8 @@ contract ViewFacet is IViewFacet {
 
 	/**
 	 * @notice Retrieves the configuration parameters of the Muon system.
-	 * @return upnlValidTime The validity period of UPNL.
-	 * @return priceValidTime The validity period of price.
+	 * @return upnlValidTime Legacy unused freshness slot (H-01 path C).
+	 * @return priceValidTime Muon price-signature validity window.
 	 */
 	function getMuonConfig() external view returns (uint256 upnlValidTime, uint256 priceValidTime) {
 		upnlValidTime = MuonStorage.layout().upnlValidTime;
