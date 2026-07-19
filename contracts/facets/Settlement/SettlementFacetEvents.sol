@@ -8,9 +8,10 @@ import "../../storages/MuonStorage.sol";
 import { ctUint256 } from "@coti-io/coti-contracts/contracts/utils/mpc/MpcCore.sol";
 
 interface SettlementFacetEvents {
+	// H-11: do not emit updatedPrices — those become encrypted openedPrice; pubkey event would leak them.
+	// (Calldata of settleUpnl still carries plaintext args; event must not rebroadcast.)
 	event SettleUpnl(
 		QuoteSettlementData[] settlementData,
-		uint256[] updatedPrices,
 		address partyA,
 		ctUint256 newPartyAAllocatedBalance,
 		ctUint256[] newPartyBsAllocatedBalances

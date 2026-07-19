@@ -115,7 +115,7 @@ export function shouldBehaveLikeSettleAndForceClosePosition(): void {
 		expect(await context.signers.user.decryptUint256((await context.viewFacet.getQuote(quote2ShortOpened.id)).openedPrice.userCiphertext)).to.be.eq(decimal(5n))
 
 		const settlementEventsInterface = new ethers.Interface([
-			"event SettleUpnl(tuple(uint256 quoteId,uint256 currentPrice,uint8 partyBUpnlIndex)[] settlementData,uint256[] updatedPrices,address partyA,tuple(uint256 ciphertextHigh,uint256 ciphertextLow) newPartyAAllocatedBalance,tuple(uint256 ciphertextHigh,uint256 ciphertextLow)[] newPartyBsAllocatedBalances)",
+			"event SettleUpnl(tuple(uint256 quoteId,uint256 currentPrice)[] settlementData,address partyA,tuple(uint256 ciphertextHigh,uint256 ciphertextLow) newPartyAAllocatedBalance,tuple(uint256 ciphertextHigh,uint256 ciphertextLow)[] newPartyBsAllocatedBalances)",
 		])
 		const event = receipt!.logs
 			.map((log: any) => {

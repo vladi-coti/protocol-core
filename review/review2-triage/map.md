@@ -102,10 +102,10 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 
 Unblocked, highest priority — pick **one** per session:
 
-1. [Validate H-11 settlement event plaintext opened prices](tickets/privacy-P1-H-11.md) *(privacy P1)*
-2. [Decide observer rotation model](tickets/design-M-13-observer-rotation.md) *(parallel — proxy/indexer)*
-3. [Validate M-02 stale liquidation price reuse](tickets/logic-P2-M-02.md) *(logic P2)*
-4. [Validate H-05 PartyA liquidation plaintext snapshots](tickets/privacy-P2-H-05.md) *(privacy P2)*
+1. [Decide observer rotation model](tickets/design-M-13-observer-rotation.md) *(parallel — proxy/indexer)*
+2. [Validate M-02 stale liquidation price reuse](tickets/logic-P2-M-02.md) *(logic P2)*
+3. [Validate H-05 PartyA liquidation plaintext snapshots](tickets/privacy-P2-H-05.md) *(privacy P2)*
+4. [Validate M-22 COTI dependency pinning](tickets/design-M-22-coti-dependencies.md) *(design P1)*
 
 ## Early privacy / architecture decisions (grill soon)
 
@@ -138,6 +138,7 @@ Unblocked, highest priority — pick **one** per session:
 - [Validate H-06 allocation event plaintext deltas](tickets/privacy-P1-H-06.md) — **design-choice / wontfix**; follows H-13 (public free balance already reveals allocate size).
 - [Validate H-27 account movement plaintext calldata](tickets/privacy-P1-H-27.md) — **design-choice / wontfix**; follows H-13.
 - [Validate H-07 reserve/fee event plaintext amounts](tickets/privacy-P1-H-07.md) — **design-choice / wontfix**; free-balance deltas already reveal movements under H-13.
+- [Validate H-11 settlement event plaintext opened prices](tickets/privacy-P1-H-11.md) — **valid**; strip `updatedPrices` from `SettleUpnl`; `test/audit/H11.test.ts` green on sim.
 
 ## Not yet specified
 

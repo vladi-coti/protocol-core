@@ -14,7 +14,7 @@ python3 utils/update_sig_checks.py 1
 | --- | --- | --- | --- |
 | H-12 third-party settleAndForceClose | PASS | PASS | Logic matches. Testnet needs `gasOptions.gasLimit` ≥120M for success path; force-close cooldowns ~minutes. |
 | H-14 partial-reserve force-close liquidate | PASS | PASS | Fix: pass `gtWithReserve` into `liquidatePartyBFromAvailable`. Agree on both. |
-| H-15 remainingLf > alloc (+UPNL) liquidate | PASS | PASS | Cap `remainingLf` via `MpcCore.min(..., partyBAllocated)`. Agree on both. |
+| H-15 remainingLf > alloc (+UPNL) liquidate | PASS | PASS | Cap remainingLf to alloc; re-dual after LibAccount available-balance mux fix |
 | H-16 deferred type uses signed alloc snapshot | PASS | PASS | `deferredSetSymbolsPrice` + reimbursement use `liquidationAllocatedBalance`. |
 | H-26 force-close LF unlock before PartyB liq | PASS | PASS | Unlock closed-quote cva+lf on PartyB locks before liquidatePartyBFromAvailable |
 | H-08 allocate/internalTransfer free-balance before limit | PASS | PASS | Public balance require before encrypted allocated-limit decrypt |
@@ -25,3 +25,4 @@ python3 utils/update_sig_checks.py 1
 | H-35 force-close liq reward to PartyA | PASS | PASS | liquidatePartyBFromAvailable pays quote.partyA not msg.sender |
 | H-01 force-close 10-open-position gas sample | PASS | FAIL | Sim full migration: forceClose 10 positions ~65.59M gas. COTI testnet 10-position force-close failed, receipt `gasUsed=116,282,373`; cap must be materially below 10 or flow needs batching. |
 | H-01 force-close 8-open-position gas sample | PASS | PASS | Testnet force-close ~114.4M gas (under 120M block); openPosition@8 ~98M. Production cap `maxPartyAOpenPositions=8`. |
+| H-11 SettleUpnl strips updatedPrices | PASS | PASS | Event ABI drop; calldata residual intentional |

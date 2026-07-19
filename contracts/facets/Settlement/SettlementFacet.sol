@@ -37,7 +37,6 @@ contract SettlementFacet is Accessibility, Pausable, ISettlementFacet {
 		
 		emit SettleUpnl(
 			settlementSig.quotesSettlementsData,
-			updatedPrices,
 			partyA,
 			ctAllocatedBalance,
 			encryptedBalances

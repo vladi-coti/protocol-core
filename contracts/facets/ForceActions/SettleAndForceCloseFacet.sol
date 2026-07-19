@@ -64,7 +64,6 @@ contract SettleAndForceCloseFacet is Accessibility, Pausable, IPartiesEvents, Fo
 
 			emit SettleUpnl(
 				settleSig.quotesSettlementsData,
-				updatedPrices,
 				quote.partyA,
 				ctAllocatedBalance,
 				newPartyBsAllocatedBalances
