@@ -96,7 +96,9 @@ library DeferredLiquidationFacetImpl {
 		require(keccak256(detail.liquidationId) == keccak256(liquidationSig.liquidationId), "LiquidationFacet: Invalid liquidationId");
 
 		for (uint256 index = 0; index < liquidationSig.symbolIds.length; index++) {
-			accountLayout.symbolsPrices[partyA][liquidationSig.symbolIds[index]] = Price(liquidationSig.prices[index], detail.timestamp);
+			uint256 symbolId = liquidationSig.symbolIds[index];
+			accountLayout.symbolsPrices[partyA][symbolId] = Price(liquidationSig.prices[index], detail.timestamp);
+			accountLayout.symbolPriceLiquidationId[partyA][symbolId] = keccak256(liquidationSig.liquidationId);
 		}
 
 		(gtInt256 gtUpnl, gtInt256 gtTotalUnrealizedLoss) = LibOnChainUpnl.partyAUpnlAndLossFromSymbolPrices(partyA, liquidationSig.symbolIds, liquidationSig.prices);

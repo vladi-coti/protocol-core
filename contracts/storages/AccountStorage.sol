@@ -92,6 +92,8 @@ library AccountStorage {
 		mapping(address => ctUint256) observerEncryptedLiquidationDeficit;
 		mapping(address => utUint256) encryptedLiquidationFee;
 		mapping(address => ctUint256) observerEncryptedLiquidationFee;
+		/// @dev Binds symbolsPrices[partyA][symbolId] to the liquidationId that wrote them (M-02).
+		mapping(address => mapping(uint256 => bytes32)) symbolPriceLiquidationId;
 	}
 
 	function layout() internal pure returns (Layout storage l) {

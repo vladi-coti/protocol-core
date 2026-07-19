@@ -29,3 +29,4 @@ python3 utils/update_sig_checks.py 1
 | M-14 ObserverBalanceChange only allocate/dealloc | PASS | — | sim PASS; dual pending — wontfix/polling model |
 | M-44 PartyB pending observer stale after liq cleanup | PASS | — | sim PASS after storePartyBPendingLockedBalance fix |
 | M-13 flip+migrateObserverForPartyA | PASS | PASS | admin batched observer catch-up after address flip |
+| M-02 symbol price bound to liquidationId | PASS | — | sim PASS after id-bind fix; dual pending |

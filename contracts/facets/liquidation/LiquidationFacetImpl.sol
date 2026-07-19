@@ -154,12 +154,14 @@ library LiquidationFacetImpl {
             keccak256(accountLayout.liquidationDetails[partyA].liquidationId) == keccak256(liquidationSig.liquidationId),
             "LiquidationFacet: Invalid liquidationId"
         );
-        for (uint256 index = 0; index < liquidationSig.symbolIds.length; index++) {
-            accountLayout.symbolsPrices[partyA][liquidationSig.symbolIds[index]] = Price(
-                liquidationSig.prices[index],
-                accountLayout.liquidationDetails[partyA].timestamp
-            );
-        }
+		for (uint256 index = 0; index < liquidationSig.symbolIds.length; index++) {
+			uint256 symbolId = liquidationSig.symbolIds[index];
+			accountLayout.symbolsPrices[partyA][symbolId] = Price(
+				liquidationSig.prices[index],
+				accountLayout.liquidationDetails[partyA].timestamp
+			);
+			accountLayout.symbolPriceLiquidationId[partyA][symbolId] = keccak256(liquidationSig.liquidationId);
+		}
 
         (gtInt256 gtUpnl, gtInt256 gtTotalUnrealizedLoss) = LibOnChainUpnl.partyAUpnlAndLossFromSymbolPrices(partyA, liquidationSig.symbolIds, liquidationSig.prices);
         gtInt256 gtAvailableBalance2 = LibAccount.partyAAvailableBalanceForLiquidation(gtUpnl, partyA);
@@ -251,7 +253,9 @@ library LiquidationFacetImpl {
             require(!maLayout.partyBLiquidationStatus[quote.partyB][partyA], "LiquidationFacet: PartyB is in liquidation process");
             require(quote.partyA == partyA, "LiquidationFacet: Invalid party");
             require(
-                accountLayout.symbolsPrices[partyA][quote.symbolId].timestamp == accountLayout.liquidationDetails[partyA].timestamp,
+                accountLayout.symbolsPrices[partyA][quote.symbolId].timestamp == accountLayout.liquidationDetails[partyA].timestamp &&
+                    accountLayout.symbolPriceLiquidationId[partyA][quote.symbolId] ==
+                    keccak256(accountLayout.liquidationDetails[partyA].liquidationId),
                 "LiquidationFacet: Price should be set"
             );
             
