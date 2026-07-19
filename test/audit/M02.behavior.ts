@@ -60,8 +60,17 @@ export function shouldBehaveLikeAuditM02(): void {
 			await hedger.openPosition(open1)
 
 			const price1 = decimal(8n)
-			const firstSig = await user.liquidateAndSetSymbolPrices([1n], [price1])
-			const reusedTimestamp = BigInt(firstSig.timestamp)
+			// Fixture leaves upnlValidTime=0 → expiry is block.timestamp <= sig.timestamp.
+			// Default dummy sigs are only +60s; pin far ahead so reuse still works on slow testnet.
+			const reusedTimestamp = await getBlockTimestamp(3600n)
+			const firstUpnl = await user.getUpnl(async () => price1)
+			const firstLoss = await user.getTotalUnrealisedLoss(async () => price1)
+			const firstAlloc = (await user.getBalanceInfo()).allocatedBalances
+			const firstSig = await getDummyLiquidationSig("0x10", firstUpnl, [1n], [price1], firstLoss, firstAlloc)
+			firstSig.timestamp = reusedTimestamp
+			firstSig.liquidationTimestamp = reusedTimestamp
+			await runTx(context.liquidationFacet.connect(context.signers.liquidator).liquidatePartyA(partyA, firstSig))
+			await runTx(context.liquidationFacet.connect(context.signers.liquidator).setSymbolsPrice(partyA, firstSig))
 
 			await user.liquidatePendingPositions()
 			await user.liquidatePositions([open1.quoteId])
@@ -96,9 +105,8 @@ export function shouldBehaveLikeAuditM02(): void {
 			secondSig.timestamp = reusedTimestamp
 			secondSig.liquidationTimestamp = reusedTimestamp
 
-			// Keep signature "fresh" for upnlValidTime even though we reuse the old timestamp field.
 			const now = await getBlockTimestamp()
-			expect(reusedTimestamp + 3600n > now || reusedTimestamp >= now, "timestamp window").to.equal(true)
+			expect(reusedTimestamp >= now, `timestamp still ahead: reused=${reusedTimestamp} now=${now}`).to.equal(true)
 
 			await runTx(context.liquidationFacet.connect(context.signers.liquidator).liquidatePartyA(partyA, secondSig))
 			expect(await context.viewFacet.isPartyALiquidated(partyA)).to.equal(true)
