@@ -9,5 +9,5 @@ import "./ILiquidationEvents.sol";
 interface ILiquidationResolutionFacet is ILiquidationEvents {
 	function settlePartyALiquidation(address partyA, address[] memory partyBs) external;
 
-	function resolveLiquidationDispute(address partyA, address[] memory partyBs, int256[] memory amounts, bool disputed) external;
+	function resolveLiquidationDispute(address partyA, address[] memory partyBs, itInt256[] calldata amounts, bool disputed) external;
 }

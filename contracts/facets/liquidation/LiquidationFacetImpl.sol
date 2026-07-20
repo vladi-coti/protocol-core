@@ -386,7 +386,7 @@ library LiquidationFacetImpl {
     function resolveLiquidationDispute(
         address partyA,
         address[] memory partyBs,
-        int256[] memory amounts,
+        gtInt256[] memory amounts,
         bool disputed
     ) internal returns (bytes memory) {
         AccountStorage.Layout storage accountLayout = AccountStorage.layout();
@@ -397,8 +397,7 @@ library LiquidationFacetImpl {
         for (uint256 i = 0; i < partyBs.length; i++) {
             address partyB = partyBs[i];
             address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
-            gtInt256 gtAmount = MpcCore.setPublic256(amounts[i]);
-            _storeSettlementActual(accountLayout, partyA, partyB, gtAmount, partyAEncryptionAddress, partyBEncryptionAddress);
+            _storeSettlementActual(accountLayout, partyA, partyB, amounts[i], partyAEncryptionAddress, partyBEncryptionAddress);
         }
         return accountLayout.liquidationDetails[partyA].liquidationId;
     }

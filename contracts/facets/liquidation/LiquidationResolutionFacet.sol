@@ -30,15 +30,19 @@ contract LiquidationResolutionFacet is Pausable, Accessibility, ILiquidationReso
 	function resolveLiquidationDispute(
 		address partyA,
 		address[] memory partyBs,
-		int256[] memory amounts,
+		itInt256[] calldata amounts,
 		bool disputed
 	) external onlyRole(LibAccessibility.DISPUTE_ROLE) {
-		bytes memory liquidationId = LiquidationFacetImpl.resolveLiquidationDispute(partyA, partyBs, amounts, disputed);
-		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
-		ctInt256[] memory encryptedAmounts = new ctInt256[](amounts.length);
+		require(partyBs.length == amounts.length, "LiquidationFacet: Invalid length");
+		gtInt256[] memory gtAmounts = new gtInt256[](amounts.length);
 		for (uint256 i = 0; i < amounts.length; i++) {
-			gtInt256 gtAmount = MpcCore.setPublic256(amounts[i]);
-			encryptedAmounts[i] = MpcCore.offBoardToUser(gtAmount, partyAEncryptionAddress);
+			gtAmounts[i] = MpcCore.validateCiphertext(amounts[i]);
+		}
+		bytes memory liquidationId = LiquidationFacetImpl.resolveLiquidationDispute(partyA, partyBs, gtAmounts, disputed);
+		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
+		ctInt256[] memory encryptedAmounts = new ctInt256[](gtAmounts.length);
+		for (uint256 i = 0; i < gtAmounts.length; i++) {
+			encryptedAmounts[i] = MpcCore.offBoardToUser(gtAmounts[i], partyAEncryptionAddress);
 		}
 		emit ResolveLiquidationDispute(partyA, partyBs, encryptedAmounts, disputed, liquidationId);
 	}

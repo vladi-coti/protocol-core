@@ -40,3 +40,4 @@ python3 utils/update_sig_checks.py 1
 | M-50 dust close request | PASS | PASS | reject dust at request; shared LibQuote check |
 | L-01 liquidation fee rounding dust | PASS | PASS | assign fee/LF remainder to liquidators |
 | H-28 quote views return ViewQuote | PASS | PASS | ABI: ViewQuote/ctUint256 only; no utUint256 system ciphertext |
+| M-37 dispute resolve itInt256 | PASS | PASS | itInt256[] + validateCiphertext; no plaintext amount in calldata |
