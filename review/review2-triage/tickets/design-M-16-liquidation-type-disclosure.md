@@ -4,7 +4,8 @@ labels: [group:design-product, wayfinder:grilling]
 priority: P2
 finding: M-16
 severity: Medium
-status: open
+status: closed
+disposition: wontfix
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -20,7 +21,7 @@ Medium severity. See [report §M-16](../report.md).
 
 ## Code references
 
-`LiquidationFacetImpl.sol:169,170`
+`LiquidationFacetImpl.sol` set-prices type assignment; `AccountStorage.LiquidationDetail`
 
 ## Suggested test seam
 
@@ -32,13 +33,18 @@ Accept public type or redesign classification
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Grill / decide policy
+- [x] Verdict: `design-choice`
+- [x] Fix disposition: `wontfix`
+- [x] Unblock privacy-P3-M-16
 
 ## Answer
 
-*(unresolved)*
+**Decision:** keep **public**.
+
+`LiquidationType` (NORMAL / LATE / OVERDUE) is intentional lifecycle disclosure. Exact deficit magnitude stays encrypted; severity bucket is public protocol state used by settlement branching and readable via `getLiquidatedStateOfPartyA`.
+
+Hiding the bucket would require encrypted control flow or collapsing liquidation economics — out of scope for this privacy posture (same class as H-01 path C / H-13 public lifecycle fields).
+
+**Gates:** [privacy-P3-M-16](privacy-P3-M-16.md) closed as design-choice / wontfix.

@@ -4,8 +4,9 @@ labels: [group:privacy-leak, wayfinder:research]
 priority: P3
 finding: M-16
 severity: Medium
-status: open
-blocks: design-M-16-liquidation-type-disclosure
+status: closed
+disposition: wontfix
+blocks: —
 blocked_by: design-M-16-liquidation-type-disclosure
 report: ../report.md
 ---
@@ -20,7 +21,7 @@ Medium severity. See [report §M-16](../report.md).
 
 ## Code references
 
-`LiquidationFacetImpl.sol:169,170; DeferredLiquidationFacetImpl.sol:109,110`
+`LiquidationFacetImpl.sol`; `DeferredLiquidationFacetImpl.sol`; `AccountStorage.LiquidationDetail`
 
 ## Suggested test seam
 
@@ -32,13 +33,23 @@ See design-M-16 for intentional vs bug
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Design decision: [design-M-16](design-M-16-liquidation-type-disclosure.md) — keep public
+- [x] Verdict: `design-choice`
+- [x] Fix disposition: `wontfix`
+- [x] Regression documents intentional public type
 
 ## Answer
 
-*(unresolved)*
+**Verdict:** `design-choice`  
+**Disposition:** `wontfix`
+
+Confirmed leak shape: decrypting deficit vs LF / LF+CVA writes public `LiquidationType`. Exact deficit remains encrypted; bucket is intentional.
+
+No code change. Policy: [design-M-16](design-M-16-liquidation-type-disclosure.md).
+
+**Regression:** `test/audit/M16.test.ts`
+
+```bash
+npx hardhat test --network localSimCoti test/audit/M16.test.ts --grep "M-16"
+```
