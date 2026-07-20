@@ -508,7 +508,8 @@ library LiquidationFacetImpl {
                 LibEncryption.storePartyAAllocatedBalance(accountLayout, accountLayout.liquidators[partyA][0], gtNewBalance1);
                 
                 gtUint256 gtCurrentBalance2 = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[accountLayout.liquidators[partyA][1]].ciphertext);
-                gtUint256 gtLf2 = gtLf.div(MpcCore.setPublic256(uint256(2)));
+                // L-01: second liquidator gets fee - floor(fee/2) so odd wei is not deleted with the fee.
+                gtUint256 gtLf2 = gtLf.checkedSub(gtLf1);
                 gtUint256 gtNewBalance2 = gtCurrentBalance2.checkedAdd(gtLf2);
                 LibEncryption.storePartyAAllocatedBalance(accountLayout, accountLayout.liquidators[partyA][1], gtNewBalance2);
                 

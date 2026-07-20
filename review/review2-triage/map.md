@@ -102,9 +102,9 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 
 Unblocked, highest priority — pick **one** per session:
 
-1. [Validate L-01 liquidation fee rounding dust](tickets/logic-P3-L-01.md) *(logic P3)*
-2. [Validate H-28 quote views expose system ciphertext](tickets/privacy-P2-H-28.md) *(privacy P2)*
-3. [Validate M-37 dispute settlement plaintext calldata](tickets/privacy-P2-M-37.md) *(privacy P2)*
+1. [Validate H-28 quote views expose system ciphertext](tickets/privacy-P2-H-28.md) *(privacy P2)*
+2. [Validate M-37 dispute settlement plaintext calldata](tickets/privacy-P2-M-37.md) *(privacy P2)*
+3. [Validate M-24 emergency close plaintext price event](tickets/privacy-P2-M-24.md) *(privacy P2)*
 
 Parked (not frontier): [M-22 COTI deps](tickets/design-M-22-coti-dependencies.md) — wait until signed forks merge to main, then pin.
 
@@ -152,6 +152,7 @@ Parked (not frontier): [M-22 COTI deps](tickets/design-M-22-coti-dependencies.md
 - [Validate M-26 uint8 batch loop overflow](tickets/logic-P2-M-26.md) — **valid / implement (done)**; unbounded batch `for (uint8)` → `uint256`; `addSymbols(256)` green. `test/audit/M26.test.ts` sim green.
 - [Validate M-36 deferred liquidation reimbursement underflow](tickets/logic-P2-M-36.md) — **invalid / wontfix**; H-16 made insolvency + reimbursement share one snapshot available (`lt(0)` then `gt(0)` dead). `test/audit/M36.test.ts` sim green.
 - [Validate M-50 dust close request locks position](tickets/logic-P2-M-50.md) — **valid / implement (done)**; `requireMinProportionalCloseAmount` at close-request time. `test/audit/M50.test.ts` sim green.
+- [Validate L-01 liquidation fee rounding dust](tickets/logic-P3-L-01.md) — **valid / implement (done)**; PartyA `lf2=lf-lf1`; PartyB position-floor dust → liquidator. `test/audit/L01.test.ts` dual PASS.
 
 ## Not yet specified
 

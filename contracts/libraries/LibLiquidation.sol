@@ -70,7 +70,12 @@ library LibLiquidation {
 			// Positive UPNL can make remainingLf > allocated; cap to payable balance (H-15).
 			gtRemainingLf = MpcCore.min(gtRemainingLf, gtPartyBBalance);
 			gtLiquidatorShare = gtRemainingLf.checkedMul(MpcCore.setPublic256(maLayout.liquidatorShare)).div(MpcCore.setPublic256(uint256(1e18)));
-			gtPerPositionShare = gtRemainingLf.checkedSub(gtLiquidatorShare).div(MpcCore.setPublic256(quoteLayout.partyBPositionsCount[partyB][partyA]));
+			gtUint256 gtAfterLiquidator = gtRemainingLf.checkedSub(gtLiquidatorShare);
+			uint256 positionsCount = quoteLayout.partyBPositionsCount[partyB][partyA];
+			gtPerPositionShare = gtAfterLiquidator.div(MpcCore.setPublic256(positionsCount));
+			// L-01: leftover after floor(perPosition * count) stays with liquidator, not deleted.
+			gtUint256 gtDistributedToPositions = gtPerPositionShare.checkedMul(MpcCore.setPublic256(positionsCount));
+			gtLiquidatorShare = gtLiquidatorShare.checkedAdd(gtAfterLiquidator.checkedSub(gtDistributedToPositions));
 		}
 		maLayout.encryptedPartyBPositionLiquidatorsShare[partyB][partyA] = MpcCore.offBoard(gtPerPositionShare);
 		maLayout.partyBPositionLiquidatorsShare[partyB][partyA] = 0;
