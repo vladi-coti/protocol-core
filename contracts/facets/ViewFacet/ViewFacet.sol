@@ -657,130 +657,39 @@ contract ViewFacet is IViewFacet {
 	}
 
 	/**
-	 * @notice Returns an array of positions associated with a party B address.
-	 * @param partyB The address of party B.
-	 * @param start The starting index.
-	 * @param size The size of the array.
-	 * @return An array of positions.
+	 * @notice Returns positions for partyB in quote-id window [start, start+size).
+	 * @dev Scans quote IDs (not a dense list index). Returns a compact array of matches only.
 	 */
 	function getPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
-		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		ViewQuote[] memory quotes = new ViewQuote[](size);
-		uint j = 0;
-		for (uint256 i = start; i < start + size; i++) {
-			Quote memory quote = quoteLayout.quotes[i];
-			if (quote.partyB == partyB) {
-				quotes[j] = _toViewQuote(quote);
-				j += 1;
-			}
-		}
-		return quotes;
+		return _getPositionsFilteredByPartyB(partyB, start, size, 0, false);
 	}
 
 	function getObserverPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
-		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		ViewQuote[] memory quotes = new ViewQuote[](size);
-		uint j = 0;
-		for (uint256 i = start; i < start + size; i++) {
-			Quote memory quote = quoteLayout.quotes[i];
-			if (quote.partyB == partyB) {
-				quotes[j] = _toObserverViewQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
-				j += 1;
-			}
-		}
-		return quotes;
+		return _getPositionsFilteredByPartyB(partyB, start, size, 0, true);
 	}
 
 	/**
-	 * @notice Returns an array of open positions associated with a party B address.
-	 * @param partyB The address of party B.
-	 * @param start The starting index.
-	 * @param size The size of the array.
-	 * @return An array of open positions.
+	 * @notice Returns open positions for partyB in quote-id window [start, start+size).
+	 * @dev Compact match array only (OPENED / CLOSE_PENDING / CANCEL_CLOSE_PENDING).
 	 */
 	function getOpenPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
-		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		ViewQuote[] memory quotes = new ViewQuote[](size);
-		uint j = 0;
-		for (uint256 i = start; i < start + size; i++) {
-			Quote memory quote = quoteLayout.quotes[i];
-			if (
-				quote.partyB == partyB &&
-				(quote.quoteStatus == QuoteStatus.OPENED ||
-					quote.quoteStatus == QuoteStatus.CLOSE_PENDING ||
-					quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING)
-			) {
-				quotes[j] = _toViewQuote(quote);
-				j += 1;
-			}
-		}
-		return quotes;
+		return _getPositionsFilteredByPartyB(partyB, start, size, 1, false);
 	}
 
 	function getObserverOpenPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
-		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		ViewQuote[] memory quotes = new ViewQuote[](size);
-		uint j = 0;
-		for (uint256 i = start; i < start + size; i++) {
-			Quote memory quote = quoteLayout.quotes[i];
-			if (
-				quote.partyB == partyB &&
-				(quote.quoteStatus == QuoteStatus.OPENED ||
-					quote.quoteStatus == QuoteStatus.CLOSE_PENDING ||
-					quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING)
-			) {
-				quotes[j] = _toObserverViewQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
-				j += 1;
-			}
-		}
-		return quotes;
+		return _getPositionsFilteredByPartyB(partyB, start, size, 1, true);
 	}
 
 	/**
-	 * @notice Returns an array of active positions associated with a party B address.
-	 * @param partyB The address of party B.
-	 * @param start The starting index.
-	 * @param size The size of the array.
-	 * @return An array of active positions.
+	 * @notice Returns active positions for partyB in quote-id window [start, start+size).
+	 * @dev Compact match array only (excludes canceled/closed/expired/liquidated).
 	 */
 	function getActivePositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
-		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		ViewQuote[] memory quotes = new ViewQuote[](size);
-		uint j = 0;
-		for (uint256 i = start; i < start + size; i++) {
-			Quote memory quote = quoteLayout.quotes[i];
-			if (
-				quote.partyB == partyB &&
-				quote.quoteStatus != QuoteStatus.CANCELED &&
-				quote.quoteStatus != QuoteStatus.CLOSED &&
-				quote.quoteStatus != QuoteStatus.EXPIRED &&
-				quote.quoteStatus != QuoteStatus.LIQUIDATED
-			) {
-				quotes[j] = _toViewQuote(quote);
-				j += 1;
-			}
-		}
-		return quotes;
+		return _getPositionsFilteredByPartyB(partyB, start, size, 2, false);
 	}
 
 	function getObserverActivePositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
-		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		ViewQuote[] memory quotes = new ViewQuote[](size);
-		uint j = 0;
-		for (uint256 i = start; i < start + size; i++) {
-			Quote memory quote = quoteLayout.quotes[i];
-			if (
-				quote.partyB == partyB &&
-				quote.quoteStatus != QuoteStatus.CANCELED &&
-				quote.quoteStatus != QuoteStatus.CLOSED &&
-				quote.quoteStatus != QuoteStatus.EXPIRED &&
-				quote.quoteStatus != QuoteStatus.LIQUIDATED
-			) {
-				quotes[j] = _toObserverViewQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
-				j += 1;
-			}
-		}
-		return quotes;
+		return _getPositionsFilteredByPartyB(partyB, start, size, 2, true);
 	}
 
 	/**
@@ -1174,6 +1083,66 @@ contract ViewFacet is IViewFacet {
 	 */
 	function getQuoteCloseId(uint256 quoteId) external view returns (uint256) {
 		return QuoteStorage.layout().closeIds[quoteId];
+	}
+
+	/// @dev filter: 0=all partyB matches, 1=open statuses, 2=active (not terminal).
+	function _matchesPartyBFilter(Quote memory quote, address partyB, uint8 filter) private pure returns (bool) {
+		if (quote.partyB != partyB) {
+			return false;
+		}
+		if (filter == 0) {
+			return true;
+		}
+		if (filter == 1) {
+			return
+				quote.quoteStatus == QuoteStatus.OPENED ||
+				quote.quoteStatus == QuoteStatus.CLOSE_PENDING ||
+				quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING;
+		}
+		return
+			quote.quoteStatus != QuoteStatus.CANCELED &&
+			quote.quoteStatus != QuoteStatus.CLOSED &&
+			quote.quoteStatus != QuoteStatus.EXPIRED &&
+			quote.quoteStatus != QuoteStatus.LIQUIDATED;
+	}
+
+	/// @dev Quote-id window scan; returns compact matches only (clamped to lastId).
+	function _getPositionsFilteredByPartyB(
+		address partyB,
+		uint256 start,
+		uint256 size,
+		uint8 filter,
+		bool forObserver
+	) private view returns (ViewQuote[] memory) {
+		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
+		uint256 lastId = quoteLayout.lastId;
+		if (size == 0 || start > lastId) {
+			return new ViewQuote[](0);
+		}
+		uint256 end = start + size;
+		if (end > lastId + 1) {
+			end = lastId + 1;
+		}
+
+		uint256 count;
+		for (uint256 i = start; i < end; i++) {
+			if (_matchesPartyBFilter(quoteLayout.quotes[i], partyB, filter)) {
+				count++;
+			}
+		}
+
+		ViewQuote[] memory quotes = new ViewQuote[](count);
+		uint256 j;
+		for (uint256 i = start; i < end; i++) {
+			Quote memory quote = quoteLayout.quotes[i];
+			if (_matchesPartyBFilter(quote, partyB, filter)) {
+				quotes[j] = forObserver
+					? _toObserverViewQuote(quote, quoteLayout.observerQuoteValues[quote.id])
+					: _toViewQuote(quote);
+				j++;
+			}
+		}
+		return quotes;
 	}
 
 	function _toViewQuote(Quote memory quote) private pure returns (ViewQuote memory viewQuote) {

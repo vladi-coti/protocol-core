@@ -100,7 +100,12 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 
 Unblocked, highest priority — pick **one** per session:
 
-*(empty — open validation/design P2–P3 queue clear except parked M-22)*
+1. [Validate L-08 fee distributor rounding event mismatch](tickets/logic-P3-L-08.md) *(logic P3)*
+2. [Validate L-09 multicall empty return data](tickets/logic-P3-L-09.md) *(logic P3)*
+3. [Validate M-25 balance event delta vs snapshot semantics](tickets/privacy-P3-M-25.md) *(privacy P3)*
+4. [Validate M-34 PnL direction via event type](tickets/privacy-P3-M-34.md) *(privacy P3)*
+5. [Validate M-40 missing observer execution events](tickets/privacy-P3-M-40.md) *(privacy P3)*
+6. [Validate M-47 stale plaintext liquidation detail fields](tickets/privacy-P3-M-47.md) *(privacy P3)*
 
 Parked (not frontier): [M-22 COTI deps](tickets/design-M-22-coti-dependencies.md) — wait until signed forks merge to main, then pin.
 
@@ -158,6 +163,7 @@ Parked (not frontier): [M-22 COTI deps](tickets/design-M-22-coti-dependencies.md
 - [Validate L-05 next-ID view off-by-one](tickets/logic-P3-L-05.md) — **design-choice / wontfix**; `getNext*` returns last assigned `lastId` (callers already `+1`). NatSpec clarified. `test/audit/L05.test.ts`.
 - [Decide M-16 liquidation type disclosure](tickets/design-M-16-liquidation-type-disclosure.md) — **keep public**; severity bucket intentional. [Validate M-16](tickets/privacy-P3-M-16.md) — **design-choice / wontfix**. `test/audit/M16.test.ts`.
 - [Decide M-49 quote metadata privacy](tickets/design-M-49-quote-metadata-privacy.md) — **numbers-only**; intent/routing metadata public. [Validate M-49](tickets/privacy-P3-M-49.md) — **design-choice / wontfix**. `test/audit/M49.test.ts`.
+- [Validate L-06 PartyB position view sparse scan](tickets/logic-P3-L-06.md) — **valid / implement (done)**; compact PartyB-filtered views clamped to `lastId`. `test/audit/L06.test.ts`.
 
 ## Not yet specified
 

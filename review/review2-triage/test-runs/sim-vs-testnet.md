@@ -48,3 +48,4 @@ python3 utils/update_sig_checks.py 1
 | L-05 next-ID last assigned | PASS | PASS | wontfix: getNext* returns lastId; callers use +1 |
 | M-16 liquidation type public | PASS | PASS | wontfix: severity bucket intentional public |
 | M-49 quote metadata public | PASS | PASS | wontfix: numbers-only; intent/routing metadata public |
+| L-06 PartyB filtered views | PASS | PASS | compact matches; clamp quote-id window to lastId |
