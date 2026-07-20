@@ -4,8 +4,9 @@ labels: [group:privacy-leak, wayfinder:research]
 priority: P3
 finding: M-49
 severity: Medium
-status: open
-blocks: design-M-49-quote-metadata-privacy
+status: closed
+disposition: wontfix
+blocks: —
 blocked_by: design-M-49-quote-metadata-privacy
 report: ../report.md
 ---
@@ -20,7 +21,7 @@ Medium severity. See [report §M-49](../report.md).
 
 ## Code references
 
-`QuoteStorage.sol:69,70; PartyAFacet.sol:22,64; ViewFacet.sol:456`
+`QuoteStorage.sol`; `PartyAFacet.sol`; `ViewFacet` quote views
 
 ## Suggested test seam
 
@@ -32,13 +33,23 @@ See design-M-49 for privacy scope decision
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch
+- [x] Design decision: [design-M-49](design-M-49-quote-metadata-privacy.md) — numbers-only
+- [x] Verdict: `design-choice`
+- [x] Fix disposition: `wontfix`
+- [x] Regression documents intentional public metadata
 
 ## Answer
 
-*(unresolved)*
+**Verdict:** `design-choice`  
+**Disposition:** `wontfix`
+
+Confirmed: numerics encrypted; intent/routing metadata public. Accepted under numbers-only privacy model.
+
+No code change. Policy: [design-M-49](design-M-49-quote-metadata-privacy.md).
+
+**Regression:** `test/audit/M49.test.ts`
+
+```bash
+npx hardhat test --network localSimCoti test/audit/M49.test.ts --grep "M-49"
+```

@@ -95,16 +95,14 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 | P0 | [Decide free collateral privacy model](tickets/design-H-13-free-collateral-privacy.md) | H-13 | H-27, H-06 fix approach |
 | P1 | [Decide observer rotation model](tickets/design-M-13-observer-rotation.md) | M-13 | M-14, M-44 fix approach |
 | P1 | [Decide COTI dependency pinning policy](tickets/design-M-22-coti-dependencies.md) | M-22 | — |
-| P2 | [Decide quote metadata privacy scope](tickets/design-M-49-quote-metadata-privacy.md) | M-49 | M-49 privacy fix |
 
 ## Frontier (start here)
 
 Unblocked, highest priority — pick **one** per session:
 
-1. [Decide quote metadata privacy scope](tickets/design-M-49-quote-metadata-privacy.md) *(design P2 — grill)*
+*(empty — open validation/design P2–P3 queue clear except parked M-22)*
 
 Parked (not frontier): [M-22 COTI deps](tickets/design-M-22-coti-dependencies.md) — wait until signed forks merge to main, then pin.
-Blocked on design: M-49 (← design-M-49).
 
 ## Early privacy / architecture decisions (grill soon)
 
@@ -113,7 +111,7 @@ Blocked on design: M-49 (← design-M-49).
 | [H-01 Muon UPNL model](tickets/privacy-P1-H-01.md) | almost all Muon-backed APIs; H-05, M-47, settlement/force UPNL surfaces — **closed (path C)** |
 | [H-13 free collateral / deltas](tickets/design-H-13-free-collateral-privacy.md) | H-06, H-27 — **closed (intentionally public until private tokens)** |
 | [M-13 observer rotation](tickets/design-M-13-observer-rotation.md) | M-14, M-44; proxy + graph — **closed (flip-first + admin batched migrate landed)** |
-| [M-49 quote metadata](tickets/design-M-49-quote-metadata-privacy.md) | M-49 |
+| [M-49 quote metadata](tickets/design-M-49-quote-metadata-privacy.md) | M-49 — **closed (numbers-only; metadata public)** |
 | [M-16 liquidation type](tickets/design-M-16-liquidation-type-disclosure.md) | M-16 privacy — **closed (keep public)** |
 | [M-22 COTI dep pins](tickets/design-M-22-coti-dependencies.md) | all client builds / mainnet repro — **policy: defer pin until signed forks merge to main; ticket open** |
 
@@ -159,6 +157,7 @@ Blocked on design: M-49 (← design-M-49).
 - [Validate M-23 missing partial-fill observer events](tickets/privacy-P3-M-23.md) — **valid / implement (done)**; emit `ObserverSendQuote` on partial-fill child. `test/audit/M23.test.ts`.
 - [Validate L-05 next-ID view off-by-one](tickets/logic-P3-L-05.md) — **design-choice / wontfix**; `getNext*` returns last assigned `lastId` (callers already `+1`). NatSpec clarified. `test/audit/L05.test.ts`.
 - [Decide M-16 liquidation type disclosure](tickets/design-M-16-liquidation-type-disclosure.md) — **keep public**; severity bucket intentional. [Validate M-16](tickets/privacy-P3-M-16.md) — **design-choice / wontfix**. `test/audit/M16.test.ts`.
+- [Decide M-49 quote metadata privacy](tickets/design-M-49-quote-metadata-privacy.md) — **numbers-only**; intent/routing metadata public. [Validate M-49](tickets/privacy-P3-M-49.md) — **design-choice / wontfix**. `test/audit/M49.test.ts`.
 
 ## Not yet specified
 

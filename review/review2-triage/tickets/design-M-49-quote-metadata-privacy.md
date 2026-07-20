@@ -4,7 +4,8 @@ labels: [group:design-product, wayfinder:grilling]
 priority: P2
 finding: M-49
 severity: Medium
-status: open
+status: closed
+disposition: wontfix
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -20,7 +21,7 @@ Medium severity. See [report §M-49](../report.md).
 
 ## Code references
 
-`PartyAFacet.sol:22,64; QuoteStorage.sol:69`
+`PartyAFacet.sol`; `QuoteStorage.sol`; `ViewFacet` quote views
 
 ## Suggested test seam
 
@@ -32,13 +33,18 @@ Document public metadata; encrypt/commit rest if needed
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch
+- [x] Grill / decide policy
+- [x] Verdict: `design-choice`
+- [x] Fix disposition: `wontfix`
+- [x] Unblock privacy-P3-M-49
 
 ## Answer
 
-*(unresolved)*
+**Decision:** **numbers-only** privacy.
+
+Encrypt economic magnitudes (price, quantity, locked values, fees). Keep matching/routing metadata public: symbol, side (`positionType`), order type, deadline, affiliate, PartyB whitelist, ids/status/timestamps.
+
+Intent-privacy (hide symbol/side/whitelist) would need commit-reveal or encrypted metadata + matching redesign — out of scope.
+
+**Gates:** [privacy-P3-M-49](privacy-P3-M-49.md) closed as design-choice / wontfix.
