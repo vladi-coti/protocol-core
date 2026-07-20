@@ -443,6 +443,8 @@ library LiquidationFacetImpl {
                 SharedEvents.BalanceChangeType.CVA_IN
             );
 
+            // M-34: always emit IN+OUT (one encrypted zero) so settle-direction is not public via event type.
+            gtUint256 gtZeroU = MpcCore.setPublic256(uint256(0));
             if (MpcCore.decrypt(gtSettleAmount.lt(gtZero))) {
                 // Add positive amount to partyB balance
                 gtUint256 gtCurrentBalance2 = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
@@ -450,9 +452,18 @@ library LiquidationFacetImpl {
                 gtUint256 gtNewBalance2 = gtCurrentBalance2.checkedAdd(gtPositiveSettleAmount);
                 LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtNewBalance2);
                 
-                // Emit encrypted event
-                ctUint256 memory ctSettleAmount = MpcCore.offBoardToUser(gtPositiveSettleAmount, partyBEncryptionAddress);
-                emit SharedEvents.BalanceChangePartyB(partyB, partyA, ctSettleAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
+                emit SharedEvents.BalanceChangePartyB(
+                    partyB,
+                    partyA,
+                    MpcCore.offBoardToUser(gtPositiveSettleAmount, partyBEncryptionAddress),
+                    SharedEvents.BalanceChangeType.REALIZED_PNL_IN
+                );
+                emit SharedEvents.BalanceChangePartyB(
+                    partyB,
+                    partyA,
+                    MpcCore.offBoardToUser(gtZeroU, partyBEncryptionAddress),
+                    SharedEvents.BalanceChangeType.REALIZED_PNL_OUT
+                );
                 settleAmounts[i] = gtSettleAmount;
             } else {
                 gtUint256 gtCurrentBalance3 = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
@@ -463,16 +474,34 @@ library LiquidationFacetImpl {
                     LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtNewBalance3);
                     
                     settleAmounts[i] = gtSettleAmount;
-                    // Emit encrypted event
-                    ctUint256 memory ctSettleAmount = MpcCore.offBoardToUser(gtPositiveSettleAmount, partyBEncryptionAddress);
-                    emit SharedEvents.BalanceChangePartyB(partyB, partyA, ctSettleAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
+                    emit SharedEvents.BalanceChangePartyB(
+                        partyB,
+                        partyA,
+                        MpcCore.offBoardToUser(gtZeroU, partyBEncryptionAddress),
+                        SharedEvents.BalanceChangeType.REALIZED_PNL_IN
+                    );
+                    emit SharedEvents.BalanceChangePartyB(
+                        partyB,
+                        partyA,
+                        MpcCore.offBoardToUser(gtPositiveSettleAmount, partyBEncryptionAddress),
+                        SharedEvents.BalanceChangeType.REALIZED_PNL_OUT
+                    );
                 } else {
                     settleAmounts[i] = LibEncryption.toNonNegativeSigned(gtCurrentBalance3);
                     LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtZero.fromSigned());
                     
-                    // Emit encrypted event
-                    ctUint256 memory ctSettleAmountsI = MpcCore.offBoardToUser(gtCurrentBalance3, partyBEncryptionAddress);
-                    emit SharedEvents.BalanceChangePartyB(partyB, partyA, ctSettleAmountsI, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
+                    emit SharedEvents.BalanceChangePartyB(
+                        partyB,
+                        partyA,
+                        MpcCore.offBoardToUser(gtZeroU, partyBEncryptionAddress),
+                        SharedEvents.BalanceChangeType.REALIZED_PNL_IN
+                    );
+                    emit SharedEvents.BalanceChangePartyB(
+                        partyB,
+                        partyA,
+                        MpcCore.offBoardToUser(gtCurrentBalance3, partyBEncryptionAddress),
+                        SharedEvents.BalanceChangeType.REALIZED_PNL_OUT
+                    );
                 }
             }
             delete accountLayout.settlementStates[partyA][partyB];

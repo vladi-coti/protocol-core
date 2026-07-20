@@ -289,11 +289,24 @@ contract ViewFacet is IViewFacet {
 
 	/**
 	 * @notice Returns the liquidated state details of Party A.
+	 * @dev M-47: omits stale plaintext `deficit` / `liquidationFee` / `partyAAccumulatedUpnl` husks.
+	 *      Use `liquidationDeficitOfPartyA` / `liquidationFeeOfPartyA` for those amounts.
 	 * @param partyA The address of Party A.
-	 * @return The liquidation details of Party A.
+	 * @return The liquidation details of Party A (no plaintext husk fields).
 	 */
-	function getLiquidatedStateOfPartyA(address partyA) external view returns (LiquidationDetail memory) {
-		return AccountStorage.layout().liquidationDetails[partyA];
+	function getLiquidatedStateOfPartyA(address partyA) external view returns (ViewLiquidationDetail memory) {
+		LiquidationDetail storage detail = AccountStorage.layout().liquidationDetails[partyA];
+		return
+			ViewLiquidationDetail({
+				liquidationId: detail.liquidationId,
+				liquidationType: detail.liquidationType,
+				upnl: detail.upnl,
+				totalUnrealizedLoss: detail.totalUnrealizedLoss,
+				timestamp: detail.timestamp,
+				involvedPartyBCounts: detail.involvedPartyBCounts,
+				disputed: detail.disputed,
+				liquidationTimestamp: detail.liquidationTimestamp
+			});
 	}
 
 	function liquidationDeficitOfPartyA(address partyA) external view returns (ctUint256 memory) {

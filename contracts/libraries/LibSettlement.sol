@@ -115,55 +115,66 @@ library LibSettlement {
 
 			gtInt256 gtSettlementAmount = gtSettleAmounts[i];
 			gtTotalSettlementAmount = gtTotalSettlementAmount.checkedAdd(gtSettlementAmount);
-			if (MpcCore.decrypt(gtSettlementAmount.ge(gtZeroInt))) {
-				// Update PartyB balance with encrypted operations
-				gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
-				gtUint256 gtAmount = gtSettlementAmount.fromSigned();
-				gtUint256 gtNewBalance = gtPartyBBalance.checkedSub(gtAmount);
-				LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtNewBalance);
-				
-				// Emit encrypted event
-				address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
-				ctUint256 memory partyBAmount = MpcCore.offBoardToUser(gtAmount, partyBEncryptionAddress);
-				emit SharedEvents.BalanceChangePartyB(partyB, partyA, partyBAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
+
+			// M-34: keep constant IN+OUT event shape (one encrypted zero), matching LibQuote close.
+			gtBool gtPartyBPays = gtSettlementAmount.ge(gtZeroInt);
+			gtUint256 gtZeroU = MpcCore.setPublic256(uint256(0));
+			gtUint256 gtAmount = MpcCore.mux(
+				gtPartyBPays,
+				gtZeroInt.checkedSub(gtSettlementAmount).fromSigned(),
+				gtSettlementAmount.fromSigned()
+			);
+			gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
+			if (MpcCore.decrypt(gtPartyBPays)) {
+				LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtPartyBBalance.checkedSub(gtAmount));
 			} else {
-				// Update PartyB balance with encrypted operations
-				gtUint256 gtPartyBBalance = LockedValuesOps.safeOnboard(accountLayout.partyBAllocatedBalances[partyB][partyA].ciphertext);
-				gtUint256 gtAmount = gtZeroInt.checkedSub(gtSettlementAmount).fromSigned();
-				gtUint256 gtNewBalance = gtPartyBBalance.checkedAdd(gtAmount);
-				LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtNewBalance);
-				
-				// Emit encrypted event
-				address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
-				ctUint256 memory partyBAmount = MpcCore.offBoardToUser(gtAmount, partyBEncryptionAddress);
-				emit SharedEvents.BalanceChangePartyB(partyB, partyA, partyBAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
+				LibEncryption.storePartyBAllocatedBalance(accountLayout, partyB, partyA, gtPartyBBalance.checkedAdd(gtAmount));
 			}
+			address partyBEncryptionAddress = LibAccount.getUserEncryptionAddress(partyB);
+			gtUint256 gtPartyBPnlIn = MpcCore.mux(gtPartyBPays, gtAmount, gtZeroU);
+			gtUint256 gtPartyBPnlOut = MpcCore.mux(gtPartyBPays, gtZeroU, gtAmount);
+			emit SharedEvents.BalanceChangePartyB(
+				partyB,
+				partyA,
+				MpcCore.offBoardToUser(gtPartyBPnlIn, partyBEncryptionAddress),
+				SharedEvents.BalanceChangeType.REALIZED_PNL_IN
+			);
+			emit SharedEvents.BalanceChangePartyB(
+				partyB,
+				partyA,
+				MpcCore.offBoardToUser(gtPartyBPnlOut, partyBEncryptionAddress),
+				SharedEvents.BalanceChangeType.REALIZED_PNL_OUT
+			);
 			// Store the new encrypted balance for return
 			newPartyBsAllocatedBalances[i] = accountLayout.partyBAllocatedBalances[partyB][partyA];
 		}
-		if (MpcCore.decrypt(gtTotalSettlementAmount.ge(gtZeroInt))) {
-			// Update PartyA balance with encrypted operations
-			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
-			gtUint256 gtAmount = gtTotalSettlementAmount.fromSigned();
-			gtUint256 gtNewBalance = gtPartyABalance.checkedAdd(gtAmount);
-			LibEncryption.storePartyAAllocatedBalance(accountLayout, partyA, gtNewBalance);
-			
-			// Emit encrypted event
-			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
-			ctUint256 memory partyAAmount = MpcCore.offBoardToUser(gtAmount, partyAEncryptionAddress);
-			emit SharedEvents.BalanceChangePartyA(partyA, partyAAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_IN);
+
+		gtBool gtPartyAGains = gtTotalSettlementAmount.ge(gtZeroInt);
+		gtUint256 gtZeroU = MpcCore.setPublic256(uint256(0));
+		gtUint256 gtAmount = MpcCore.mux(
+			gtPartyAGains,
+			gtZeroInt.checkedSub(gtTotalSettlementAmount).fromSigned(),
+			gtTotalSettlementAmount.fromSigned()
+		);
+		gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
+		if (MpcCore.decrypt(gtPartyAGains)) {
+			LibEncryption.storePartyAAllocatedBalance(accountLayout, partyA, gtPartyABalance.checkedAdd(gtAmount));
 		} else {
-			// Update PartyA balance with encrypted operations
-			gtUint256 gtPartyABalance = LockedValuesOps.safeOnboard(accountLayout.allocatedBalances[partyA].ciphertext);
-			gtUint256 gtAmount = gtZeroInt.checkedSub(gtTotalSettlementAmount).fromSigned();
-			gtUint256 gtNewBalance = gtPartyABalance.checkedSub(gtAmount);
-			LibEncryption.storePartyAAllocatedBalance(accountLayout, partyA, gtNewBalance);
-			
-			// Emit encrypted event
-			address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
-			ctUint256 memory partyAAmount = MpcCore.offBoardToUser(gtAmount, partyAEncryptionAddress);
-			emit SharedEvents.BalanceChangePartyA(partyA, partyAAmount, SharedEvents.BalanceChangeType.REALIZED_PNL_OUT);
+			LibEncryption.storePartyAAllocatedBalance(accountLayout, partyA, gtPartyABalance.checkedSub(gtAmount));
 		}
+		address partyAEncryptionAddress = LibAccount.getUserEncryptionAddress(partyA);
+		gtUint256 gtPartyAPnlIn = MpcCore.mux(gtPartyAGains, gtZeroU, gtAmount);
+		gtUint256 gtPartyAPnlOut = MpcCore.mux(gtPartyAGains, gtAmount, gtZeroU);
+		emit SharedEvents.BalanceChangePartyA(
+			partyA,
+			MpcCore.offBoardToUser(gtPartyAPnlIn, partyAEncryptionAddress),
+			SharedEvents.BalanceChangeType.REALIZED_PNL_IN
+		);
+		emit SharedEvents.BalanceChangePartyA(
+			partyA,
+			MpcCore.offBoardToUser(gtPartyAPnlOut, partyAEncryptionAddress),
+			SharedEvents.BalanceChangeType.REALIZED_PNL_OUT
+		);
 	}
 
 	function _partyBIndex(address[] memory partyBs, address partyB) private pure returns (uint256) {

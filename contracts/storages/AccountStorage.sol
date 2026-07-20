@@ -31,11 +31,26 @@ struct LiquidationDetail {
 	LiquidationType liquidationType;
 	utInt256 upnl;
 	utInt256 totalUnrealizedLoss;
+	/// @dev M-47 husk — always 0. Real value: `encryptedLiquidationDeficit` / `liquidationDeficitOfPartyA`.
 	uint256 deficit;
+	/// @dev M-47 husk — always 0. Real value: `encryptedLiquidationFee` / `liquidationFeeOfPartyA`.
 	uint256 liquidationFee;
 	uint256 timestamp;
 	uint256 involvedPartyBCounts;
+	/// @dev M-47 husk — always 0. Accumulated UPNL lives in encrypted settlement state.
 	int256 partyAAccumulatedUpnl;
+	bool disputed;
+	uint256 liquidationTimestamp;
+}
+
+/// @dev Public view shape for liquidation state — omits M-47 plaintext husks.
+struct ViewLiquidationDetail {
+	bytes liquidationId;
+	LiquidationType liquidationType;
+	utInt256 upnl;
+	utInt256 totalUnrealizedLoss;
+	uint256 timestamp;
+	uint256 involvedPartyBCounts;
 	bool disputed;
 	uint256 liquidationTimestamp;
 }

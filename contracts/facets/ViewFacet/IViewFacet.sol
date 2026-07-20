@@ -90,7 +90,7 @@ interface IViewFacet {
 
 	function isSuspended(address user) external view returns (bool);
 
-	function getLiquidatedStateOfPartyA(address partyA) external view returns (LiquidationDetail memory);
+	function getLiquidatedStateOfPartyA(address partyA) external view returns (ViewLiquidationDetail memory);
 
 	function liquidationDeficitOfPartyA(address partyA) external view returns (ctUint256 memory);
 

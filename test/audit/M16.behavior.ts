@@ -16,7 +16,7 @@ export function shouldBehaveLikeAuditM16(): void {
 			expect(storage).to.match(/struct\s+LiquidationDetail[\s\S]*LiquidationType\s+liquidationType/)
 
 			const view = fs.readFileSync(path.join(__dirname, "../../contracts/facets/ViewFacet/IViewFacet.sol"), "utf8")
-			expect(view).to.match(/getLiquidatedStateOfPartyA[\s\S]*LiquidationDetail/)
+			expect(view).to.match(/getLiquidatedStateOfPartyA[\s\S]*ViewLiquidationDetail/)
 
 			const facet = fs.readFileSync(
 				path.join(__dirname, "../../contracts/facets/liquidation/LiquidationFacetImpl.sol"),

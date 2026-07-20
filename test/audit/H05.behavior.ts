@@ -81,10 +81,9 @@ export function shouldBehaveLikeAuditH05(): void {
 			const strangerUpnl = await (context.signers.user2 as any).decryptInt256(state.upnl.userCiphertext)
 			expect(strangerUpnl).to.not.equal(upnl)
 
-			// Legacy husk fields (M-47) stay zero — not the H-05 risk snapshot claim.
-			expect(state.deficit).to.equal(0n)
-			expect(state.liquidationFee).to.equal(0n)
-			expect(state.partyAAccumulatedUpnl).to.equal(0n)
+			// M-47: husk fields removed from view return; encrypted getters hold real values.
+			expect((state as any).deficit).to.equal(undefined)
+			expect((state as any).liquidationFee).to.equal(undefined)
 		})
 	})
 }

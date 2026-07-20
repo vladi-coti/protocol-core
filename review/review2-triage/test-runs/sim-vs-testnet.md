@@ -51,3 +51,7 @@ python3 utils/update_sig_checks.py 1
 | L-06 PartyB filtered views | PASS | PASS | compact matches; clamp quote-id window to lastId |
 | L-08 fee distributor dust | PASS | PASS | last stakeholder gets floor remainder |
 | L-09 multicall return data | PASS | PASS |  |
+| M-25 balance event snapshot vs delta | PASS | PASS | wontfix: `_type` keys snapshot vs delta; NatSpec on SharedEvents |
+| M-34 PnL event direction shape | PASS | PASS | settle/liq dual-emit IN+OUT |
+| M-40 observer execution events | PASS | PASS | wontfix poll observer quote views |
+| M-47 ViewLiquidationDetail husks | PASS | PASS | view drops plaintext deficit/fee husks |

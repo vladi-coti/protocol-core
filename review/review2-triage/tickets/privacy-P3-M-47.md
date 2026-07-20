@@ -4,7 +4,8 @@ labels: [group:privacy-leak, wayfinder:research]
 priority: P3
 finding: M-47
 severity: Medium
-status: open
+status: closed
+disposition: implement
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -32,13 +33,30 @@ Remove stale fields or sync explicitly
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `valid`
+- [x] Fix disposition: `implement` (done)
+- [x] If valid: write implement brief (minimal fix, affected files, regression test name)
 
 ## Answer
 
-*(unresolved)*
+**Verdict:** `valid`  
+**Disposition:** `implement` (done)
+
+**One-liner:** `getLiquidatedStateOfPartyA` returns `ViewLiquidationDetail` without plaintext husks; use encrypted deficit/fee getters.
+
+Confirmed: storage `LiquidationDetail.deficit` / `liquidationFee` / `partyAAccumulatedUpnl` always written `0`; real values in `encryptedLiquidationDeficit` / `encryptedLiquidationFee`. Syncing husks would re-leak amounts.
+
+**Fix:**
+- Keep husks in storage struct (layout) with NatSpec.
+- Add `ViewLiquidationDetail` (no husks).
+- `getLiquidatedStateOfPartyA` returns the view type.
+
+**Files:** `AccountStorage.sol`, `IViewFacet.sol`, `ViewFacet.sol`  
+**Regression:** `test/audit/M47.test.ts`
+
+```bash
+npx hardhat test --network localSimCoti test/audit/M47.test.ts --grep "M-47"
+```

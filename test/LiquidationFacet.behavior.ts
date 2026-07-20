@@ -188,7 +188,6 @@ export function shouldBehaveLikeLiquidationFacet(): void {
 					const pnl = unDecimal((price - decimal(1n)) * decimal(100n))
 					const diff = available - pnl
 					expect(await user.decryptUint256(await context.viewFacet.liquidationFeeOfPartyA(userAddress))).to.equal(diff)
-					expect((await user.getLiquidatedStateOfPartyA()).liquidationFee).to.equal(0n)
 					const partyBAfter = hedgerBalance.allocatedBalances + pnl + userBalance.lockedCva
 					const [settlementState] = await context.viewFacet.getSettlementStates(userAddress, [hedgerAddress])
 					expect(await context.signers.user.decryptInt256(settlementState.actualAmount)).to.equal(-pnl)
