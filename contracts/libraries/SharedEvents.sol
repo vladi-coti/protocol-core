@@ -22,11 +22,19 @@ library SharedEvents {
         FUNDING_FEE_OUT
     }
 
+    /// @dev `amount` semantics depend on `_type` (M-25):
+    /// - ALLOCATE / DEALLOCATE: post-mutation allocated-balance snapshot ciphertext
+    /// - fee / PnL / CVA / LF / funding `*_IN`/`*_OUT`: absolute delta ciphertext (sign via type)
+    /// Indexers must not treat every `amount` as a delta. Dedicated Allocate/Deallocate events
+    /// already carry the plaintext size when the delta is public.
     event BalanceChangePartyA(address indexed partyA, ctUint256 amount, BalanceChangeType _type);
 
+    /// @dev Same `amount` semantics as BalanceChangePartyA (snapshot for ALLOCATE/DEALLOCATE; else delta).
     event BalanceChangePartyB(address indexed partyB, address indexed partyA, ctUint256 amount, BalanceChangeType _type);
 
+    /// @dev Same `amount` semantics as BalanceChangePartyA (observer ciphertext).
     event ObserverBalanceChangePartyA(address indexed partyA, ctUint256 amount, BalanceChangeType _type);
 
+    /// @dev Same `amount` semantics as BalanceChangePartyB (observer ciphertext).
     event ObserverBalanceChangePartyB(address indexed partyB, address indexed partyA, ctUint256 amount, BalanceChangeType _type);
 }

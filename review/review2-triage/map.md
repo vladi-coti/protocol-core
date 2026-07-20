@@ -100,10 +100,9 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 
 Unblocked, highest priority — pick **one** per session:
 
-1. [Validate M-25 balance event delta vs snapshot semantics](tickets/privacy-P3-M-25.md) *(privacy P3)*
-2. [Validate M-34 PnL direction via event type](tickets/privacy-P3-M-34.md) *(privacy P3)*
-3. [Validate M-40 missing observer execution events](tickets/privacy-P3-M-40.md) *(privacy P3)*
-4. [Validate M-47 stale plaintext liquidation detail fields](tickets/privacy-P3-M-47.md) *(privacy P3)*
+1. [Validate M-34 PnL direction via event type](tickets/privacy-P3-M-34.md) *(privacy P3)*
+2. [Validate M-40 missing observer execution events](tickets/privacy-P3-M-40.md) *(privacy P3)*
+3. [Validate M-47 stale plaintext liquidation detail fields](tickets/privacy-P3-M-47.md) *(privacy P3)*
 
 Parked (not frontier): [M-22 COTI deps](tickets/design-M-22-coti-dependencies.md) — wait until signed forks merge to main, then pin.
 
@@ -164,6 +163,7 @@ Parked (not frontier): [M-22 COTI deps](tickets/design-M-22-coti-dependencies.md
 - [Validate L-06 PartyB position view sparse scan](tickets/logic-P3-L-06.md) — **valid / implement (done)**; compact PartyB-filtered views clamped to `lastId`. `test/audit/L06.test.ts`.
 - [Validate L-08 fee distributor rounding event mismatch](tickets/logic-P3-L-08.md) — **valid / implement (done)**; last stakeholder gets floor dust remainder. `test/audit/L08.test.ts`.
 - [Validate L-09 multicall empty return data](tickets/logic-P3-L-09.md) — **invalid / wontfix**; memory→memory struct assign is reference; tryAggregate/aggregate3 return data intact. `test/audit/L09.test.ts`.
+- [Validate M-25 balance event delta vs snapshot semantics](tickets/privacy-P3-M-25.md) — **design-choice / wontfix**; `_type` keys snapshot vs delta; NatSpec on SharedEvents. `test/audit/M25.test.ts`.
 
 ## Not yet specified
 
