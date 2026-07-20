@@ -102,9 +102,12 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 
 Unblocked, highest priority — pick **one** per session:
 
-1. [Validate M-24 emergency close plaintext price event](tickets/privacy-P2-M-24.md) *(privacy P2)*
+1. [Validate L-03 editAccountName ownership](tickets/logic-P3-L-03.md) *(logic P3)*
+2. [Validate L-04 pagination underflow](tickets/logic-P3-L-04.md) *(logic P3)*
+3. [Validate M-23 missing partial-fill observer events](tickets/privacy-P3-M-23.md) *(privacy P3)*
 
 Parked (not frontier): [M-22 COTI deps](tickets/design-M-22-coti-dependencies.md) — wait until signed forks merge to main, then pin.
+Blocked on design: M-16 (← design-M-16), M-49 (← design-M-49).
 
 ## Early privacy / architecture decisions (grill soon)
 
@@ -153,6 +156,7 @@ Parked (not frontier): [M-22 COTI deps](tickets/design-M-22-coti-dependencies.md
 - [Validate L-01 liquidation fee rounding dust](tickets/logic-P3-L-01.md) — **valid / implement (done)**; PartyA `lf2=lf-lf1`; PartyB position-floor dust → liquidator. `test/audit/L01.test.ts` dual PASS.
 - [Validate H-28 quote views expose system ciphertext](tickets/privacy-P2-H-28.md) — **valid / implement (done)**; public views return `ViewQuote` (`ctUint256` only), not storage `Quote`/`utUint256`. `test/audit/H28.test.ts` dual PASS.
 - [Validate M-37 dispute settlement plaintext calldata](tickets/privacy-P2-M-37.md) — **valid / implement (done)**; `resolveLiquidationDispute` takes `itInt256[]` + `validateCiphertext`. `test/audit/M37.test.ts` dual PASS.
+- [Validate M-24 emergency close plaintext price event](tickets/privacy-P2-M-24.md) — **design-choice / wontfix**; closedPrice = public Muon `upnlSig.price` (H-01 path C); fill/force stay encrypted. `test/audit/M24.test.ts` dual PASS.
 
 ## Not yet specified
 

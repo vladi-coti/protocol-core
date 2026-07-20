@@ -4,7 +4,8 @@ labels: [group:privacy-leak, wayfinder:research]
 priority: P2
 finding: M-24
 severity: Medium
-status: open
+status: closed
+disposition: wontfix
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -32,13 +33,28 @@ Encrypt event or document emergency as public-price
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `design-choice`
+- [x] Fix disposition: `wontfix`
+- [x] If valid: write implement brief — N/A (accepted public)
 
 ## Answer
 
-*(unresolved)*
+**Verdict:** `design-choice`  
+**Disposition:** `wontfix`
+
+`EmergencyClosePosition.closedPrice` is plaintext `uint256` and equals `upnlSig.price` from `PairUpnlAndPriceSig`. Under H-01 path C, Muon mark prices are intentionally public and already present in calldata — encrypting only the event hides nothing.
+
+Do **not** “fix consistency” by plaintexting fill/force close events:
+- **Fill close** — execution price arrives as `itUint256`; event encryption is load-bearing.
+- **Force close** — emitted price is computed from private `requestedClosePrice` ± gap/penalty (muxed vs Muon average); plaintext would leak private close intent.
+
+Emergency is the public-price path; document it as such. `filledAmount` stays `ctUint256`.
+
+**Regression:** `test/audit/M24.test.ts` (locks intentional public `closedPrice`)
+
+```bash
+npx hardhat test --network localSimCoti test/audit/M24.test.ts --grep "M-24"
+```
