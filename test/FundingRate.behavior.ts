@@ -131,13 +131,13 @@ export function shouldBehaveLikeFundingRate(): void {
 		let targetTime = currentEpoch + duration + (window / 2n)
 
 		let oldQuote = await context.viewFacet.getQuote(1)
-		let oldOpenedPrice = await decryptUint256(context, oldQuote.openedPrice.userCiphertext, context.signers.user)
+		let oldOpenedPrice = await decryptUint256(context, oldQuote.openedPrice, context.signers.user)
 
 		await timeCompatible.setNextBlockTimestamp(targetTime)
 		await hedger.chargeFundingRate(await context.signers.user.getAddress(), [1], [decimal(1n, 16)], await getDummyPairUpnlSig())
 
 		let newQuote = await context.viewFacet.getQuote(1)
-		let newOpenedPrice = await decryptUint256(context, newQuote.openedPrice.userCiphertext, context.signers.user)
+		let newOpenedPrice = await decryptUint256(context, newQuote.openedPrice, context.signers.user)
 		expect(newOpenedPrice).to.be.equal(unDecimal(oldOpenedPrice * (decimal(1n) + decimal(1n, 16))))
 	})
 
@@ -149,13 +149,13 @@ export function shouldBehaveLikeFundingRate(): void {
 		let targetTime = currentEpoch + duration + (window / 2n)
 
 		let oldQuote = await context.viewFacet.getQuote(2)
-		let oldOpenedPrice = await decryptUint256(context, oldQuote.openedPrice.userCiphertext, context.signers.user)
+		let oldOpenedPrice = await decryptUint256(context, oldQuote.openedPrice, context.signers.user)
 
 		await timeCompatible.setNextBlockTimestamp(targetTime)
 		await hedger.chargeFundingRate(await context.signers.user.getAddress(), [2], [decimal(1n, 16)], await getDummyPairUpnlSig())
 
 		let newQuote = await context.viewFacet.getQuote(2)
-		let newOpenedPrice = await decryptUint256(context, newQuote.openedPrice.userCiphertext, context.signers.user)
+		let newOpenedPrice = await decryptUint256(context, newQuote.openedPrice, context.signers.user)
 		expect(newOpenedPrice).to.be.equal(unDecimal(oldOpenedPrice * (decimal(1n) - decimal(1n, 16))))
 	})
 }

@@ -1,6 +1,6 @@
 import {expect} from "chai"
 
-import {QuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
+import {ViewQuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
 import {decryptUint256, getTotalPartyALockedValuesForQuotes, getTotalPartyBLockedValuesForQuotes, unDecimal} from "../../utils/Common"
 import {logger} from "../../utils/LoggerUtils"
 import {expectToBeApproximately} from "../../utils/SafeMath"
@@ -19,7 +19,7 @@ export type EmergencyCloseRequestValidatorBeforeArg = {
 export type EmergencyCloseRequestValidatorBeforeOutput = {
 	balanceInfoPartyA: BalanceInfo
 	balanceInfoPartyB: BalanceInfo
-	quote: QuoteStructOutput
+	quote: ViewQuoteStructOutput
 }
 
 export type EmergencyCloseRequestValidatorAfterArg = {
@@ -47,10 +47,10 @@ export class EmergencyCloseRequestValidator implements TransactionValidator {
 		const oldQuote = arg.beforeOutput.quote
 
 		expect(newQuote.quoteStatus).to.be.equal(QuoteStatus.CLOSED)
-		const decryptedNewClosedAmount = await decryptUint256(context, newQuote.closedAmount.userCiphertext, arg.user.getWallet())
-		const decryptedOldQuantity = await decryptUint256(context, oldQuote.quantity.userCiphertext, arg.user.getWallet())
-		const decryptedOldClosedAmount = await decryptUint256(context, oldQuote.closedAmount.userCiphertext, arg.user.getWallet())
-		const decryptedNewOpenedPrice = await decryptUint256(context, newQuote.openedPrice.userCiphertext, arg.user.getWallet())
+		const decryptedNewClosedAmount = await decryptUint256(context, newQuote.closedAmount, arg.user.getWallet())
+		const decryptedOldQuantity = await decryptUint256(context, oldQuote.quantity, arg.user.getWallet())
+		const decryptedOldClosedAmount = await decryptUint256(context, oldQuote.closedAmount, arg.user.getWallet())
+		const decryptedNewOpenedPrice = await decryptUint256(context, newQuote.openedPrice, arg.user.getWallet())
 		expect(decryptedNewClosedAmount).to.be.equal(decryptedOldQuantity)
 
 		const oldLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes(context, [oldQuote], context.signers.user)

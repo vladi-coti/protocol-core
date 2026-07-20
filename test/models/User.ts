@@ -12,7 +12,7 @@ import {limitQuoteRequestBuilder, QuoteRequest} from "./requestModels/QuoteReque
 import {runTx} from "../utils/TxUtils"
 import {getDummyLiquidationSig, getDummyPriceSig} from "../utils/SignatureUtils"
 import {LiquidationSigStruct} from "../../src/types/contracts/facets/liquidation/LiquidationFacet"
-import {PrivateQuoteParamsStruct, QuoteBasicParamsStruct, QuoteStructOutput, SettlementSigStruct, SendQuoteForPartyBEvent, SingleUpnlAndPriceSigStruct} from "../../src/types/contracts/interfaces/ISymmio"
+import {PrivateQuoteParamsStruct, QuoteBasicParamsStruct, ViewQuoteStructOutput, SettlementSigStruct, SendQuoteForPartyBEvent, SingleUpnlAndPriceSigStruct} from "../../src/types/contracts/interfaces/ISymmio"
 import {HighLowPriceSigStruct} from "../../src/types/contracts/facets/ForceActions/ForceActionsFacet"
 import {QuoteData} from "./types"
 
@@ -142,7 +142,7 @@ export class User {
 		;(upnlSig as any).quoteIds = positions.map((quote: any) => BigInt(quote.id))
 		// Mark ≈ opened so on-chain UPNL stays ~0 unless the caller overrides prices.
 		;(upnlSig as any).prices = await Promise.all(
-			positions.map(async (quote: any) => this.decryptUint256(quote.openedPrice.userCiphertext)),
+			positions.map(async (quote: any) => this.decryptUint256(quote.openedPrice)),
 		)
 
 		return [
@@ -369,7 +369,7 @@ export class User {
 				? positions.map(() => markPrice)
 				: await Promise.all(
 						positions.map(async (quote: any) =>
-							this.context.manager.getUser(partyA).decryptUint256(quote.openedPrice.userCiphertext),
+							this.context.manager.getUser(partyA).decryptUint256(quote.openedPrice),
 						),
 					)
 		return getDummyPriceSig(
@@ -385,7 +385,7 @@ export class User {
 				? positions.map(() => markPrice)
 				: await Promise.all(
 						positions.map(async (quote: any) =>
-							this.context.manager.getUser(partyA).decryptUint256(quote.openedPrice.userCiphertext),
+							this.context.manager.getUser(partyA).decryptUint256(quote.openedPrice),
 						),
 					)
 		return getDummyPriceSig(
@@ -418,9 +418,9 @@ export class User {
 		let upnl = 0n
 		for (const pos of openPositions) {
 			// Decrypt encrypted quote fields
-			const openedPrice = await this.decryptUint256(pos.openedPrice.userCiphertext)
-			const quantity = await this.decryptUint256(pos.quantity.userCiphertext)
-			const closedAmount = await this.decryptUint256(pos.closedAmount.userCiphertext)
+			const openedPrice = await this.decryptUint256(pos.openedPrice)
+			const quantity = await this.decryptUint256(pos.quantity)
+			const closedAmount = await this.decryptUint256(pos.closedAmount)
 			
 			const priceDiff = openedPrice - (
 				symbolIdPriceFetcher != null
@@ -441,9 +441,9 @@ export class User {
 		let upnl = 0n
 		for (const pos of openPositions) {
 			// Decrypt encrypted quote fields
-			const openedPrice = await this.decryptUint256(pos.openedPrice.userCiphertext)
-			const quantity = await this.decryptUint256(pos.quantity.userCiphertext)
-			const closedAmount = await this.decryptUint256(pos.closedAmount.userCiphertext)
+			const openedPrice = await this.decryptUint256(pos.openedPrice)
+			const quantity = await this.decryptUint256(pos.quantity)
+			const closedAmount = await this.decryptUint256(pos.closedAmount)
 			
 			const priceDiff = openedPrice - (
 				symbolIdPriceFetcher != null
@@ -507,8 +507,8 @@ export class User {
 		}
 	}
 
-	public async getOpenPositions(): Promise<QuoteStructOutput[]> {
-		let openPositions: QuoteStructOutput[] = []
+	public async getOpenPositions(): Promise<ViewQuoteStructOutput[]> {
+		let openPositions: ViewQuoteStructOutput[] = []
 		const pageSize = 30
 		let last = 0
 		while (true) {

@@ -1,7 +1,7 @@
 import {BigNumber as BN} from "bignumber.js"
 import {expect} from "chai"
 
-import {QuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
+import {ViewQuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
 import {
 	decryptUint256,
 	getTotalPartyALockedValuesForQuotes,
@@ -26,7 +26,7 @@ export type OpenPositionValidatorBeforeArg = {
 export type OpenPositionValidatorBeforeOutput = {
 	balanceInfoPartyA: BalanceInfo
 	balanceInfoPartyB: BalanceInfo
-	quote: QuoteStructOutput
+	quote: ViewQuoteStructOutput
 	feeCollectorBalance: bigint
 	feeCollector: string
 }
@@ -79,11 +79,11 @@ export class OpenPositionValidator implements TransactionValidator {
 		logger.debug("After OpenPositionValidator...")
 		// Check Quote
 		const newQuote = await context.viewFacet.getQuote(arg.quoteId)
-		const newOpenedPrice = await decryptUint256(context, newQuote.openedPrice.userCiphertext, arg.user.getWallet())
-		const newQuantity = await decryptUint256(context, newQuote.quantity.userCiphertext, arg.user.getWallet())
+		const newOpenedPrice = await decryptUint256(context, newQuote.openedPrice, arg.user.getWallet())
+		const newQuantity = await decryptUint256(context, newQuote.quantity, arg.user.getWallet())
 		const oldQuote = arg.beforeOutput.quote
-		const oldRequestedOpenPrice = await decryptUint256(context, oldQuote.requestedOpenPrice.userCiphertext, arg.user.getWallet())
-		const oldQuantity = await decryptUint256(context, oldQuote.quantity.userCiphertext, arg.user.getWallet())
+		const oldRequestedOpenPrice = await decryptUint256(context, oldQuote.requestedOpenPrice, arg.user.getWallet())
+		const oldQuantity = await decryptUint256(context, oldQuote.quantity, arg.user.getWallet())
 		expect(newQuote.quoteStatus).to.be.equal(QuoteStatus.OPENED)
 		expect(newOpenedPrice).to.be.equal(arg.openedPrice)
 		expect(newQuantity).to.be.equal(arg.fillAmount)
@@ -107,7 +107,7 @@ export class OpenPositionValidator implements TransactionValidator {
 
 		if (partially && arg.newQuoteId != null) {
 			const newlyCreatedQuote = await context.viewFacet.getQuote(arg.newQuoteId!)
-			const newlyCreatedQuantity = await decryptUint256(context, newlyCreatedQuote.quantity.userCiphertext, arg.user.getWallet())
+			const newlyCreatedQuantity = await decryptUint256(context, newlyCreatedQuote.quantity, arg.user.getWallet())
 			expect(newlyCreatedQuote.quoteStatus).to.be.equal(arg.newQuoteTargetStatus!)
 			const lv = await getTotalPartyALockedValuesForQuotes(context, [newlyCreatedQuote], arg.user.getWallet())
 			expect(newlyCreatedQuantity).to.be.equal(oldQuantity - arg.fillAmount)

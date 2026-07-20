@@ -259,16 +259,16 @@ export function shouldBehaveLikeSettlement(): void {
 		const updatedLongQuote = await context.viewFacet.getQuote(longHedger1.quoteId)
 		const updatedShortQuote1 = await context.viewFacet.getQuote(shortHedger1.quoteId)
 		const updatedShortQuote2 = await context.viewFacet.getQuote(shortHedger2.quoteId)
-		const openedPriceLong = await decryptUint256(context, updatedLongQuote.openedPrice.userCiphertext, context.signers.user)
-		const openedPriceShort1 = await decryptUint256(context, updatedShortQuote1.openedPrice.userCiphertext, context.signers.user)
-		const openedPriceShort2 = await decryptUint256(context, updatedShortQuote2.openedPrice.userCiphertext, context.signers.user)
+		const openedPriceLong = await decryptUint256(context, updatedLongQuote.openedPrice, context.signers.user)
+		const openedPriceShort1 = await decryptUint256(context, updatedShortQuote1.openedPrice, context.signers.user)
+		const openedPriceShort2 = await decryptUint256(context, updatedShortQuote2.openedPrice, context.signers.user)
 		expect(openedPriceLong).to.be.eq(decimal(15n, 17))
 		expect(openedPriceShort1).to.be.eq(decimal(5n, 17))
 		expect(openedPriceShort2).to.be.eq(decimal(5n, 17))
 
-		const decryptedLongQuantity = await decryptUint256(context, longQuote.quantity.userCiphertext, context.signers.user)
-		const decryptedShortQuantity1 = await decryptUint256(context, shortQuote1.quantity.userCiphertext, context.signers.user)
-		const decryptedShortQuantity2 = await decryptUint256(context, shortQuote2.quantity.userCiphertext, context.signers.user)
+		const decryptedLongQuantity = await decryptUint256(context, longQuote.quantity, context.signers.user)
+		const decryptedShortQuantity1 = await decryptUint256(context, shortQuote1.quantity, context.signers.user)
+		const decryptedShortQuantity2 = await decryptUint256(context, shortQuote2.quantity, context.signers.user)
 		
 		expect((await user.getBalanceInfo()).allocatedBalances).to.be.eq(beforeAllocatedPartyA + unDecimal((decryptedLongQuantity + decryptedShortQuantity1 + decryptedShortQuantity2) * decimal(5n, 17)))
 		expect((await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances).to.be.eq(beforeAllocatedPartyB - unDecimal((decryptedLongQuantity + decryptedShortQuantity1) * decimal(5n, 17)))
@@ -280,8 +280,8 @@ export function shouldBehaveLikeSettlement(): void {
 		const beforeAllocatedPartyB = (await hedger.getBalanceInfo(await user.getAddress())).allocatedBalances
 		const longQuote = await context.viewFacet.getQuote(longHedger1.quoteId)
 		const shortQuote = await context.viewFacet.getQuote(shortHedger1.quoteId)
-		const decryptedLongQuantity = await decryptUint256(context, longQuote.quantity.userCiphertext, context.signers.user)
-		const decryptedShortQuantity = await decryptUint256(context, shortQuote.quantity.userCiphertext, context.signers.user)
+		const decryptedLongQuantity = await decryptUint256(context, longQuote.quantity, context.signers.user)
+		const decryptedShortQuantity = await decryptUint256(context, shortQuote.quantity, context.signers.user)
 
 		await hedger.settleUpnl(await user.getAddress(), [decimal(5n, 17), decimal(15n, 17)], getDummySettlementSig(0n, [0n], [
 			{

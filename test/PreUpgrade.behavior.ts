@@ -5,7 +5,7 @@ import { ethers } from "hardhat"
 import _ from "lodash"
 import { generateDiamondCut } from "../scripts/utils/diamondUtils"
 import { DiamondCutFacet, ViewFacet } from "../src/types"
-import { QuoteStructOutput, SymbolStructOutput } from "../src/types/contracts/interfaces/ISymmio"
+import { ViewQuoteStructOutput, SymbolStructOutput } from "../src/types/contracts/interfaces/ISymmio"
 import { FacetCutAction } from "../tasks/utils/diamondCut"
 import { decimal } from "./utils/Common"
 
@@ -53,7 +53,7 @@ interface State {
 	internalTransferPaused: boolean
 	settlementCooldown: string
 	symbol: SymbolStructOutput
-	quote: QuoteStructOutput
+	quote: ViewQuoteStructOutput
 }
 
 export function shouldBehaveLikePreUpgradeTest(): void {

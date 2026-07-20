@@ -9,7 +9,7 @@ import {limitCloseRequestBuilder} from "./models/requestModels/CloseRequest"
 import {limitQuoteRequestBuilder} from "./models/requestModels/QuoteRequest"
 import {decimal, getBlockTimestamp, getQuoteQuantity} from "./utils/Common"
 import {getDummyHighLowPriceSig, getDummySettlementSig} from "./utils/SignatureUtils"
-import {QuoteStructOutput} from "../src/types/contracts/interfaces/ISymmio"
+import {ViewQuoteStructOutput} from "../src/types/contracts/interfaces/ISymmio"
 import {limitOpenRequestBuilder} from "./models/requestModels/OpenRequest"
 import {QuoteSettlementDataStructOutput} from "../src/types/contracts/facets/Settlement/ISettlementFacet"
 import {expect} from "chai"
@@ -20,7 +20,7 @@ import {runTx} from "./utils/TxUtils"
 export function shouldBehaveLikeSettleAndForceClosePosition(): void {
 	let user: User, hedger: Hedger
 	let context: RunContext
-	let quote1LongOpened: QuoteStructOutput, quote2ShortOpened: QuoteStructOutput
+	let quote1LongOpened: ViewQuoteStructOutput, quote2ShortOpened: ViewQuoteStructOutput
 
 	beforeEach(async function () {
 		context = await loadFixtureCompatible(initializeFixture)
@@ -112,7 +112,7 @@ export function shouldBehaveLikeSettleAndForceClosePosition(): void {
 		const receipt = await tx.wait()
 
 		expect((await context.viewFacet.getQuote(quote1LongOpened.id)).quoteStatus).to.be.eq(QuoteStatus.CLOSED)
-		expect(await context.signers.user.decryptUint256((await context.viewFacet.getQuote(quote2ShortOpened.id)).openedPrice.userCiphertext)).to.be.eq(decimal(5n))
+		expect(await context.signers.user.decryptUint256((await context.viewFacet.getQuote(quote2ShortOpened.id)).openedPrice)).to.be.eq(decimal(5n))
 
 		const settlementEventsInterface = new ethers.Interface([
 			"event SettleUpnl(tuple(uint256 quoteId,uint256 currentPrice)[] settlementData,address partyA,tuple(uint256 ciphertextHigh,uint256 ciphertextLow) newPartyAAllocatedBalance,tuple(uint256 ciphertextHigh,uint256 ciphertextLow)[] newPartyBsAllocatedBalances)",

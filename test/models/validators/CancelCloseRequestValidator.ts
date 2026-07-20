@@ -1,6 +1,6 @@
 import {expect} from "chai"
 
-import {QuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
+import {ViewQuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
 import {logger} from "../../utils/LoggerUtils"
 import {QuoteStatus} from "../Enums"
 import {Hedger} from "../Hedger"
@@ -17,7 +17,7 @@ export type CancelCloseRequestValidatorBeforeArg = {
 export type CancelCloseRequestValidatorBeforeOutput = {
 	balanceInfoPartyA: BalanceInfo
 	balanceInfoPartyB: BalanceInfo
-	quote: QuoteStructOutput
+	quote: ViewQuoteStructOutput
 }
 
 export type CancelCloseRequestValidatorAfterArg = {

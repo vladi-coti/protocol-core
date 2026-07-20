@@ -1,6 +1,6 @@
 import {expect} from "chai"
 
-import {QuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
+import {ViewQuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
 import {getTotalPartyALockedValuesForQuotes, getTradingFeeForQuotes} from "../../utils/Common"
 import {logger} from "../../utils/LoggerUtils"
 import {expectToBeApproximately} from "../../utils/SafeMath"
@@ -16,7 +16,7 @@ export type CancelQuoteValidatorBeforeArg = {
 
 export type CancelQuoteValidatorBeforeOutput = {
 	balanceInfoPartyA: BalanceInfo
-	quote: QuoteStructOutput
+	quote: ViewQuoteStructOutput
 }
 
 export type CancelQuoteValidatorAfterArg = {

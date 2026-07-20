@@ -336,7 +336,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 				.openPrice(openedPrice)
 				.build()
 			const parentQuote = await context.viewFacet.getQuote(quoteData.quoteId)
-			const requestedOpenPrice = await decryptUint256(context, parentQuote.requestedOpenPrice.userCiphertext, context.signers.user)
+			const requestedOpenPrice = await decryptUint256(context, parentQuote.requestedOpenPrice, context.signers.user)
 			const notional = unDecimal(filledAmount * requestedOpenPrice)
 			await (await context.accountFacet.connect(context.signers.hedger2).allocateForPartyB(unDecimal(notional * decimal(12n, 17)), parentQuote.partyA)).wait()
 			const {encryptedParams, upnlSig} = await hedger2.buildOpenPositionCalldataArgs(
@@ -389,7 +389,7 @@ export function shouldBehaveLikeOpenPosition(): void {
 				: 0n
 			const filledAmount = quantity / 2n
 			const parentQuote = await context.viewFacet.getQuote(quoteData.quoteId)
-			const requestedOpenPrice = await decryptUint256(context, parentQuote.requestedOpenPrice.userCiphertext, context.signers.user)
+			const requestedOpenPrice = await decryptUint256(context, parentQuote.requestedOpenPrice, context.signers.user)
 			const notional = unDecimal(quantity * requestedOpenPrice)
 			await (await context.accountFacet.connect(context.signers.hedger2).allocateForPartyB(unDecimal(notional * decimal(12n, 17)), parentQuote.partyA)).wait()
 

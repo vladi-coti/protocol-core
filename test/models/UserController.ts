@@ -32,7 +32,7 @@ import {
 import {CancelQuoteValidator, CancelQuoteValidatorBeforeOutput} from "./validators/CancelQuoteValidator"
 import {CloseRequestValidator, CloseRequestValidatorBeforeOutput} from "./validators/CloseRequestValidator"
 import {QuoteCheckpoint} from "./quoteCheckpoint"
-import {QuoteStructOutput} from "../../src/types/contracts/interfaces/ISymmio"
+import {ViewQuoteStructOutput} from "../../src/types/contracts/interfaces/ISymmio"
 
 export class UserController {
 	private readonly context: RunContext
@@ -165,7 +165,7 @@ export class UserController {
 		}
 	}
 
-	private async handleQuote(quote: QuoteStructOutput, actions: ActionWrapper[]): Promise<void> {
+	private async handleQuote(quote: ViewQuoteStructOutput, actions: ActionWrapper[]): Promise<void> {
 		var actionWrapper: ActionWrapper = pick(expandActions(actions))
 		logger.debug("User selects the action: " + actionNamesMap.get(actionWrapper.action) + " for quote: " + quote.id)
 
@@ -198,8 +198,8 @@ export class UserController {
 				let symbolQP = this.manager.symbolManager.getSymbolQuantityPrecision(Number(symbol.symbolId))
 				let symbolPP = this.manager.symbolManager.getSymbolPricePrecision(Number(symbol.symbolId))
 
-				const quantity = await decryptUint256(this.context, quote.quantity.userCiphertext, this.context.signers.user)
-				const closedAmount = await decryptUint256(this.context, quote.closedAmount.userCiphertext, this.context.signers.user)
+				const quantity = await decryptUint256(this.context, quote.quantity, this.context.signers.user)
+				const closedAmount = await decryptUint256(this.context, quote.closedAmount, this.context.signers.user)
 
 				let quantityToClose: bigint
 				const openAmount = quantity - closedAmount

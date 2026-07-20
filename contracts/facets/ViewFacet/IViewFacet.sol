@@ -126,21 +126,21 @@ interface IViewFacet {
 	////////////////////////////////////
 
 	// Quotes
-	function getQuote(uint256 quoteId) external view returns (Quote memory);
+	function getQuote(uint256 quoteId) external view returns (ViewQuote memory);
 
-	function getObserverQuote(uint256 quoteId) external view returns (Quote memory);
+	function getObserverQuote(uint256 quoteId) external view returns (ViewQuote memory);
 
 	function getObserverQuoteValues(uint256 quoteId) external view returns (ObserverQuoteValues memory);
 
-	function getQuotesByParent(uint256 quoteId, uint256 size) external view returns (Quote[] memory);
+	function getQuotesByParent(uint256 quoteId, uint256 size) external view returns (ViewQuote[] memory);
 
-	function getObserverQuotesByParent(uint256 quoteId, uint256 size) external view returns (Quote[] memory);
+	function getObserverQuotesByParent(uint256 quoteId, uint256 size) external view returns (ViewQuote[] memory);
 
 	function quoteIdsOf(address partyA, uint256 start, uint256 size) external view returns (uint256[] memory);
 
-	function getQuotes(address partyA, uint256 start, uint256 size) external view returns (Quote[] memory);
+	function getQuotes(address partyA, uint256 start, uint256 size) external view returns (ViewQuote[] memory);
 
-	function getObserverQuotes(address partyA, uint256 start, uint256 size) external view returns (Quote[] memory);
+	function getObserverQuotes(address partyA, uint256 start, uint256 size) external view returns (ViewQuote[] memory);
 
 	function quotesLength(address user) external view returns (uint256);
 
@@ -148,25 +148,25 @@ interface IViewFacet {
 
 	function getBridgeTransactions(address bridge, uint256 start, uint256 size) external view returns (BridgeTransaction[] memory);
 
-	function getPartyAOpenPositions(address partyA, uint256 start, uint256 size) external view returns (Quote[] memory);
+	function getPartyAOpenPositions(address partyA, uint256 start, uint256 size) external view returns (ViewQuote[] memory);
 
-	function getObserverPartyAOpenPositions(address partyA, uint256 start, uint256 size) external view returns (Quote[] memory);
+	function getObserverPartyAOpenPositions(address partyA, uint256 start, uint256 size) external view returns (ViewQuote[] memory);
 
-	function getPartyBOpenPositions(address partyB, address partyA, uint256 start, uint256 size) external view returns (Quote[] memory);
+	function getPartyBOpenPositions(address partyB, address partyA, uint256 start, uint256 size) external view returns (ViewQuote[] memory);
 
-	function getObserverPartyBOpenPositions(address partyB, address partyA, uint256 start, uint256 size) external view returns (Quote[] memory);
+	function getObserverPartyBOpenPositions(address partyB, address partyA, uint256 start, uint256 size) external view returns (ViewQuote[] memory);
 
-	function getPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory);
+	function getPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory);
 
-	function getObserverPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory);
+	function getObserverPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory);
 
-	function getOpenPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory);
+	function getOpenPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory);
 
-	function getObserverOpenPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory);
+	function getObserverOpenPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory);
 
-	function getActivePositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory);
+	function getActivePositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory);
 
-	function getObserverActivePositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory);
+	function getObserverActivePositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory);
 
 	function partyBPositionsCount(address partyB, address partyA) external view returns (uint256);
 
@@ -174,9 +174,9 @@ interface IViewFacet {
 
 	function getPartyBPendingQuotes(address partyB, address partyA) external view returns (uint256[] memory);
 
-	function getQuotesWithBitmap(Bitmap calldata bitmap, uint256 gasNeededForReturn) external view returns (Quote[] memory quotes);
+	function getQuotesWithBitmap(Bitmap calldata bitmap, uint256 gasNeededForReturn) external view returns (ViewQuote[] memory quotes);
 
-	function getObserverQuotesWithBitmap(Bitmap calldata bitmap, uint256 gasNeededForReturn) external view returns (Quote[] memory quotes);
+	function getObserverQuotesWithBitmap(Bitmap calldata bitmap, uint256 gasNeededForReturn) external view returns (ViewQuote[] memory quotes);
 
 	/////////////////////////////////////
 

@@ -271,8 +271,8 @@ export function shouldBehaveLikeAccountFacet(): void {
 
 				const {quoteId} = await user.sendQuote()
 				const quote = await context.viewFacet.getQuote(quoteId)
-				const quantity = await decryptUint256(context, quote.quantity.userCiphertext, context.signers.user)
-				const requestedOpenPrice = await decryptUint256(context, quote.requestedOpenPrice.userCiphertext, context.signers.user)
+				const quantity = await decryptUint256(context, quote.quantity, context.signers.user)
+				const requestedOpenPrice = await decryptUint256(context, quote.requestedOpenPrice, context.signers.user)
 				const notional = unDecimal(quantity * requestedOpenPrice)
 				await context.accountFacet.connect(context.signers.hedger).allocateForPartyB(unDecimal(notional * decimal(12n, 17)), quote.partyA)
 

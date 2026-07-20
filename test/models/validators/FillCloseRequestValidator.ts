@@ -1,5 +1,5 @@
 import {expect} from "chai"
-import {QuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
+import {ViewQuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
 import {decryptUint256, getTotalPartyALockedValuesForQuotes, getTotalPartyBLockedValuesForQuotes, unDecimal} from "../../utils/Common"
 import {logger} from "../../utils/LoggerUtils"
 import {expectToBeApproximately} from "../../utils/SafeMath"
@@ -18,7 +18,7 @@ export type FillCloseRequestValidatorBeforeArg = {
 export type FillCloseRequestValidatorBeforeOutput = {
 	balanceInfoPartyA: BalanceInfo
 	balanceInfoPartyB: BalanceInfo
-	quote: QuoteStructOutput
+	quote: ViewQuoteStructOutput
 }
 
 export type FillCloseRequestValidatorAfterArg = {
@@ -45,11 +45,11 @@ export class FillCloseRequestValidator implements TransactionValidator {
 // Check Quote
 		const newQuote = await context.viewFacet.getQuote(arg.quoteId)
 		const oldQuote = arg.beforeOutput.quote
-		const decryptedZeroToClose = await decryptUint256(context, newQuote.quantityToClose.userCiphertext, arg.user.getWallet())
+		const decryptedZeroToClose = await decryptUint256(context, newQuote.quantityToClose, arg.user.getWallet())
 		const zeroToClose = decryptedZeroToClose === 0n
-		const decryptedNewQuantity = await decryptUint256(context, newQuote.quantity.userCiphertext, arg.user.getWallet())
-		const decryptedNewClosedAmount = await decryptUint256(context, newQuote.closedAmount.userCiphertext, arg.user.getWallet())
-		const decryptedOldClosedAmount = await decryptUint256(context, oldQuote.closedAmount.userCiphertext, arg.user.getWallet())
+		const decryptedNewQuantity = await decryptUint256(context, newQuote.quantity, arg.user.getWallet())
+		const decryptedNewClosedAmount = await decryptUint256(context, newQuote.closedAmount, arg.user.getWallet())
+		const decryptedOldClosedAmount = await decryptUint256(context, oldQuote.closedAmount, arg.user.getWallet())
 		const isFullyClosed = decryptedNewQuantity === decryptedNewClosedAmount
 
 		if (isFullyClosed) {
@@ -64,8 +64,8 @@ export class FillCloseRequestValidator implements TransactionValidator {
 
 // TODO: Sometimes fillCloseRequest has Error
 
-		const decryptedNewQuantityToClose = await decryptUint256(context, newQuote.quantityToClose.userCiphertext, arg.user.getWallet())
-		const decryptedOldQuantityToClose = await decryptUint256(context, oldQuote.quantityToClose.userCiphertext, arg.user.getWallet())
+		const decryptedNewQuantityToClose = await decryptUint256(context, newQuote.quantityToClose, arg.user.getWallet())
+		const decryptedOldQuantityToClose = await decryptUint256(context, oldQuote.quantityToClose, arg.user.getWallet())
 		expect(decryptedNewQuantityToClose.toString()).to.equal((decryptedOldQuantityToClose - BigInt(arg.fillAmount)).toString())
 
 		const oldLockedValuesPartyA = await getTotalPartyALockedValuesForQuotes(context, [oldQuote], context.signers.user)
@@ -75,14 +75,14 @@ export class FillCloseRequestValidator implements TransactionValidator {
 		const newLockedValuesPartyB = await getTotalPartyBLockedValuesForQuotes(context, [newQuote], context.signers.hedger)
 
 		let profit
-		const decryptedOpenedPrice = await decryptUint256(context, newQuote.openedPrice.userCiphertext, arg.user.getWallet())
+		const decryptedOpenedPrice = await decryptUint256(context, newQuote.openedPrice, arg.user.getWallet())
 		if (newQuote.positionType === BigInt(PositionType.LONG)) {
 			profit = unDecimal((BigInt(arg.closePrice) - decryptedOpenedPrice) * BigInt(arg.fillAmount))
 		} else {
 			profit = unDecimal((decryptedOpenedPrice - BigInt(arg.closePrice)) * BigInt(arg.fillAmount))
 		}
 
-		const decryptedOldQuantity = await decryptUint256(context, oldQuote.quantity.userCiphertext, arg.user.getWallet())
+		const decryptedOldQuantity = await decryptUint256(context, oldQuote.quantity, arg.user.getWallet())
 		const returnedLockedValuesPartyA = (BigInt(oldLockedValuesPartyA) * BigInt(arg.fillAmount)) / decryptedOldQuantity
 		const returnedLockedValuesPartyB = (BigInt(oldLockedValuesPartyB) * BigInt(arg.fillAmount)) / decryptedOldQuantity
 

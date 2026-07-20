@@ -38,7 +38,7 @@ import {OpenPositionValidator, OpenPositionValidatorBeforeOutput} from "./valida
 import {UnlockQuoteValidator, UnlockQuoteValidatorBeforeOutput} from "./validators/UnlockQuoteValidator"
 import {QuoteCheckpoint} from "./quoteCheckpoint"
 import {ethers} from "hardhat"
-import {QuoteStructOutput, SymbolStructOutput} from "../../src/types/contracts/interfaces/ISymmio"
+import {ViewQuoteStructOutput, SymbolStructOutput} from "../../src/types/contracts/interfaces/ISymmio"
 
 export class HedgerController {
 	private readonly context: RunContext
@@ -89,7 +89,7 @@ export class HedgerController {
 		}
 	}
 
-	private async handleQuote(quote: QuoteStructOutput, actions: ActionWrapper[]) {
+	private async handleQuote(quote: ViewQuoteStructOutput, actions: ActionWrapper[]) {
 		var actionWrapper: ActionWrapper = pick(expandActions(actions))
 		logger.debug("Hedger selects the action: " + actionNamesMap.get(actionWrapper.action) + " for quote: " + quote.id)
 

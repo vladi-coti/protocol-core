@@ -101,6 +101,37 @@ struct Quote {
 	address affiliate;
 }
 
+/// @dev Public view return type — user/observer ciphertext only (no COTI system ciphertext).
+struct ViewQuote {
+	uint256 id;
+	address[] partyBsWhiteList;
+	uint256 symbolId;
+	PositionType positionType;
+	OrderType orderType;
+	ctUint256 openedPrice;
+	ctUint256 initialOpenedPrice;
+	ctUint256 requestedOpenPrice;
+	ctUint256 marketPrice;
+	ctUint256 quantity;
+	ctUint256 closedAmount;
+	UserLockedValues initialLockedValues;
+	UserLockedValues lockedValues;
+	uint256 maxFundingRate;
+	address partyA;
+	address partyB;
+	QuoteStatus quoteStatus;
+	ctUint256 avgClosedPrice;
+	ctUint256 requestedClosePrice;
+	ctUint256 quantityToClose;
+	uint256 parentId;
+	uint256 createTimestamp;
+	uint256 statusModifyTimestamp;
+	uint256 lastFundingPaymentTimestamp;
+	uint256 deadline;
+	ctUint256 tradingFee;
+	address affiliate;
+}
+
 // Struct to hold encrypted quote values to reduce stack depth
 struct EncryptedQuoteValues {
 	ctUint256 price;

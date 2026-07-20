@@ -72,7 +72,7 @@ export function shouldBehaveLikeAuditH26(): void {
 			const partyA = await user.getAddress()
 			const hedgerBefore = await hedger.getBalanceInfo(partyA)
 			const partyABefore = (await user.getBalanceInfo()).allocatedBalances
-			const shortLf = await decryptUint256(context, quoteBefore.lockedValues.lf.userCiphertext, user.getWallet())
+			const shortLf = await decryptUint256(context, quoteBefore.lockedValues.lf, user.getWallet())
 			const liquidatorShare = BigInt(await context.viewFacet.liquidatorShare())
 			const one = decimal(1n)
 

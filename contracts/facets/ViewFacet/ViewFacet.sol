@@ -451,15 +451,15 @@ contract ViewFacet is IViewFacet {
 	/**
 	 * @notice Returns the details of a quote by its ID.
 	 * @param quoteId The ID of the quote.
-	 * @return The details of the quote.
+	 * @return The details of the quote (user ciphertext only).
 	 */
-	function getQuote(uint256 quoteId) external view returns (Quote memory) {
-		return QuoteStorage.layout().quotes[quoteId];
+	function getQuote(uint256 quoteId) external view returns (ViewQuote memory) {
+		return _toViewQuote(QuoteStorage.layout().quotes[quoteId]);
 	}
 
-	function getObserverQuote(uint256 quoteId) external view returns (Quote memory) {
+	function getObserverQuote(uint256 quoteId) external view returns (ViewQuote memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		return _observerQuote(quoteLayout.quotes[quoteId], quoteLayout.observerQuoteValues[quoteId]);
+		return _toObserverViewQuote(quoteLayout.quotes[quoteId], quoteLayout.observerQuoteValues[quoteId]);
 	}
 
 	function getObserverQuoteValues(uint256 quoteId) external view returns (ObserverQuoteValues memory) {
@@ -472,32 +472,32 @@ contract ViewFacet is IViewFacet {
 	 * @param size The size of the array.
 	 * @return An array of quotes.
 	 */
-	function getQuotesByParent(uint256 quoteId, uint256 size) external view returns (Quote[] memory) {
+	function getQuotesByParent(uint256 quoteId, uint256 size) external view returns (ViewQuote[] memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		Quote[] memory quotes = new Quote[](size);
+		ViewQuote[] memory quotes = new ViewQuote[](size);
 		Quote memory quote = quoteLayout.quotes[quoteId];
-		quotes[0] = quote;
+		quotes[0] = _toViewQuote(quote);
 		for (uint256 i = 1; i < size; i++) {
 			if (quote.parentId == 0) {
 				break;
 			}
 			quote = quoteLayout.quotes[quote.parentId];
-			quotes[i] = quote;
+			quotes[i] = _toViewQuote(quote);
 		}
 		return quotes;
 	}
 
-	function getObserverQuotesByParent(uint256 quoteId, uint256 size) external view returns (Quote[] memory) {
+	function getObserverQuotesByParent(uint256 quoteId, uint256 size) external view returns (ViewQuote[] memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		Quote[] memory quotes = new Quote[](size);
+		ViewQuote[] memory quotes = new ViewQuote[](size);
 		Quote memory quote = quoteLayout.quotes[quoteId];
-		quotes[0] = _observerQuote(quote, quoteLayout.observerQuoteValues[quoteId]);
+		quotes[0] = _toObserverViewQuote(quote, quoteLayout.observerQuoteValues[quoteId]);
 		for (uint256 i = 1; i < size; i++) {
 			if (quote.parentId == 0) {
 				break;
 			}
 			quote = quoteLayout.quotes[quote.parentId];
-			quotes[i] = _observerQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
+			quotes[i] = _toObserverViewQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
 		}
 		return quotes;
 	}
@@ -528,27 +528,27 @@ contract ViewFacet is IViewFacet {
 	 * @param size The size of the array.
 	 * @return An array of quotes.
 	 */
-	function getQuotes(address partyA, uint256 start, uint256 size) external view returns (Quote[] memory) {
+	function getQuotes(address partyA, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		if (quoteLayout.quoteIdsOf[partyA].length < start + size) {
 			size = quoteLayout.quoteIdsOf[partyA].length - start;
 		}
-		Quote[] memory quotes = new Quote[](size);
+		ViewQuote[] memory quotes = new ViewQuote[](size);
 		for (uint256 i = start; i < start + size; i++) {
-			quotes[i - start] = quoteLayout.quotes[quoteLayout.quoteIdsOf[partyA][i]];
+			quotes[i - start] = _toViewQuote(quoteLayout.quotes[quoteLayout.quoteIdsOf[partyA][i]]);
 		}
 		return quotes;
 	}
 
-	function getObserverQuotes(address partyA, uint256 start, uint256 size) external view returns (Quote[] memory) {
+	function getObserverQuotes(address partyA, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		if (quoteLayout.quoteIdsOf[partyA].length < start + size) {
 			size = quoteLayout.quoteIdsOf[partyA].length - start;
 		}
-		Quote[] memory quotes = new Quote[](size);
+		ViewQuote[] memory quotes = new ViewQuote[](size);
 		for (uint256 i = start; i < start + size; i++) {
 			uint256 quoteId = quoteLayout.quoteIdsOf[partyA][i];
-			quotes[i - start] = _observerQuote(quoteLayout.quotes[quoteId], quoteLayout.observerQuoteValues[quoteId]);
+			quotes[i - start] = _toObserverViewQuote(quoteLayout.quotes[quoteId], quoteLayout.observerQuoteValues[quoteId]);
 		}
 		return quotes;
 	}
@@ -598,27 +598,27 @@ contract ViewFacet is IViewFacet {
 	 * @param size The size of the array.
 	 * @return An array of open positions.
 	 */
-	function getPartyAOpenPositions(address partyA, uint256 start, uint256 size) external view returns (Quote[] memory) {
+	function getPartyAOpenPositions(address partyA, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		if (quoteLayout.partyAOpenPositions[partyA].length < start + size) {
 			size = quoteLayout.partyAOpenPositions[partyA].length - start;
 		}
-		Quote[] memory quotes = new Quote[](size);
+		ViewQuote[] memory quotes = new ViewQuote[](size);
 		for (uint256 i = start; i < start + size; i++) {
-			quotes[i - start] = quoteLayout.quotes[quoteLayout.partyAOpenPositions[partyA][i]];
+			quotes[i - start] = _toViewQuote(quoteLayout.quotes[quoteLayout.partyAOpenPositions[partyA][i]]);
 		}
 		return quotes;
 	}
 
-	function getObserverPartyAOpenPositions(address partyA, uint256 start, uint256 size) external view returns (Quote[] memory) {
+	function getObserverPartyAOpenPositions(address partyA, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		if (quoteLayout.partyAOpenPositions[partyA].length < start + size) {
 			size = quoteLayout.partyAOpenPositions[partyA].length - start;
 		}
-		Quote[] memory quotes = new Quote[](size);
+		ViewQuote[] memory quotes = new ViewQuote[](size);
 		for (uint256 i = start; i < start + size; i++) {
 			uint256 quoteId = quoteLayout.partyAOpenPositions[partyA][i];
-			quotes[i - start] = _observerQuote(quoteLayout.quotes[quoteId], quoteLayout.observerQuoteValues[quoteId]);
+			quotes[i - start] = _toObserverViewQuote(quoteLayout.quotes[quoteId], quoteLayout.observerQuoteValues[quoteId]);
 		}
 		return quotes;
 	}
@@ -631,27 +631,27 @@ contract ViewFacet is IViewFacet {
 	 * @param size The size of the array.
 	 * @return An array of open positions.
 	 */
-	function getPartyBOpenPositions(address partyB, address partyA, uint256 start, uint256 size) external view returns (Quote[] memory) {
+	function getPartyBOpenPositions(address partyB, address partyA, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		if (quoteLayout.partyBOpenPositions[partyB][partyA].length < start + size) {
 			size = quoteLayout.partyBOpenPositions[partyB][partyA].length - start;
 		}
-		Quote[] memory quotes = new Quote[](size);
+		ViewQuote[] memory quotes = new ViewQuote[](size);
 		for (uint256 i = start; i < start + size; i++) {
-			quotes[i - start] = quoteLayout.quotes[quoteLayout.partyBOpenPositions[partyB][partyA][i]];
+			quotes[i - start] = _toViewQuote(quoteLayout.quotes[quoteLayout.partyBOpenPositions[partyB][partyA][i]]);
 		}
 		return quotes;
 	}
 
-	function getObserverPartyBOpenPositions(address partyB, address partyA, uint256 start, uint256 size) external view returns (Quote[] memory) {
+	function getObserverPartyBOpenPositions(address partyB, address partyA, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
 		if (quoteLayout.partyBOpenPositions[partyB][partyA].length < start + size) {
 			size = quoteLayout.partyBOpenPositions[partyB][partyA].length - start;
 		}
-		Quote[] memory quotes = new Quote[](size);
+		ViewQuote[] memory quotes = new ViewQuote[](size);
 		for (uint256 i = start; i < start + size; i++) {
 			uint256 quoteId = quoteLayout.partyBOpenPositions[partyB][partyA][i];
-			quotes[i - start] = _observerQuote(quoteLayout.quotes[quoteId], quoteLayout.observerQuoteValues[quoteId]);
+			quotes[i - start] = _toObserverViewQuote(quoteLayout.quotes[quoteId], quoteLayout.observerQuoteValues[quoteId]);
 		}
 		return quotes;
 	}
@@ -663,28 +663,28 @@ contract ViewFacet is IViewFacet {
 	 * @param size The size of the array.
 	 * @return An array of positions.
 	 */
-	function getPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory) {
+	function getPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		Quote[] memory quotes = new Quote[](size);
+		ViewQuote[] memory quotes = new ViewQuote[](size);
 		uint j = 0;
 		for (uint256 i = start; i < start + size; i++) {
 			Quote memory quote = quoteLayout.quotes[i];
 			if (quote.partyB == partyB) {
-				quotes[j] = quote;
+				quotes[j] = _toViewQuote(quote);
 				j += 1;
 			}
 		}
 		return quotes;
 	}
 
-	function getObserverPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory) {
+	function getObserverPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		Quote[] memory quotes = new Quote[](size);
+		ViewQuote[] memory quotes = new ViewQuote[](size);
 		uint j = 0;
 		for (uint256 i = start; i < start + size; i++) {
 			Quote memory quote = quoteLayout.quotes[i];
 			if (quote.partyB == partyB) {
-				quotes[j] = _observerQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
+				quotes[j] = _toObserverViewQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
 				j += 1;
 			}
 		}
@@ -698,9 +698,9 @@ contract ViewFacet is IViewFacet {
 	 * @param size The size of the array.
 	 * @return An array of open positions.
 	 */
-	function getOpenPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory) {
+	function getOpenPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		Quote[] memory quotes = new Quote[](size);
+		ViewQuote[] memory quotes = new ViewQuote[](size);
 		uint j = 0;
 		for (uint256 i = start; i < start + size; i++) {
 			Quote memory quote = quoteLayout.quotes[i];
@@ -710,16 +710,16 @@ contract ViewFacet is IViewFacet {
 					quote.quoteStatus == QuoteStatus.CLOSE_PENDING ||
 					quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING)
 			) {
-				quotes[j] = quote;
+				quotes[j] = _toViewQuote(quote);
 				j += 1;
 			}
 		}
 		return quotes;
 	}
 
-	function getObserverOpenPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory) {
+	function getObserverOpenPositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		Quote[] memory quotes = new Quote[](size);
+		ViewQuote[] memory quotes = new ViewQuote[](size);
 		uint j = 0;
 		for (uint256 i = start; i < start + size; i++) {
 			Quote memory quote = quoteLayout.quotes[i];
@@ -729,7 +729,7 @@ contract ViewFacet is IViewFacet {
 					quote.quoteStatus == QuoteStatus.CLOSE_PENDING ||
 					quote.quoteStatus == QuoteStatus.CANCEL_CLOSE_PENDING)
 			) {
-				quotes[j] = _observerQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
+				quotes[j] = _toObserverViewQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
 				j += 1;
 			}
 		}
@@ -743,9 +743,9 @@ contract ViewFacet is IViewFacet {
 	 * @param size The size of the array.
 	 * @return An array of active positions.
 	 */
-	function getActivePositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory) {
+	function getActivePositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		Quote[] memory quotes = new Quote[](size);
+		ViewQuote[] memory quotes = new ViewQuote[](size);
 		uint j = 0;
 		for (uint256 i = start; i < start + size; i++) {
 			Quote memory quote = quoteLayout.quotes[i];
@@ -756,16 +756,16 @@ contract ViewFacet is IViewFacet {
 				quote.quoteStatus != QuoteStatus.EXPIRED &&
 				quote.quoteStatus != QuoteStatus.LIQUIDATED
 			) {
-				quotes[j] = quote;
+				quotes[j] = _toViewQuote(quote);
 				j += 1;
 			}
 		}
 		return quotes;
 	}
 
-	function getObserverActivePositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (Quote[] memory) {
+	function getObserverActivePositionsFilteredByPartyB(address partyB, uint256 start, uint256 size) external view returns (ViewQuote[] memory) {
 		QuoteStorage.Layout storage quoteLayout = QuoteStorage.layout();
-		Quote[] memory quotes = new Quote[](size);
+		ViewQuote[] memory quotes = new ViewQuote[](size);
 		uint j = 0;
 		for (uint256 i = start; i < start + size; i++) {
 			Quote memory quote = quoteLayout.quotes[i];
@@ -776,7 +776,7 @@ contract ViewFacet is IViewFacet {
 				quote.quoteStatus != QuoteStatus.EXPIRED &&
 				quote.quoteStatus != QuoteStatus.LIQUIDATED
 			) {
-				quotes[j] = _observerQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
+				quotes[j] = _toObserverViewQuote(quote, quoteLayout.observerQuoteValues[quote.id]);
 				j += 1;
 			}
 		}
@@ -816,12 +816,12 @@ contract ViewFacet is IViewFacet {
 	 * @notice Retrieves a filtered list of quotes based on a bitmap. The method returns quotes only if sufficient gas remains.
 	 * @param bitmap A structured data type representing a bitmap, used to indicate which quotes to retrieve based on their positions. The bitmap consists of multiple elements, each with an offset and a 256-bit integer representing selectable quotes.
 	 * @param gasNeededForReturn The minimum gas required to complete the function execution and return the data. This ensures the function doesn't start a retrieval that it can't complete.
-	 * @return quotes An array of `Quote` structures, each corresponding to a quote identified by the bitmap.
+	 * @return quotes An array of `ViewQuote` structures, each corresponding to a quote identified by the bitmap.
 	 */
-	function getQuotesWithBitmap(Bitmap calldata bitmap, uint256 gasNeededForReturn) external view returns (Quote[] memory quotes) {
+	function getQuotesWithBitmap(Bitmap calldata bitmap, uint256 gasNeededForReturn) external view returns (ViewQuote[] memory quotes) {
 		QuoteStorage.Layout storage qL = QuoteStorage.layout();
 
-		quotes = new Quote[](bitmap.size);
+		quotes = new ViewQuote[](bitmap.size);
 		uint256 quoteIndex = 0;
 
 		for (uint256 i = 0; i < bitmap.elements.length; ++i) {
@@ -829,7 +829,7 @@ contract ViewFacet is IViewFacet {
 			uint256 offset = bitmap.elements[i].offset;
 			while (bits > 0 && gasleft() > gasNeededForReturn) {
 				if ((bits & 1) > 0) {
-					quotes[quoteIndex] = qL.quotes[offset];
+					quotes[quoteIndex] = _toViewQuote(qL.quotes[offset]);
 					++quoteIndex;
 				}
 				++offset;
@@ -838,10 +838,10 @@ contract ViewFacet is IViewFacet {
 		}
 	}
 
-	function getObserverQuotesWithBitmap(Bitmap calldata bitmap, uint256 gasNeededForReturn) external view returns (Quote[] memory quotes) {
+	function getObserverQuotesWithBitmap(Bitmap calldata bitmap, uint256 gasNeededForReturn) external view returns (ViewQuote[] memory quotes) {
 		QuoteStorage.Layout storage qL = QuoteStorage.layout();
 
-		quotes = new Quote[](bitmap.size);
+		quotes = new ViewQuote[](bitmap.size);
 		uint256 quoteIndex = 0;
 
 		for (uint256 i = 0; i < bitmap.elements.length; ++i) {
@@ -849,7 +849,7 @@ contract ViewFacet is IViewFacet {
 			uint256 offset = bitmap.elements[i].offset;
 			while (bits > 0 && gasleft() > gasNeededForReturn) {
 				if ((bits & 1) > 0) {
-					quotes[quoteIndex] = _observerQuote(qL.quotes[offset], qL.observerQuoteValues[offset]);
+					quotes[quoteIndex] = _toObserverViewQuote(qL.quotes[offset], qL.observerQuoteValues[offset]);
 					++quoteIndex;
 				}
 				++offset;
@@ -1172,27 +1172,56 @@ contract ViewFacet is IViewFacet {
 		return QuoteStorage.layout().closeIds[quoteId];
 	}
 
-	function _observerQuote(Quote memory quote, ObserverQuoteValues storage observerValues) private view returns (Quote memory) {
-		quote.openedPrice.userCiphertext = observerValues.openedPrice;
-		quote.initialOpenedPrice.userCiphertext = observerValues.initialOpenedPrice;
-		quote.requestedOpenPrice.userCiphertext = observerValues.requestedOpenPrice;
-		quote.marketPrice.userCiphertext = observerValues.marketPrice;
-		quote.quantity.userCiphertext = observerValues.quantity;
-		quote.closedAmount.userCiphertext = observerValues.closedAmount;
-		quote.avgClosedPrice.userCiphertext = observerValues.avgClosedPrice;
-		quote.requestedClosePrice.userCiphertext = observerValues.requestedClosePrice;
-		quote.quantityToClose.userCiphertext = observerValues.quantityToClose;
-		quote.tradingFee.userCiphertext = observerValues.tradingFee;
-		quote.initialLockedValues = _observerLockedValues(quote.initialLockedValues, observerValues.initialLockedValues);
-		quote.lockedValues = _observerLockedValues(quote.lockedValues, observerValues.lockedValues);
-		return quote;
+	function _toViewQuote(Quote memory quote) private pure returns (ViewQuote memory viewQuote) {
+		viewQuote.id = quote.id;
+		viewQuote.partyBsWhiteList = quote.partyBsWhiteList;
+		viewQuote.symbolId = quote.symbolId;
+		viewQuote.positionType = quote.positionType;
+		viewQuote.orderType = quote.orderType;
+		viewQuote.openedPrice = quote.openedPrice.userCiphertext;
+		viewQuote.initialOpenedPrice = quote.initialOpenedPrice.userCiphertext;
+		viewQuote.requestedOpenPrice = quote.requestedOpenPrice.userCiphertext;
+		viewQuote.marketPrice = quote.marketPrice.userCiphertext;
+		viewQuote.quantity = quote.quantity.userCiphertext;
+		viewQuote.closedAmount = quote.closedAmount.userCiphertext;
+		viewQuote.initialLockedValues = _toUserLockedValues(quote.initialLockedValues);
+		viewQuote.lockedValues = _toUserLockedValues(quote.lockedValues);
+		viewQuote.maxFundingRate = quote.maxFundingRate;
+		viewQuote.partyA = quote.partyA;
+		viewQuote.partyB = quote.partyB;
+		viewQuote.quoteStatus = quote.quoteStatus;
+		viewQuote.avgClosedPrice = quote.avgClosedPrice.userCiphertext;
+		viewQuote.requestedClosePrice = quote.requestedClosePrice.userCiphertext;
+		viewQuote.quantityToClose = quote.quantityToClose.userCiphertext;
+		viewQuote.parentId = quote.parentId;
+		viewQuote.createTimestamp = quote.createTimestamp;
+		viewQuote.statusModifyTimestamp = quote.statusModifyTimestamp;
+		viewQuote.lastFundingPaymentTimestamp = quote.lastFundingPaymentTimestamp;
+		viewQuote.deadline = quote.deadline;
+		viewQuote.tradingFee = quote.tradingFee.userCiphertext;
+		viewQuote.affiliate = quote.affiliate;
 	}
 
-	function _observerLockedValues(LockedValues memory values, UserLockedValues storage observerValues) private view returns (LockedValues memory) {
-		values.cva.userCiphertext = observerValues.cva;
-		values.lf.userCiphertext = observerValues.lf;
-		values.partyAmm.userCiphertext = observerValues.partyAmm;
-		values.partyBmm.userCiphertext = observerValues.partyBmm;
-		return values;
+	function _toObserverViewQuote(Quote memory quote, ObserverQuoteValues storage observerValues) private view returns (ViewQuote memory viewQuote) {
+		viewQuote = _toViewQuote(quote);
+		viewQuote.openedPrice = observerValues.openedPrice;
+		viewQuote.initialOpenedPrice = observerValues.initialOpenedPrice;
+		viewQuote.requestedOpenPrice = observerValues.requestedOpenPrice;
+		viewQuote.marketPrice = observerValues.marketPrice;
+		viewQuote.quantity = observerValues.quantity;
+		viewQuote.closedAmount = observerValues.closedAmount;
+		viewQuote.avgClosedPrice = observerValues.avgClosedPrice;
+		viewQuote.requestedClosePrice = observerValues.requestedClosePrice;
+		viewQuote.quantityToClose = observerValues.quantityToClose;
+		viewQuote.tradingFee = observerValues.tradingFee;
+		viewQuote.initialLockedValues = observerValues.initialLockedValues;
+		viewQuote.lockedValues = observerValues.lockedValues;
+	}
+
+	function _toUserLockedValues(LockedValues memory values) private pure returns (UserLockedValues memory locked) {
+		locked.cva = values.cva.userCiphertext;
+		locked.lf = values.lf.userCiphertext;
+		locked.partyAmm = values.partyAmm.userCiphertext;
+		locked.partyBmm = values.partyBmm.userCiphertext;
 	}
 }

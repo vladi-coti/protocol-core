@@ -1,6 +1,6 @@
 import {expect} from "chai"
 
-import {QuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
+import {ViewQuoteStructOutput} from "../../../src/types/contracts/interfaces/ISymmio"
 import {logger} from "../../utils/LoggerUtils"
 import {QuoteStatus} from "../Enums"
 import {Hedger} from "../Hedger"
@@ -18,7 +18,7 @@ export type AcceptCancelCloseRequestValidatorBeforeArg = {
 export type AcceptCancelCloseRequestValidatorBeforeOutput = {
 	balanceInfoPartyA: BalanceInfo
 	balanceInfoPartyB: BalanceInfo
-	quote: QuoteStructOutput
+	quote: ViewQuoteStructOutput
 }
 
 export type AcceptCancelCloseRequestValidatorAfterArg = {
@@ -44,7 +44,7 @@ export class AcceptCancelCloseRequestValidator implements TransactionValidator {
 		const newQuote = await context.viewFacet.getQuote(arg.quoteId)
 		const oldQuote = arg.beforeOutput.quote
 		expect(newQuote.quoteStatus).to.be.equal(QuoteStatus.OPENED)
-		const decryptedQuantityToClose = await decryptUint256(context, newQuote.quantityToClose.userCiphertext, arg.user.getWallet())
+		const decryptedQuantityToClose = await decryptUint256(context, newQuote.quantityToClose, arg.user.getWallet())
 		expect(decryptedQuantityToClose).to.be.equal(0n)
 
 		// Check Balances partyA

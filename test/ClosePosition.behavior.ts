@@ -100,7 +100,7 @@ export function shouldBehaveLikeClosePosition(): void {
 
 	async function quotePnl(quoteId: bigint, closedPrice: bigint): Promise<bigint> {
 		const quote = await context.viewFacet.getQuote(quoteId)
-		const openedPrice = await decryptUint256(context, quote.openedPrice.userCiphertext, context.signers.user)
+		const openedPrice = await decryptUint256(context, quote.openedPrice, context.signers.user)
 		const quantity = await getQuoteQuantity(context, quoteId)
 		const priceDiff = closedPrice > openedPrice ? closedPrice - openedPrice : openedPrice - closedPrice
 		return unDecimal(quantity * priceDiff)

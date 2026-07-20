@@ -4,7 +4,8 @@ labels: [group:privacy-leak, wayfinder:research]
 priority: P2
 finding: H-28
 severity: High
-status: open
+status: closed
+disposition: implement
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -32,13 +33,34 @@ Redacted view types per caller role
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `valid`
+- [x] Fix disposition: `implement`
+- [x] If valid: write implement brief (minimal fix, affected files, regression test name)
 
 ## Answer
 
-*(unresolved)*
+**Verdict:** `valid`  
+**Disposition:** `implement` (done)
+
+Public quote/position views returned storage `Quote` / `utUint256` (system `ciphertext` + `userCiphertext`). Account balance views already return `ctUint256` only.
+
+### Fix
+
+Not zeroing husks on `Quote`. New public type `ViewQuote` (and `UserLockedValues` for locks) with **only** `ctUint256` fields. All quote/position view APIs return `ViewQuote` / `ViewQuote[]` via `_toViewQuote` / `_toObserverViewQuote`. Storage `Quote` unchanged.
+
+### Evidence
+
+```bash
+npx hardhat test --network localSimCoti test/audit/H28.test.ts --grep "H-28"
+# 2 passing — dual PASS vs testnet
+```
+
+### Implement brief
+
+- `QuoteStorage.ViewQuote` — metadata + flat user/observer ciphertext
+- `IViewFacet` / `ViewFacet` quote getters return `ViewQuote`
+- Regression: `test/audit/H28.test.ts` (ABI + live flat-ct shape)
+- **ABI break** for clients decoding `getQuote` as `utUint256`

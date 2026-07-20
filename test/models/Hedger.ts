@@ -17,7 +17,7 @@ import {
 	PairUpnlAndPriceSigStruct,
 	PrivateClosePositionParamsStruct,
 	PrivateOpenPositionParamsStruct,
-	QuoteStructOutput,
+	ViewQuoteStructOutput,
 	SettlementSigStructOutput,
 	SingleUpnlSigStruct,
 } from "../../src/types/contracts/interfaces/ISymmio"
@@ -96,8 +96,8 @@ export class Hedger {
 			const quote = await this.context.viewFacet.getQuote(id)
 			const partyA = quote.partyA
 			const user = this.context.manager.getUser(partyA)
-			const price = await decryptUint256(this.context, quote.requestedOpenPrice.userCiphertext, user.getWallet())
-			const quantity = await decryptUint256(this.context, quote.quantity.userCiphertext, user.getWallet())
+			const price = await decryptUint256(this.context, quote.requestedOpenPrice, user.getWallet())
+			const quantity = await decryptUint256(this.context, quote.quantity, user.getWallet())
 			const notional = unDecimal(quantity * price)
 			await runTx(
 				this.context.accountFacet.connect(this.signer).allocateForPartyB(unDecimal(notional * BigInt(allocateCoefficient)), partyA)
@@ -120,8 +120,8 @@ export class Hedger {
 			const quote = await this.context.viewFacet.getQuote(id)
 			const partyA = quote.partyA
 			const user = this.context.manager.getUser(partyA)
-			const price = await decryptUint256(this.context, quote.requestedOpenPrice.userCiphertext, user.getWallet())
-			const quantity = await decryptUint256(this.context, quote.quantity.userCiphertext, user.getWallet())
+			const price = await decryptUint256(this.context, quote.requestedOpenPrice, user.getWallet())
+			const quantity = await decryptUint256(this.context, quote.quantity, user.getWallet())
 			const notional = unDecimal(quantity * price)
 			await runTx(
 				this.context.accountFacet.connect(this.signer).allocateForPartyB(unDecimal(notional * BigInt(allocateCoefficient)), partyA)
@@ -336,9 +336,9 @@ export class Hedger {
 		logger.info(`Hedger::EmergencyClosePosition: ${id}`)
 	}
 
-	private async openedMarkPrices(positions: QuoteStructOutput[]): Promise<bigint[]> {
+	private async openedMarkPrices(positions: ViewQuoteStructOutput[]): Promise<bigint[]> {
 		const partyAWallet = this.context.signers.user
-		return Promise.all(positions.map(async quote => decryptUint256(this.context, quote.openedPrice.userCiphertext, partyAWallet)))
+		return Promise.all(positions.map(async quote => decryptUint256(this.context, quote.openedPrice, partyAWallet)))
 	}
 
 	private async buildSinglePriceSig(partyA: string, partyB?: string): Promise<SingleUpnlSigStruct> {
@@ -406,7 +406,7 @@ export class Hedger {
 	}
 
 	public async getUpnl(partyA: string): Promise<bigint> {
-		let openPositions: QuoteStructOutput[] = []
+		let openPositions: ViewQuoteStructOutput[] = []
 		const pageSize = 30
 		let last = 0
 		while (true) {
@@ -420,9 +420,9 @@ export class Hedger {
 			const user = this.context.manager.getUser(pos.partyA)
 
 			// Decrypt encrypted quote fields
-			const openedPrice = await decryptUint256(this.context, pos.openedPrice.userCiphertext, user.getWallet())
-			const quantity = await decryptUint256(this.context, pos.quantity.userCiphertext, user.getWallet())
-			const closedAmount = await decryptUint256(this.context, pos.closedAmount.userCiphertext, user.getWallet())
+			const openedPrice = await decryptUint256(this.context, pos.openedPrice, user.getWallet())
+			const quantity = await decryptUint256(this.context, pos.quantity, user.getWallet())
+			const closedAmount = await decryptUint256(this.context, pos.closedAmount, user.getWallet())
 			
 			const priceDiff = openedPrice - await getPrice()
 			const amount = quantity - closedAmount
