@@ -42,4 +42,5 @@ python3 utils/update_sig_checks.py 1
 | H-28 quote views return ViewQuote | PASS | PASS | ABI: ViewQuote/ctUint256 only; no utUint256 system ciphertext |
 | M-37 dispute resolve itInt256 | PASS | PASS | itInt256[] + validateCiphertext; no plaintext amount in calldata |
 | M-24 emergency close price event | PASS | PASS | wontfix: closedPrice = public Muon mark; fill/force stay encrypted |
-| L-03 editAccountName ownership | PASS | PASS |  |
+| L-03 editAccountName ownership | PASS | PASS | wontfix: caller-only rename; foreign addr does not mutate victim |
+| L-04 pagination underflow | PASS | PASS |  |

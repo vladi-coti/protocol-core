@@ -4,7 +4,8 @@ labels: [group:logic-security, wayfinder:research]
 priority: P3
 finding: L-04
 severity: Low
-status: open
+status: closed
+disposition: wontfix
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -32,13 +33,24 @@ Return empty array when start >= length
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `design-choice`
+- [x] Fix disposition: `wontfix`
+- [x] If valid: write implement brief — N/A
 
 ## Answer
 
-*(unresolved)*
+**Verdict:** `design-choice`  
+**Disposition:** `wontfix`
+
+Confirmed: `start > length` / `lastId` hits `length - start` under Solidity 0.8 → panic `0x11`. Soft-empty pages are a common API convention, not a protocol requirement.
+
+Invalid pagination range should fail loud (caller off-by-one stays visible). No funds / privacy impact. ViewFacet + MultiAccount left unchanged.
+
+**Regression:** `test/audit/L04.test.ts` (documents intentional revert)
+
+```bash
+npx hardhat test --network localSimCoti test/audit/L04.test.ts --grep "L-04"
+```
