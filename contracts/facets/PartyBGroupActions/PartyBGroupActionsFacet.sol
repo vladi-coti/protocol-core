@@ -59,6 +59,17 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 				gtUint256 gtMarketPrice = MpcCore.setPublic256(pairUpnlSig.price);
 				gtUint256 gtTradingFee = MpcCore.setPublic256(SymbolStorage.layout().symbols[newQuote.symbolId].tradingFee);
 				GarbledLockedValues memory gtLocked = newQuote.lockedValues.onBoard();
+				ObserverQuoteValues storage observerValues = QuoteStorage.layout().observerQuoteValues[newId];
+				EncryptedQuoteValues memory observerEncrypted = EncryptedQuoteValues(
+					observerValues.requestedOpenPrice,
+					observerValues.marketPrice,
+					observerValues.quantity,
+					observerValues.lockedValues.cva,
+					observerValues.lockedValues.lf,
+					observerValues.lockedValues.partyAmm,
+					observerValues.lockedValues.partyBmm,
+					observerValues.tradingFee
+				);
 				emit SendQuoteForPartyA(
 					newQuote.partyA,
 					newId,
@@ -76,6 +87,16 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 						MpcCore.offBoardToUser(gtLocked.partyBmm, newQuotePartyAAddr),
 						MpcCore.offBoardToUser(gtTradingFee, newQuotePartyAAddr)
 					),
+					newQuote.deadline
+				);
+				emit ObserverSendQuote(
+					newQuote.partyA,
+					newId,
+					address(0),
+					newQuote.symbolId,
+					newQuote.positionType,
+					newQuote.orderType,
+					observerEncrypted,
 					newQuote.deadline
 				);
 				for (uint256 i = 0; i < newQuote.partyBsWhiteList.length; i++) {
@@ -97,6 +118,16 @@ contract PartyBGroupActionsFacet is Accessibility, Pausable, IPartyBGroupActions
 							MpcCore.offBoardToUser(gtLocked.partyBmm, newQuotePartyBAddr),
 							MpcCore.offBoardToUser(gtTradingFee, newQuotePartyBAddr)
 						),
+						newQuote.deadline
+					);
+					emit ObserverSendQuote(
+						newQuote.partyA,
+						newId,
+						newQuote.partyBsWhiteList[i],
+						newQuote.symbolId,
+						newQuote.positionType,
+						newQuote.orderType,
+						observerEncrypted,
 						newQuote.deadline
 					);
 				}

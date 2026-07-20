@@ -43,4 +43,5 @@ python3 utils/update_sig_checks.py 1
 | M-37 dispute resolve itInt256 | PASS | PASS | itInt256[] + validateCiphertext; no plaintext amount in calldata |
 | M-24 emergency close price event | PASS | PASS | wontfix: closedPrice = public Muon mark; fill/force stay encrypted |
 | L-03 editAccountName ownership | PASS | PASS | wontfix: caller-only rename; foreign addr does not mutate victim |
-| L-04 pagination underflow | PASS | PASS |  |
+| L-04 pagination underflow | PASS | PASS | wontfix: out-of-range start may panic 0x11 |
+| M-23 partial-fill observer events | PASS | PASS | emit ObserverSendQuote on partial-fill child |

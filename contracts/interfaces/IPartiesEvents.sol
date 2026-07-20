@@ -32,6 +32,17 @@ interface IPartiesEvents {
 		uint256 deadline
 	);
 
+	event ObserverSendQuote(
+		address partyA,
+		uint256 quoteId,
+		address partyB,
+		uint256 symbolId,
+		PositionType positionType,
+		OrderType orderType,
+		EncryptedQuoteValues values,
+		uint256 deadline
+	);
+
 	event ExpireQuoteOpen(QuoteStatus quoteStatus, uint256 quoteId);
 
 	event ExpireQuoteClose(QuoteStatus quoteStatus, uint256 quoteId, uint256 closeId);

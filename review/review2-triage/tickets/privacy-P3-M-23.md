@@ -4,7 +4,8 @@ labels: [group:privacy-leak, wayfinder:research]
 priority: P3
 finding: M-23
 severity: Medium
-status: open
+status: closed
+disposition: implement
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -20,7 +21,7 @@ Medium severity. See [report §M-23](../report.md).
 
 ## Code references
 
-`PartyBGroupActionsFacetImpl.sol:61,96`
+`PartyBGroupActionsFacetImpl.sol:61,96` (now `PartyBGroupActionsFacet.sol` / `PartyBPositionActionsFacet.sol`)
 
 ## Suggested test seam
 
@@ -32,13 +33,26 @@ Emit observer child quote event on partial fill
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `valid`
+- [x] Fix disposition: `implement`
+- [x] If valid: write implement brief — see Answer
 
 ## Answer
 
-*(unresolved)*
+**Verdict:** `valid`  
+**Disposition:** `implement`
+
+Partial fill creates a child quote and emits `SendQuoteForPartyA` / `SendQuoteForPartyB`, but skipped `ObserverSendQuote` that `sendQuote` emits. Observer storage for the child was already written via `LibEncryption.storeQuote*`; only the event stream was incomplete.
+
+**Fix:** emit `ObserverSendQuote` (partyB=`address(0)` + each whitelist partyB) alongside child `SendQuote*` in `PartyBPositionActionsFacet` and `PartyBGroupActionsFacet`. Moved `ObserverSendQuote` to `IPartiesEvents` so PartyB facets can emit it.
+
+**Regression:** `test/audit/M23.test.ts`
+
+```bash
+npx hardhat test --network localSimCoti test/audit/M23.test.ts --grep "M-23"
+```
+
+Sim: 2 passing after fix (previously no `ObserverSendQuote` for child).
