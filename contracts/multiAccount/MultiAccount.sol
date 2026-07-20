@@ -292,7 +292,7 @@ contract MultiAccount is IMultiAccount, Initializable, PausableUpgradeable, Acce
 	 */
 	function _call(address account, bytes[] memory _callDatas) public whenNotPaused {
 		bool isOwner = owners[account] == msg.sender;
-		for (uint8 i; i < _callDatas.length; i++) {
+		for (uint256 i; i < _callDatas.length; i++) {
 			bytes memory _callData = _callDatas[i];
 			if (!isOwner) {
 				require(_callData.length >= 4, "MultiAccount: Invalid call data");

@@ -45,13 +45,13 @@ library LibSettlement {
 		gtInt256[] memory gtSettleAmounts = new gtInt256[](settleSig.partyBPriceSigs.length);
 		address[] memory partyBs = new address[](settleSig.partyBPriceSigs.length);
 		newPartyBsAllocatedBalances = new utUint256[](settleSig.partyBPriceSigs.length);
-		for (uint8 i = 0; i < gtSettleAmounts.length; i++) {
+		for (uint256 i = 0; i < gtSettleAmounts.length; i++) {
 			gtSettleAmounts[i] = gtZeroInt;
 			require(settleSig.partyBPriceSigs[i].quoteIds.length > 0, "LibSettlement: Empty partyB prices");
 			partyBs[i] = quoteLayout.quotes[settleSig.partyBPriceSigs[i].quoteIds[0]].partyB;
 		}
 
-		for (uint8 i = 0; i < settleSig.quotesSettlementsData.length; i++) {
+		for (uint256 i = 0; i < settleSig.quotesSettlementsData.length; i++) {
 			QuoteSettlementData memory data = settleSig.quotesSettlementsData[i];
 			Quote storage quote = quoteLayout.quotes[data.quoteId];
 			require(quote.partyA == partyA, "LibSettlement: PartyA is invalid");
@@ -93,7 +93,7 @@ library LibSettlement {
 		}
 
 		gtInt256 gtTotalSettlementAmount = gtZeroInt;
-		for (uint8 i = 0; i < partyBs.length; i++) {
+		for (uint256 i = 0; i < partyBs.length; i++) {
 			address partyB = partyBs[i];
 			
 			// Check PartyB solvency using encrypted balance calculation

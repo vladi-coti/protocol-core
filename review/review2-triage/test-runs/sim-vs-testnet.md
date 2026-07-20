@@ -35,3 +35,4 @@ python3 utils/update_sig_checks.py 1
 | M-10 suspension gates deallocate/cancel/close | PASS | PASS | notSuspended on cited PartyA/account paths |
 | M-11 pauseGlobal blocks internalTransfer | PASS | PASS | whenNotInternalTransferPaused checks globalPaused |
 | M-15 priceValidTime sole freshness knob | PASS | PASS | H-01 path C; upnlValidTime unused husk |
+| M-26 uint8 batch loop overflow | PASS | PASS | uint8→uint256 batch counters; addSymbols(256) |

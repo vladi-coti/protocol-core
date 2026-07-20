@@ -71,7 +71,7 @@ library LibSolvency {
 		gtInt256 gtPartyBUpnlAfterClose = gtUpnlPartyB;
 		gtInt256 gtZero = MpcCore.setPublic256(int256(0));
 
-		for (uint8 i = 0; i < quoteIds.length; i++) {
+		for (uint256 i = 0; i < quoteIds.length; i++) {
 			uint256 quoteId = quoteIds[i];
 			gtUint256 gtFilledAmount = gtFilledAmounts[i];
 			gtUint256 gtClosedPrice = gtClosedPrices[i];

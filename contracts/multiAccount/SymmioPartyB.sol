@@ -140,7 +140,7 @@ contract SymmioPartyB is Initializable, PausableUpgradeable, AccessControlEnumer
 	 * @param _callDatas An array of call data to be used for the calls.
 	 */
 	function _call(bytes[] calldata _callDatas) external whenNotPaused {
-		for (uint8 i; i < _callDatas.length; i++) _executeCall(symmioAddress, _callDatas[i]);
+		for (uint256 i; i < _callDatas.length; i++) _executeCall(symmioAddress, _callDatas[i]);
 	}
 
 	/**
@@ -151,7 +151,7 @@ contract SymmioPartyB is Initializable, PausableUpgradeable, AccessControlEnumer
 	function _multicastCall(address[] calldata destAddresses, bytes[] calldata _callDatas) external whenNotPaused {
 		require(destAddresses.length == _callDatas.length, "SymmioPartyB: Array length mismatch");
 
-		for (uint8 i; i < _callDatas.length; i++) _executeCall(destAddresses[i], _callDatas[i]);
+		for (uint256 i; i < _callDatas.length; i++) _executeCall(destAddresses[i], _callDatas[i]);
 	}
 
 	/**

@@ -102,7 +102,7 @@ library PartyAFacetImpl {
 		require(MpcCore.decrypt(balanceSufficient), "PartyAFacet: insufficient available balance");
 
 		// Additional non-encrypted validations
-		for (uint8 i = 0; i < partyBsWhiteList.length; i++) {
+		for (uint256 i = 0; i < partyBsWhiteList.length; i++) {
 			require(partyBsWhiteList[i] != msg.sender, "PartyAFacet: Sender isn't allowed in partyBWhiteList");
 		}
 		require(maLayout.affiliateStatus[affiliate] || affiliate == address(0), "PartyAFacet: Invalid affiliate");
