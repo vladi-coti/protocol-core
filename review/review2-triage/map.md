@@ -102,9 +102,9 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 
 Unblocked, highest priority — pick **one** per session:
 
-1. [Validate M-36 deferred liquidation reimbursement underflow](tickets/logic-P2-M-36.md) *(logic P2)*
+1. [Validate M-50 dust close request locks position](tickets/logic-P2-M-50.md) *(logic P2)*
 2. [Pin M-22 COTI deps after signed merge](tickets/design-M-22-coti-dependencies.md) *(policy set; open until pin)*
-3. [Validate M-50 dust close request locks position](tickets/logic-P2-M-50.md) *(logic P2)*
+3. [Validate L-01 liquidation fee rounding dust](tickets/logic-P3-L-01.md) *(logic P3)*
 
 ## Early privacy / architecture decisions (grill soon)
 
@@ -148,6 +148,7 @@ Unblocked, highest priority — pick **one** per session:
 - [Validate M-11 global pause skips internal transfer](tickets/logic-P2-M-11.md) — **valid / implement (done)**; `whenNotInternalTransferPaused` now checks `globalPaused`. `test/audit/M11.test.ts` sim green.
 - [Validate M-15 priceValidTime not enforced](tickets/logic-P2-M-15.md) — **valid / implement (done)**; sole freshness knob `priceValidTime` (H-01 path C); `upnlValidTime` ABI/storage husk. `test/audit/M15.test.ts` sim green.
 - [Validate M-26 uint8 batch loop overflow](tickets/logic-P2-M-26.md) — **valid / implement (done)**; unbounded batch `for (uint8)` → `uint256`; `addSymbols(256)` green. `test/audit/M26.test.ts` sim green.
+- [Validate M-36 deferred liquidation reimbursement underflow](tickets/logic-P2-M-36.md) — **invalid / wontfix**; H-16 made insolvency + reimbursement share one snapshot available (`lt(0)` then `gt(0)` dead). `test/audit/M36.test.ts` sim green.
 
 ## Not yet specified
 
