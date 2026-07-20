@@ -37,3 +37,4 @@ python3 utils/update_sig_checks.py 1
 | M-15 priceValidTime sole freshness knob | PASS | PASS | H-01 path C; upnlValidTime unused husk |
 | M-26 uint8 batch loop overflow | PASS | PASS | uint8→uint256 batch counters; addSymbols(256) |
 | M-36 deferred reimbursement underflow | PASS | PASS | invalid: H-16 dead branch |
+| M-50 dust close request | PASS | PASS | reject dust at request; shared LibQuote check |

@@ -232,6 +232,9 @@ library PartyAFacetImpl {
 		gtBool isValidQuantity = gtQuoteOpenAmount.ge(gtQuantityToClose);
 		require(MpcCore.decrypt(isValidQuantity), "PartyAFacet: Invalid quantityToClose");
 
+		// M-50: reject dust closes that execution would refuse (proportional LF/CVA/MM).
+		LibQuote.requireMinProportionalCloseAmount(quote, gtQuantityToClose);
+
 		gtUint256 gtRemainingAmount = gtQuoteOpenAmount.checkedSub(gtQuantityToClose);
 		GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
 		gtUint256 gtTotalForPartyA = gtLockedValues.totalForPartyA();

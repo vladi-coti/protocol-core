@@ -174,6 +174,31 @@ library LibQuote {
 	}
 
 	/**
+	 * @notice Rejects close sizes that would round proportional CVA/MM/LF release to zero.
+	 * @dev Shared by close execution and close-request creation (M-50).
+	 */
+	function requireMinProportionalCloseAmount(Quote storage quote, gtUint256 gtFilledAmount) internal {
+		gtUint256 gtOpenAmount = quoteOpenAmount(quote);
+		GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
+		gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
+
+		gtBool cvaIsZero = gtLockedValues.cva.eq(gtZero);
+		gtBool cvaProportionOk = gtLockedValues.cva.checkedMul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
+		require(MpcCore.decrypt(cvaIsZero.or(cvaProportionOk)), "LibQuote: Low filled amount");
+
+		gtBool partyAmmIsZero = gtLockedValues.partyAmm.eq(gtZero);
+		gtBool partyAmmProportionOk = gtLockedValues.partyAmm.checkedMul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
+		require(MpcCore.decrypt(partyAmmIsZero.or(partyAmmProportionOk)), "LibQuote: Low filled amount");
+
+		gtBool partyBmmIsZero = gtLockedValues.partyBmm.eq(gtZero);
+		gtBool partyBmmProportionOk = gtLockedValues.partyBmm.checkedMul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
+		require(MpcCore.decrypt(partyBmmIsZero.or(partyBmmProportionOk)), "LibQuote: Low filled amount");
+
+		gtBool lfProportionOk = gtLockedValues.lf.checkedMul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
+		require(MpcCore.decrypt(lfProportionOk), "LibQuote: Low filled amount");
+	}
+
+	/**
 	 * @notice Closes a quote.
 	 * @param quote The quote to close.
 	 * @param gtFilledAmount The encrypted filled amount of the quote.
@@ -187,23 +212,8 @@ library LibQuote {
 		// Onboard encrypted values
 		gtUint256 gtOpenAmount = quoteOpenAmount(quote);
 		GarbledLockedValues memory gtLockedValues = quote.lockedValues.onBoard();
-		
-		// Check that proportional amounts are not too low
+		requireMinProportionalCloseAmount(quote, gtFilledAmount);
 		gtUint256 gtZero = MpcCore.setPublic256(uint256(0));
-		gtBool cvaIsZero = gtLockedValues.cva.eq(gtZero);
-		gtBool cvaProportionOk = gtLockedValues.cva.checkedMul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
-		require(MpcCore.decrypt(cvaIsZero.or(cvaProportionOk)), "LibQuote: Low filled amount");
-		
-		gtBool partyAmmIsZero = gtLockedValues.partyAmm.eq(gtZero);
-		gtBool partyAmmProportionOk = gtLockedValues.partyAmm.checkedMul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
-		require(MpcCore.decrypt(partyAmmIsZero.or(partyAmmProportionOk)), "LibQuote: Low filled amount");
-		
-		gtBool partyBmmIsZero = gtLockedValues.partyBmm.eq(gtZero);
-		gtBool partyBmmProportionOk = gtLockedValues.partyBmm.checkedMul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
-		require(MpcCore.decrypt(partyBmmIsZero.or(partyBmmProportionOk)), "LibQuote: Low filled amount");
-		
-		gtBool lfProportionOk = gtLockedValues.lf.checkedMul(gtFilledAmount).div(gtOpenAmount).gt(gtZero);
-		require(MpcCore.decrypt(lfProportionOk), "LibQuote: Low filled amount");
 		
 		// Calculate remaining locked values after partial close
 		GarbledLockedValues memory gtNewLockedValues = GarbledLockedValues({

@@ -4,7 +4,7 @@ labels: [group:logic-security, wayfinder:research]
 priority: P2
 finding: M-50
 severity: Medium
-status: open
+status: closed
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -32,13 +32,31 @@ Validate minimum proportional close at request time
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `valid`
+- [x] Fix disposition: `implement`
+- [x] If valid: write implement brief (minimal fix, affected files, regression test name)
 
 ## Answer
 
-*(unresolved)*
+**Verdict:** `valid`  
+**Disposition:** `implement` (done)
+
+### Evidence
+
+Red (pre-fix): `quantityToClose = 1` wei → `CLOSE_PENDING`; `fillCloseRequest` → `LibQuote: Low filled amount`.
+
+Green (post-fix): same dust reverts at `requestToClosePosition`; full close still → `CLOSE_PENDING`.
+
+```bash
+npx hardhat test --network localSimCoti test/audit/M50.test.ts --grep "M-50"
+# 3 passing
+```
+
+### Implement brief
+
+- Extract `LibQuote.requireMinProportionalCloseAmount` (same CVA/MM/LF proportion rules as `closeQuote`).
+- Call from `PartyAFacetImpl.requestToClosePosition` before state → `CLOSE_PENDING`.
+- Regression: `test/audit/M50.test.ts`
