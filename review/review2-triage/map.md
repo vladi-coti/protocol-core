@@ -102,7 +102,7 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 
 Unblocked, highest priority — pick **one** per session:
 
-1. [Validate L-05 next-ID view off-by-one](tickets/logic-P3-L-05.md) *(logic P3)*
+*(empty — logic/privacy P3 validation queue clear; design-blocked / parked remain below)*
 
 Parked (not frontier): [M-22 COTI deps](tickets/design-M-22-coti-dependencies.md) — wait until signed forks merge to main, then pin.
 Blocked on design: M-16 (← design-M-16), M-49 (← design-M-49).
@@ -158,6 +158,7 @@ Blocked on design: M-16 (← design-M-16), M-49 (← design-M-49).
 - [Validate L-03 editAccountName ownership](tickets/logic-P3-L-03.md) — **invalid / wontfix**; only mutates `accounts[msg.sender]`; no victim storage/funds impact. `test/audit/L03.test.ts`.
 - [Validate L-04 pagination underflow](tickets/logic-P3-L-04.md) — **design-choice / wontfix**; out-of-range `start` may panic `0x11` (fail loud). `test/audit/L04.test.ts`.
 - [Validate M-23 missing partial-fill observer events](tickets/privacy-P3-M-23.md) — **valid / implement (done)**; emit `ObserverSendQuote` on partial-fill child. `test/audit/M23.test.ts`.
+- [Validate L-05 next-ID view off-by-one](tickets/logic-P3-L-05.md) — **design-choice / wontfix**; `getNext*` returns last assigned `lastId` (callers already `+1`). NatSpec clarified. `test/audit/L05.test.ts`.
 
 ## Not yet specified
 

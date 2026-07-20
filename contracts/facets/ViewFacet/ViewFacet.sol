@@ -1139,8 +1139,10 @@ contract ViewFacet is IViewFacet {
 	}
 
 	/**
-	 * @notice Retrieves the next available quote ID.
-	 * @return The next available quote ID.
+	 * @notice Retrieves the last assigned quote ID (storage `lastId`).
+	 * @dev Next creation uses `++lastId`, so the next assigned ID is `getNextQuoteId() + 1`.
+	 *      Name kept for ABI compatibility; callers that need the upcoming ID must add one.
+	 * @return The last assigned quote ID.
 	 */
 	function getNextQuoteId() external view returns (uint256) {
 		return QuoteStorage.layout().lastId;
@@ -1156,8 +1158,10 @@ contract ViewFacet is IViewFacet {
 	}
 
 	/**
-	 * @notice Retrieves the next available bridge transaction ID.
-	 * @return The next available bridge transaction ID.
+	 * @notice Retrieves the last assigned bridge transaction ID (storage `lastId`).
+	 * @dev Next creation uses `++lastId`, so the next assigned ID is `getNextBridgeTransactionId() + 1`.
+	 *      Name kept for ABI compatibility; callers that need the upcoming ID must add one.
+	 * @return The last assigned bridge transaction ID.
 	 */
 	function getNextBridgeTransactionId() external view returns (uint256) {
 		return BridgeStorage.layout().lastId;

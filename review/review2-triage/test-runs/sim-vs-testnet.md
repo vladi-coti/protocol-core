@@ -45,3 +45,4 @@ python3 utils/update_sig_checks.py 1
 | L-03 editAccountName ownership | PASS | PASS | wontfix: caller-only rename; foreign addr does not mutate victim |
 | L-04 pagination underflow | PASS | PASS | wontfix: out-of-range start may panic 0x11 |
 | M-23 partial-fill observer events | PASS | PASS | emit ObserverSendQuote on partial-fill child |
+| L-05 next-ID last assigned | PASS | PASS | wontfix: getNext* returns lastId; callers use +1 |

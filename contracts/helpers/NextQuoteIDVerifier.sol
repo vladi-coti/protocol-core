@@ -19,7 +19,8 @@ contract NextQuoteIDVerifier {
     }
 
     /**
-     * @notice Verifies if the given quote ID is the next generated quote ID.
+     * @notice Verifies that `quoteId` equals the last assigned quote ID from Symmio.
+     * @dev `getNextQuoteId()` returns storage `lastId` (last assigned), not lastId+1.
      * @param quoteId The quote ID to verify.
      */
     function verifyNextQuoteId(uint256 quoteId) external view {

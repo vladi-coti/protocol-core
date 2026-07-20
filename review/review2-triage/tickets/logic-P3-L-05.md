@@ -4,7 +4,8 @@ labels: [group:logic-security, wayfinder:research]
 priority: P3
 finding: L-05
 severity: Low
-status: open
+status: closed
+disposition: wontfix
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -20,7 +21,7 @@ Low severity. See [report §L-05](../report.md).
 
 ## Code references
 
-`ViewFacet.sol:1141,1142; NextQuoteIDVerifier.sol:21,27`
+`ViewFacet.sol` getNextQuoteId / getNextBridgeTransactionId; `NextQuoteIDVerifier.sol`
 
 ## Suggested test seam
 
@@ -32,13 +33,26 @@ Return lastId+1 or rename helpers
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `design-choice`
+- [x] Fix disposition: `wontfix`
+- [x] If valid: write implement brief — N/A
 
 ## Answer
 
-*(unresolved)*
+**Verdict:** `design-choice`  
+**Disposition:** `wontfix` (NatSpec only)
+
+Confirmed: `getNextQuoteId()` / `getNextBridgeTransactionId()` return storage `lastId` (last assigned). Creation does `++lastId`, so the upcoming ID is `helper + 1`.
+
+Changing the return to `lastId + 1` would break in-repo callers that already add one (`BridgeFacet.behavior.ts`: `id + 1n`) and `NextQuoteIDVerifier` (`require(quoteId == getNextQuoteId())` as last-assigned check). Renaming is an ABI break.
+
+Keep behavior; clarify NatSpec that these return last assigned ID.
+
+**Regression:** `test/audit/L05.test.ts`
+
+```bash
+npx hardhat test --network localSimCoti test/audit/L05.test.ts --grep "L-05"
+```
