@@ -4,7 +4,8 @@ labels: [group:logic-security, wayfinder:research]
 priority: P3
 finding: L-08
 severity: Low
-status: open
+status: closed
+disposition: implement
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -20,7 +21,7 @@ Low severity. See [report §L-08](../report.md).
 
 ## Code references
 
-`SymmioFeeDistributor.sol:173,177,178,181`
+`SymmioFeeDistributor.sol` claimFee / dryClaimAllFee
 
 ## Suggested test seam
 
@@ -32,13 +33,26 @@ Track dust or transfer remainder
 
 ## Resolution checklist
 
-- [ ] Read cited code paths in current branch (check review1 overlap)
-- [ ] Build red-capable testnet test per **diagnosing-bugs** Phase 1
-- [ ] Run test; record command + output
-- [ ] Verdict: `valid` | `invalid` | `partial` | `design-choice`
-- [ ] Fix disposition: `implement` | `defer` | `wontfix` | `needs-human`
-- [ ] If valid: write implement brief (minimal fix, affected files, regression test name)
+- [x] Read cited code paths in current branch (check review1 overlap)
+- [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1
+- [x] Run test; record command + output
+- [x] Verdict: `valid`
+- [x] Fix disposition: `implement`
+- [x] If valid: write implement brief — see Answer
 
 ## Answer
 
-*(unresolved)*
+**Verdict:** `valid`  
+**Disposition:** `implement`
+
+`claimFee` floored each `(share * amount) / 1e18` independently. With shares summing to 100%, dust stayed in the distributor while `FeesClaimed(amount)` reported the full withdraw.
+
+**Fix:** last stakeholder receives `amount - distributed` remainder (same in `dryClaimAllFee`). Full amount leaves the contract; event matches transfers.
+
+**Regression:** `test/audit/L08.test.ts`
+
+```bash
+npx hardhat test --network localSimCoti test/audit/L08.test.ts --grep "L-08"
+```
+
+Sim: 2 passing (previously distributed 100 vs claimed 101).

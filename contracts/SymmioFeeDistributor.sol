@@ -185,8 +185,13 @@ contract SymmioFeeDistributor is Initializable, PausableUpgradeable, AccessContr
         ISymmioCore(symmioAddress).withdraw(amount);
 
         uint256 len = stakeholders.length;
+        uint256 distributed;
         for (uint256 i = 0; i < len; i++) {
-            uint256 share = (stakeholders[i].share * amount) / 1e18;
+            // Last stakeholder receives remainder so floor dust is not retained.
+            uint256 share = i == len - 1 ? amount - distributed : (stakeholders[i].share * amount) / 1e18;
+            if (i != len - 1) {
+                distributed += share;
+            }
             IERC20Upgradeable(collateral).safeTransfer(stakeholders[i].receiver, share);
             emit FeeDistributed(stakeholders[i].receiver, share);
         }
@@ -213,9 +218,13 @@ contract SymmioFeeDistributor is Initializable, PausableUpgradeable, AccessContr
         holders = new address[](len);
         shares = new uint256[](len);
 
+        uint256 distributed;
         for (uint256 i = 0; i < len; i++) {
             holders[i] = stakeholders[i].receiver;
-            shares[i] = (stakeholders[i].share * totalClaimable) / 1e18;
+            shares[i] = i == len - 1 ? totalClaimable - distributed : (stakeholders[i].share * totalClaimable) / 1e18;
+            if (i != len - 1) {
+                distributed += shares[i];
+            }
         }
 
         return (holders, shares);
