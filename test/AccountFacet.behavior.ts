@@ -170,7 +170,11 @@ export function shouldBehaveLikeAccountFacet(): void {
 			await hedger.setBalances(decimal(2000n), decimal(1000n))
 
 			const quoteData = await user.sendQuote(
-				limitQuoteRequestBuilder().partyBWhiteList([context.signers.hedger.address]).positionType(PositionType.SHORT).build(),
+				limitQuoteRequestBuilder()
+					.partyBWhiteList([context.signers.hedger.address])
+					.affiliate(context.multiAccount)
+					.positionType(PositionType.SHORT)
+					.build(),
 			)
 			await hedger.lockQuote(quoteData)
 			await hedger.openPosition(quoteData)
@@ -269,7 +273,7 @@ export function shouldBehaveLikeAccountFacet(): void {
 				await hedger.setup()
 				await hedger.setBalances(decimal(700n), decimal(700n))
 
-				const {quoteId} = await user.sendQuote()
+				const {quoteId} = await user.sendQuote(limitQuoteRequestBuilder().affiliate(context.multiAccount).build())
 				const quote = await context.viewFacet.getQuote(quoteId)
 				const quantity = await decryptUint256(context, quote.quantity, context.signers.user)
 				const requestedOpenPrice = await decryptUint256(context, quote.requestedOpenPrice, context.signers.user)

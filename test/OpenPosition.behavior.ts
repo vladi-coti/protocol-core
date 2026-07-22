@@ -239,7 +239,12 @@ export function shouldBehaveLikeOpenPosition(): void {
 			.openPrice(decimal(9n, 17))
 			.price(decimal(1n, 17))
 			.build()
-		const {encryptedParams, upnlSig} = await hedger.buildOpenPositionCalldataArgs(openRequest)
+		const {encryptedParams, upnlSig} = await hedger.buildOpenPositionCalldataArgs(
+			openRequest,
+			undefined,
+			quoteData.quoteId,
+			context.signers.user.address,
+		)
 
 		const tx = await context.partyBPositionActionsFacet
 			.connect(context.signers.hedger)
@@ -342,11 +347,13 @@ export function shouldBehaveLikeOpenPosition(): void {
 			const {encryptedParams, upnlSig} = await hedger2.buildOpenPositionCalldataArgs(
 				openRequest,
 				context.partyBGroupActionsFacet.interface.getFunction("lockAndOpenQuote").selector,
+				quoteData.quoteId,
+				parentQuote.partyA,
 			)
 			const tx = await context.partyBGroupActionsFacet.connect(context.signers.hedger2).lockAndOpenQuote(
 				quoteData.quoteId,
 				encryptedParams,
-				await getDummySingleUpnlSig(BigInt(openRequest.upnlPartyA)),
+				await getDummySingleUpnlSig(0n),
 				upnlSig,
 			)
 			const receipt = await tx.wait()
@@ -402,11 +409,13 @@ export function shouldBehaveLikeOpenPosition(): void {
 			const {encryptedParams, upnlSig} = await hedger2.buildOpenPositionCalldataArgs(
 				openRequest,
 				context.partyBGroupActionsFacet.interface.getFunction("lockAndOpenQuote").selector,
+				quoteData.quoteId,
+				parentQuote.partyA,
 			)
 			const tx = await context.partyBGroupActionsFacet.connect(context.signers.hedger2).lockAndOpenQuote(
 				quoteData.quoteId,
 				encryptedParams,
-				await getDummySingleUpnlSig(BigInt(openRequest.upnlPartyA)),
+				await getDummySingleUpnlSig(0n),
 				upnlSig,
 			)
 			const receipt = await tx.wait()

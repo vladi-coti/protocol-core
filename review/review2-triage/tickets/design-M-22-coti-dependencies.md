@@ -4,8 +4,8 @@ labels: [group:design-product, wayfinder:grilling]
 priority: P1
 finding: M-22
 severity: Medium
-status: open
-disposition: defer
+status: closed
+disposition: fix
 blocks: —
 blocked_by: —
 report: ../report.md
@@ -37,31 +37,22 @@ Pin to commits; track lockfile in repo
 - [x] Build red-capable testnet test per **diagnosing-bugs** Phase 1 — N/A (design; local lockfile/git refs are the evidence)
 - [x] Run test; record command + output — N/A (static proof below)
 - [x] Verdict: `valid`
-- [x] Fix disposition: `defer` (pin after signed forks merge to main)
-- [ ] Pin `package.json` to commit SHAs + commit `yarn.lock` (stop gitignoring); then close ticket
+- [x] Fix disposition: `fix` (exact published registry pins; lockfile stays gitignored)
+- [x] Pin `package.json` to immutable versions; close ticket
 
 ## Answer
 
-**Verdict: `valid`. Disposition: `defer` — ticket stays open until pin lands.**
+**Verdict: `valid`. Disposition: `fix` — pinned 2026-07-22.**
 
-Claim confirmed:
-- `package.json` uses floating Git branches: `vladi-coti/coti-contracts#feat/signed`, `coti-ethers#extended-uint-support` (+ transitive SDK branch).
-- Local `yarn.lock` already resolves those to commits, but `yarn.lock` / `package-lock.json` are **gitignored** — clean clones do not share the pin.
-- `sim-coti-node` remains `file:../../coti/sim-coti-node` (local-only; out of remote pin scope for now).
+Claim confirmed on floating Git / `link:` refs. Remediation:
 
-### Policy (grilled 2026-07-19)
+| Package | Pin | Notes |
+| --- | --- | --- |
+| `@coti-io/coti-contracts` | `1.3.1` | npm registry (signed MPC); npm `gitHead` `33ee5324f8a970a9b060af53ded957886f4d89d3` |
+| `@coti-io/coti-ethers` | `1.0.6` | npm registry (exact) |
 
-Keep branch refs while signed / extended-uint work is still on feature forks. **After those features merge into the upstream/main branches we consume**, pin:
+**Lockfile policy (deliberate):** keep `yarn.lock` gitignored. Exact semver pins in `package.json` are the reproducibility control we accept; tracking the full lockfile is out of scope for this privacy/audit branch (hygiene, not a privacy change).
 
-1. `package.json` → `github:…#<immutableCommitSha>` (or published registry versions if available).
-2. Stop ignoring and **commit `yarn.lock`** so CI/audit installs are reproducible.
-3. Document resolved SHAs in the ticket / triage note at pin time.
+### Static tripwire
 
-Until then: accept install drift risk on purpose; do not pretend the lockfile is tracked.
-
-### Implement brief (when unblocked)
-
-- Edit `package.json` COTI github refs to SHAs of the merged main tips.
-- Remove `yarn.lock` (and ideally `/package-lock.json`) from `.gitignore`; commit the lockfile used for audit/testnet builds.
-- Optional: drop or document `file:` sim dep for remote CI.
-- Static check: `test/audit/M22.test.ts` — `package.json` must not contain `#feat/` / `#extended-uint-support` branch refs; lockfile must be tracked.
+`npx hardhat test test/audit/M22.test.ts --network hardhat` (static; asserts exact pins + no branch/`link:` refs).

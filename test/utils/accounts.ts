@@ -18,7 +18,15 @@ function isSimChain(): boolean {
 }
 
 async function loadSimCotiEthers() {
-	return await import("@coti-io/sim-coti-node/coti-ethers")
+	try {
+		return await import("@coti-io/sim-coti-node/coti-ethers")
+	} catch (e) {
+		throw new Error(
+			`localSimCoti requires @coti-io/sim-coti-node (private/local). ` +
+				`Install/link it locally, or use --network coti-testnet. ` +
+				`Original: ${e instanceof Error ? e.message : e}`,
+		)
+	}
 }
 
 function patchProviderForTestnet(provider: any) {
@@ -35,6 +43,18 @@ function patchProviderForTestnet(provider: any) {
 		maxPriorityFeePerGas: null,
 	})
 	provider.getGasPrice = async () => gasPrice
+}
+
+/** coti-ethers@1.0.6 renamed *Uint256/*Int256 → *Value256/*ValueSigned256. Keep old names for tests. */
+function ensureLegacyUint256Aliases(wallet: Wallet): Wallet {
+	const w = wallet as any
+	if (typeof w.encryptUint256 !== "function" && typeof w.encryptValue256 === "function") {
+		w.encryptUint256 = w.encryptValue256.bind(w)
+		w.decryptUint256 = w.decryptValue256.bind(w)
+		w.encryptInt256 = w.encryptValueSigned256.bind(w)
+		w.decryptInt256 = w.decryptValueSigned256.bind(w)
+	}
+	return wallet
 }
 
 function wrapWalletForTestnet(wallet: Wallet): Wallet {
@@ -146,7 +166,7 @@ export async function setupAccounts() {
 		accounts = await Promise.all(wallets.map(async (account, i) => await toAccount(account, userKeys[i])))
 	}
 
-	return accounts.map(wrapWalletForTestnet)
+	return accounts.map(account => wrapWalletForTestnet(ensureLegacyUint256Aliases(account)))
 }
 
 function setEnvValue(key: string, value: string) {

@@ -94,15 +94,12 @@ Architectural or intentional tradeoffs. **Decide before implementing related pri
 | --- | --- | --- | --- |
 | P0 | [Decide free collateral privacy model](tickets/design-H-13-free-collateral-privacy.md) | H-13 | H-27, H-06 fix approach |
 | P1 | [Decide observer rotation model](tickets/design-M-13-observer-rotation.md) | M-13 | M-14, M-44 fix approach |
-| P1 | [Decide COTI dependency pinning policy](tickets/design-M-22-coti-dependencies.md) | M-22 | — |
 
 ## Frontier (start here)
 
 Unblocked, highest priority — pick **one** per session:
 
-*(empty — review2 validation frontier cleared except parked M-22)*
-
-Parked (not frontier): [M-22 COTI deps](tickets/design-M-22-coti-dependencies.md) — wait until signed forks merge to main, then pin.
+*(empty — review2 validation frontier cleared)*
 
 ## Early privacy / architecture decisions (grill soon)
 
@@ -113,7 +110,7 @@ Parked (not frontier): [M-22 COTI deps](tickets/design-M-22-coti-dependencies.md
 | [M-13 observer rotation](tickets/design-M-13-observer-rotation.md) | M-14, M-44; proxy + graph — **closed (flip-first + admin batched migrate landed)** |
 | [M-49 quote metadata](tickets/design-M-49-quote-metadata-privacy.md) | M-49 — **closed (numbers-only; metadata public)** |
 | [M-16 liquidation type](tickets/design-M-16-liquidation-type-disclosure.md) | M-16 privacy — **closed (keep public)** |
-| [M-22 COTI dep pins](tickets/design-M-22-coti-dependencies.md) | all client builds / mainnet repro — **policy: defer pin until signed forks merge to main; ticket open** |
+| [M-22 COTI dep pins](tickets/design-M-22-coti-dependencies.md) | all client builds / mainnet repro — **closed (npm 1.3.1 / 1.0.6 exact)** |
 
 ## Decisions so far
 
@@ -158,6 +155,7 @@ Parked (not frontier): [M-22 COTI deps](tickets/design-M-22-coti-dependencies.md
 - [Validate L-05 next-ID view off-by-one](tickets/logic-P3-L-05.md) — **design-choice / wontfix**; `getNext*` returns last assigned `lastId` (callers already `+1`). NatSpec clarified. `test/audit/L05.test.ts`.
 - [Decide M-16 liquidation type disclosure](tickets/design-M-16-liquidation-type-disclosure.md) — **keep public**; severity bucket intentional. [Validate M-16](tickets/privacy-P3-M-16.md) — **design-choice / wontfix**. `test/audit/M16.test.ts`.
 - [Decide M-49 quote metadata privacy](tickets/design-M-49-quote-metadata-privacy.md) — **numbers-only**; intent/routing metadata public. [Validate M-49](tickets/privacy-P3-M-49.md) — **design-choice / wontfix**. `test/audit/M49.test.ts`.
+- [Decide COTI dependency pinning](tickets/design-M-22-coti-dependencies.md) — **valid / fix**; `@coti-io/coti-contracts@1.3.1` + `coti-ethers@1.0.6` exact; `test/audit/M22.test.ts` static tripwire.
 - [Validate L-06 PartyB position view sparse scan](tickets/logic-P3-L-06.md) — **valid / implement (done)**; compact PartyB-filtered views clamped to `lastId`. `test/audit/L06.test.ts`.
 - [Validate L-08 fee distributor rounding event mismatch](tickets/logic-P3-L-08.md) — **valid / implement (done)**; last stakeholder gets floor dust remainder. `test/audit/L08.test.ts`.
 - [Validate L-09 multicall empty return data](tickets/logic-P3-L-09.md) — **invalid / wontfix**; memory→memory struct assign is reference; tryAggregate/aggregate3 return data intact. `test/audit/L09.test.ts`.
