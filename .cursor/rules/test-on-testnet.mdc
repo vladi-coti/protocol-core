@@ -34,20 +34,11 @@ Tests use dummy Muon sigs (`signature: 0`). Production Muon verification must st
 - Same toggle as `utils/runTests.sh` (disable → test → re-enable). Do not commit Muon-disabled `contracts/libraries/muon/*.sol` unless the user explicitly asks; treat it as local test setup.
 - If `sendQuote` or similar succeeds on revert-only audit tests but fails on success paths with `no zero inputs allowed`, Muon is likely still enabled — run step 1, recompile, retry.
 
-## Sim vs testnet (current trust check)
+## Sim vs testnet (optional local tooling)
 
-Temporary: we are checking whether `@coti-io/sim-coti-node` (`localSimCoti`) is reliable enough to use for most audit triage instead of full `coti-testnet` runs.
+`@coti-io/sim-coti-node` (`localSimCoti`) is **optional** and not a package dependency. Default verification is `coti-testnet`.
 
-- **Day-to-day audit tests:** prefer sim for speed. Put sim commands/results in the ticket.
-- **Trust sample (required):** after each closed validation ticket, dual-run the same `--grep` and record one row in `review/review2-triage/test-runs/sim-vs-testnet.md`.
-
-```bash
-# sim: cd /Users/Vlad1/coti/sim-coti-node && npm start
-python3 utils/update_sig_checks.py 1
-./review/review2-triage/scripts/run-dual-network-test.sh '<grep>' <file.ts> '<short name>'
-```
-
-Until that table shows stable agreement, do not assume sim replaces testnet. Disagreement / OOG / empty-revert on testnet only → still trust testnet for that path. This check is local triage tooling, not a mainnet readiness signal.
+If you have sim linked locally and a node on `:8546`, you may use `--network localSimCoti` for speed. On disagreement / OOG / empty-revert, **trust testnet**.
 
 ## COTI `MpcCore.mux` convention (reversed vs ternary intuition)
 
